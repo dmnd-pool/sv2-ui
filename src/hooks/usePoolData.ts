@@ -85,7 +85,7 @@ function templateModeToInternalMode(templateMode: TemplateMode): 'jdc' | 'transl
 /**
  * Collapse detailed Sv2 client data into a single channel aggregate.
  */
-function aggregateSv2ClientChannels(clients: ClientWithChannels[]): AggregatedClientChannels {
+export function aggregateSv2ClientChannels(clients: ClientWithChannels[]): AggregatedClientChannels {
   return clients.reduce<AggregatedClientChannels>((aggregated, client) => {
     aggregated.total_extended += client.extended_channels.length;
     aggregated.total_standard += client.standard_channels.length;
@@ -103,7 +103,7 @@ function aggregateSv2ClientChannels(clients: ClientWithChannels[]): AggregatedCl
 /**
  * Fetch all Sv2 clients plus their channels.
  */
-async function fetchAllSv2Clients(baseUrl: string): Promise<ClientWithChannels[]> {
+export async function fetchAllSv2Clients(baseUrl: string): Promise<ClientWithChannels[]> {
   const clientsResponse = await fetchWithTimeout<ClientsResponse>(`${baseUrl}/clients?offset=0&limit=100`);
   
   if (clientsResponse.items.length === 0) {

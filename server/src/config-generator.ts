@@ -3,12 +3,9 @@
  * Based on sv2-apps/docker/config templates
  */
 
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import type { SetupData } from './types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const BRAIINS_POOL_AUTHORITY_KEY = '9awtMD5KQgvRUh2yFbjVeT7b6hjipWcAsQHd6wEhgtDT9soosna';
 const BRAIINS_POOL_ADDRESS = 'stratum.braiins.com';
 
@@ -19,20 +16,26 @@ interface PortsConfig {
 }
 
 function loadPorts(): PortsConfig {
-  // In production (Docker), __dirname is /app/dist, so ../shared resolves to /app/shared
-  // In development, __dirname is server/dist, so ../shared resolves to server/shared (wrong)
-  // We need to go up one more level in dev: ../../shared
-  // Try production path first, fall back to dev path
-  const prodPath = join(__dirname, '../shared/ports.json');
-  const devPath = join(__dirname, '../../shared/ports.json');
-  
-  try {
-    const data = readFileSync(prodPath, 'utf-8');
-    return JSON.parse(data) as PortsConfig;
-  } catch {
-    const data = readFileSync(devPath, 'utf-8');
+  const candidatePaths = [
+    join(process.cwd(), 'shared/ports.json'),
+    join(process.cwd(), '../shared/ports.json'),
+    join(process.cwd(), '../../shared/ports.json'),
+  ];
+
+  for (const candidatePath of candidatePaths) {
+    if (!existsSync(candidatePath)) {
+      continue;
+    }
+
+    const data = readFileSync(candidatePath, 'utf-8');
     return JSON.parse(data) as PortsConfig;
   }
+
+  throw new Error(`Unable to locate shared/ports.json from ${process.cwd()}`);
+}
+
+function escapeTomlString(value: string): string {
+  return JSON.stringify(value).slice(1, -1);
 }
 
 const ports = loadPorts();
@@ -102,7 +105,7 @@ min_supported_version = 2
 downstream_extranonce2_size = 4
 
 # User identity/username for the upstream connection
-user_identity = "${translator.user_identity}"
+user_identity = "${escapeTomlString(translator.user_identity)}"
 
 # Aggregate channels: if true, all miners share one upstream channel
 aggregate_channels = ${translator.aggregate_channels}
@@ -123,9 +126,9 @@ enable_vardiff = true
 job_keepalive_interval_secs = 60
 
 [[upstreams]]
-address = "${upstreamAddress}"
+address = "${escapeTomlString(upstreamAddress)}"
 port = ${upstreamPort}
-authority_pubkey = "${authorityPubkey}"
+authority_pubkey = "${escapeTomlString(authorityPubkey)}"
 `;
 }
 
@@ -150,10 +153,10 @@ export function generateJdcConfig(data: SetupData): string | null {
   const upstreamsConfig = !isSovereignSolo && pool
     ? `# Upstream pool connection
 [[upstreams]]
-authority_pubkey = "${pool.authority_public_key}"
-pool_address = "${pool.address}"
+authority_pubkey = "${escapeTomlString(pool.authority_public_key)}"
+pool_address = "${escapeTomlString(pool.address)}"
 pool_port = ${pool.port}
-jds_address = "${pool.address}"
+jds_address = "${escapeTomlString(pool.address)}"
 jds_port = 3334
 
 `
@@ -172,25 +175,25 @@ max_supported_version = 2
 min_supported_version = 2
 
 # Auth keys for downstream connections
-authority_public_key = "${JDC_AUTHORITY_PUBLIC_KEY}"
+authority_public_key = "${escapeTomlString(JDC_AUTHORITY_PUBLIC_KEY)}"
 authority_secret_key = "mkDLTBBRxdBv998612qipDYoTK3YUrqLe8uWw7gu3iXbSrn2n"
 cert_validity_sec = 3600
 
 # User identity/username for the upstream connection
-user_identity = "${jdc.user_identity}"
+user_identity = "${escapeTomlString(jdc.user_identity)}"
 
 # Shares configuration
 shares_per_minute = ${sharesPerMinute}
 share_batch_size = ${shareBatchSize}
 
 # JDC mode: FULLTEMPLATE, COINBASEONLY, or SOLOMINING
-mode = "${isSovereignSolo ? 'SOLOMINING' : 'FULLTEMPLATE'}"
+mode = "${escapeTomlString(isSovereignSolo ? 'SOLOMINING' : 'FULLTEMPLATE')}"
 
 # String to be added into the Coinbase scriptSig
-jdc_signature = "${jdcSignature}"
+jdc_signature = "${escapeTomlString(jdcSignature)}"
 
 # Solo Mining config - coinbase output for sovereign or fallback solo mining
-coinbase_reward_script = "addr(${jdc.coinbase_reward_address})"
+coinbase_reward_script = "addr(${escapeTomlString(jdc.coinbase_reward_address)})"
 
 # Protocol Extensions
 supported_extensions = []
@@ -202,7 +205,7 @@ monitoring_cache_refresh_secs = 15
 
 ${upstreamsConfig}# Bitcoin Core IPC config
 [template_provider_type.BitcoinCoreIpc]
-network = "${bitcoin.network}"
+network = "${escapeTomlString(bitcoin.network)}"
 fee_threshold = ${feeThreshold}
 min_interval = ${minInterval}
 `;

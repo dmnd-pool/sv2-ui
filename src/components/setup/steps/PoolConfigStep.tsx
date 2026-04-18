@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StepProps, PoolConfig } from '../types';
 import { Check } from 'lucide-react';
 import { PoolIcon } from '@/components/ui/pool-icon';
@@ -71,21 +71,30 @@ export function PoolConfigStep({ data, updateData, onNext }: StepProps) {
   const defaultPool = pools.find(p => p.badge !== 'coming-soon') ?? null;
 
   const [isCustom, setIsCustom] = useState(false);
-  const [selectedPoolId, setSelectedPoolId] = useState<string | null>(() => {
-    if (data.pool?.address) return null; // already has a value from back-navigation
-    if (defaultPool) {
-      // pre-populate data so Continue is enabled immediately
-      setTimeout(() => updateData({ pool: { name: defaultPool.name, address: defaultPool.address, port: defaultPool.port, authority_public_key: defaultPool.authority_public_key } }), 0);
-      return defaultPool.id;
-    }
-    return null;
-  });
+  const [selectedPoolId, setSelectedPoolId] = useState<string | null>(
+    data.pool?.address ? null : defaultPool?.id ?? null
+  );
+  const [hasAppliedDefaultPool, setHasAppliedDefaultPool] = useState(false);
   const [customPool, setCustomPool] = useState<PoolConfig>({
     name: 'Custom Pool',
     address: '',
     port: 34254,
     authority_public_key: '',
   });
+
+  useEffect(() => {
+    if (hasAppliedDefaultPool || data.pool?.address || !defaultPool) {
+      return;
+    }
+
+    updateData({ pool: {
+      name: defaultPool.name,
+      address: defaultPool.address,
+      port: defaultPool.port,
+      authority_public_key: defaultPool.authority_public_key,
+    } });
+    setHasAppliedDefaultPool(true);
+  }, [data.pool?.address, defaultPool, hasAppliedDefaultPool, updateData]);
 
   const handleSelectPool = (pool: KnownPool) => {
     if (pool.badge === 'coming-soon') return;

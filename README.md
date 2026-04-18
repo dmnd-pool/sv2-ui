@@ -70,6 +70,31 @@ Then open **http://localhost:5173**. On first run, you'll be guided through the 
 
 The backend auto-detects common local Docker sockets, including `/var/run/docker.sock` and `~/.docker/run/docker.sock`. To override detection, set `DOCKER_SOCKET_PATH` or `DOCKER_HOST` before starting the server.
 
+## Testing
+
+The repository now includes a dual test stack:
+
+- Frontend: Vitest + React Testing Library
+- Backend: Jest (ESM TypeScript)
+
+Run tests locally:
+
+```bash
+# Run all tests
+npm run test
+
+# Run coverage with enforced 70% thresholds on critical paths
+npm run test:coverage
+
+# Run only frontend tests
+npm run test:ui
+
+# Run only backend tests
+npm run test:server
+```
+
+Coverage gates are enforced in CI on pull requests.
+
 ## What It Does
 
 1. **Setup Wizard** - Guides you through configuration

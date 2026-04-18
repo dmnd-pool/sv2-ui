@@ -44,7 +44,7 @@ function ThemeToggle({ isDark, toggle }: { isDark: boolean; toggle: () => void }
   );
 }
 
-function computeSteps(data: SetupData): SetupStep[] {
+export function computeSteps(data: SetupData): SetupStep[] {
   const isSoloMode = data.miningMode === 'solo';
   const isPoolMode = data.miningMode === 'pool';
   const isJdMode = data.mode === 'jd';

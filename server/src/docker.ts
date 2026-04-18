@@ -127,6 +127,16 @@ function normalizeDockerError(error: unknown): Error {
 let dockerConnection = resolveDockerConnection();
 let docker = new Docker(dockerConnection.options);
 
+export function __setDockerForTests(
+  testDocker: Docker,
+  testConnection?: DockerConnectionConfig,
+): void {
+  docker = testDocker;
+  if (testConnection) {
+    dockerConnection = testConnection;
+  }
+}
+
 function refreshDockerConnection(): void {
   const nextConnection = resolveDockerConnection();
   if (
