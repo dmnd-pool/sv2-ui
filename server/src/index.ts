@@ -4,7 +4,7 @@
  * Handles Docker orchestration for the SV2 mining stack.
  */
 
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs/promises';
@@ -317,6 +317,55 @@ app.use('/jdc-api', async (req, res) => {
     res.status(response.status).set('Content-Type', response.headers.get('Content-Type') || 'application/json').send(data);
   } catch {
     res.status(502).json({ error: 'Cannot connect to JDC monitoring API' });
+  }
+});
+
+/**
+ * Proxy requests to the DMND cloud user-dashboard server. Required because
+ * browsers block direct cross-origin calls to *.dmnd.work. Base URL is
+ * overridable via DMND_API_BASE so deployments can target staging/testnet3.
+ * /dmnd-api/api/pool/urls -> $DMND_API_BASE/api/pool/urls
+ */
+const DMND_API_BASE = process.env.DMND_API_BASE
+  ?? 'https://production-user-dashboard-server.dmnd.work';
+
+const DMND_PROXY_BUCKETS = new Map<string, { count: number; windowStart: number }>();
+const DMND_PROXY_LIMIT = 20;
+const DMND_PROXY_WINDOW_MS = 60_000;
+
+function dmndProxyRateLimit(req: Request, res: Response): boolean {
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+  const now = Date.now();
+  const bucket = DMND_PROXY_BUCKETS.get(ip);
+  if (!bucket || now - bucket.windowStart > DMND_PROXY_WINDOW_MS) {
+    DMND_PROXY_BUCKETS.set(ip, { count: 1, windowStart: now });
+    return true;
+  }
+  if (bucket.count >= DMND_PROXY_LIMIT) {
+    res.status(429).json({ error: 'Too many requests' });
+    return false;
+  }
+  bucket.count += 1;
+  return true;
+}
+
+app.use('/dmnd-api', async (req, res) => {
+  if (!dmndProxyRateLimit(req, res)) return;
+  const targetUrl = `${DMND_API_BASE}${req.url}`;
+  try {
+    const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: hasBody ? JSON.stringify(req.body) : undefined,
+      signal: AbortSignal.timeout(15_000),
+    });
+    const data = await response.text();
+    res.status(response.status)
+      .set('Content-Type', response.headers.get('Content-Type') || 'application/json')
+      .send(data);
+  } catch {
+    res.status(502).json({ error: 'Cannot reach DMND cloud API' });
   }
 });
 
