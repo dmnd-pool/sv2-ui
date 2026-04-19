@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Sun, Moon, Menu, X, LayoutDashboard, Settings } from 'lucide-react';
+import { Sun, Moon, Menu, X, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { cn, formatUptime } from '@/lib/utils';
 import type { AppMode, AppFeatures } from '@/types/api';
 import { getAppFeatures } from '@/types/api';
 import { useUiConfig } from '@/hooks/useUiConfig';
+import { useAuth } from '@/auth/useAuth';
+import { maskToken } from '@/auth/session';
 
 function useTheme() {
   const [isDark, setIsDark] = useState(() => {
@@ -58,14 +60,23 @@ export function Shell({
   poolName,
   uptime,
 }: ShellProps) {
+  const [, navigate] = useLocation();
   const [location] = useLocation();
   const { isDark, toggle } = useTheme();
   const { config } = useUiConfig();
+  const { session, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const features = getAppFeatures(appMode);
   const navItems = getNavItems(features, appMode);
+
+  const handleSignOut = () => {
+    signOut('user');
+    navigate('/login', { replace: true });
+  };
+
+  const tokenPreview = session ? maskToken(session.token) : null;
 
   // Close on route change
   useEffect(() => { setMenuOpen(false); }, [location]);
@@ -194,8 +205,27 @@ export function Shell({
               </>
             )}
 
-            {/* Theme toggle — desktop only (mobile: in hamburger) */}
-            <span className="hidden sm:block shrink-0"><ThemeBtn /></span>
+            {/* Theme toggle + session — desktop only (mobile: in hamburger) */}
+            <span className="hidden sm:flex items-center gap-0.5 shrink-0">
+              <ThemeBtn />
+              {session && (
+                <>
+                  <span
+                    className="text-xs text-muted-foreground font-mono border-l border-border pl-2 ml-1 max-w-[120px] truncate"
+                    title="DMND token (masked)"
+                  >
+                    {tokenPreview}
+                  </span>
+                  <button
+                    onClick={handleSignOut}
+                    aria-label="Sign out"
+                    className="relative flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/8 transition-all duration-150 w-7 h-7"
+                  >
+                    <LogOut className="h-[14px] w-[14px]" />
+                  </button>
+                </>
+              )}
+            </span>
 
             {/* Hamburger — mobile only */}
             <button
@@ -253,6 +283,15 @@ export function Shell({
               {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
               {isDark ? 'Light mode' : 'Dark mode'}
             </button>
+            {session && (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center w-full px-3 py-2.5 rounded-lg text-[14px] font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-150"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign out ({tokenPreview})
+              </button>
+            )}
           </nav>
         </div>
       </header>
