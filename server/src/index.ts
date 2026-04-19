@@ -332,16 +332,36 @@ const DMND_API_BASE = process.env.DMND_API_BASE
 const DMND_PROXY_BUCKETS = new Map<string, { count: number; windowStart: number }>();
 const DMND_PROXY_LIMIT = 20;
 const DMND_PROXY_WINDOW_MS = 60_000;
+// Opportunistic sweep: once the bucket map crosses this size, drop expired
+// entries on the next request. Piggybacks on traffic so an idle server does
+// no periodic work, and bounds memory under adversarial IP churn.
+const DMND_PROXY_SWEEP_THRESHOLD = 256;
+
+function pruneExpiredBuckets(now: number): void {
+  for (const [ip, bucket] of DMND_PROXY_BUCKETS) {
+    if (now - bucket.windowStart > DMND_PROXY_WINDOW_MS) {
+      DMND_PROXY_BUCKETS.delete(ip);
+    }
+  }
+}
 
 function dmndProxyRateLimit(req: Request, res: Response): boolean {
   const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
   const now = Date.now();
+  if (DMND_PROXY_BUCKETS.size >= DMND_PROXY_SWEEP_THRESHOLD) {
+    pruneExpiredBuckets(now);
+  }
   const bucket = DMND_PROXY_BUCKETS.get(ip);
   if (!bucket || now - bucket.windowStart > DMND_PROXY_WINDOW_MS) {
     DMND_PROXY_BUCKETS.set(ip, { count: 1, windowStart: now });
     return true;
   }
   if (bucket.count >= DMND_PROXY_LIMIT) {
+    const retryAfterSec = Math.max(
+      1,
+      Math.ceil((DMND_PROXY_WINDOW_MS - (now - bucket.windowStart)) / 1000)
+    );
+    res.set('Retry-After', String(retryAfterSec));
     res.status(429).json({ error: 'Too many requests' });
     return false;
   }
