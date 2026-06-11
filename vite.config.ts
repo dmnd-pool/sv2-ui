@@ -32,6 +32,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/translator-api/, '/api'),
       },
+      // Proxy DMND cloud API calls through the node server (handles CORS + base URL env)
+      '/dmnd-api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
       // Keep metrics proxy for direct access
       '/metrics': {
         target: 'http://localhost:9092',

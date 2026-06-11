@@ -75,6 +75,23 @@ export default {
           500: 'hsl(var(--cyan-500))',
           600: 'hsl(var(--cyan-600))',
         },
+        // DMND auth design-system tokens (flip light/dark via .dmnd-auth vars).
+        canvas: 'hsl(var(--canvas))',
+        heading: 'hsl(var(--heading))',
+        'body-alt': 'hsl(var(--body-alt))',
+        placeholder: 'hsl(var(--placeholder))',
+        btn: {
+          DEFAULT: 'hsl(var(--btn))',
+          foreground: 'hsl(var(--btn-foreground))',
+          disabled: 'hsl(var(--btn-disabled))',
+        },
+        link: 'hsl(var(--link))',
+        toast: {
+          success: 'hsl(var(--toast-success))',
+          error: 'hsl(var(--toast-error))',
+          warning: 'hsl(var(--toast-warning))',
+          neutral: 'hsl(var(--toast-neutral))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

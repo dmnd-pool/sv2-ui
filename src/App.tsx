@@ -5,59 +5,43 @@ import { queryClient } from '@/lib/queryClient';
 import { UnifiedDashboard } from '@/pages/UnifiedDashboard';
 import { Settings } from '@/pages/Settings';
 import { Setup } from '@/pages/Setup';
+import { SignIn } from '@/pages/auth/SignIn';
+import { SignUp } from '@/pages/auth/SignUp';
+import { ResetPassword } from '@/pages/auth/ResetPassword';
+import { BrokerComingSoon } from '@/pages/auth/BrokerComingSoon';
+import { AuthProvider, AuthGuard } from '@/auth';
+import { ToastProvider } from '@/components/ui/toast';
+import { FullScreenStatus } from '@/components/layout/FullScreenStatus';
 import { useSetupStatus } from '@/hooks/useSetupStatus';
 
 /**
- * SV2 Mining Stack UI
- * 
- * A unified dashboard for monitoring the SV2 mining stack.
- * Automatically detects the deployment mode:
- * 
- * - Non-JD mode: Pool ← Translator ← SV1 Clients
- * - JD mode: Pool ← JDC ← Translator ← SV1 Clients
- * 
- * Pool data (shares, hashrate) always comes from the right source:
- * - JDC's upstream connection (if JD mode)
- * - Translator's upstream connection (if non-JD mode)
- * 
- * SV1 clients always come from Translator.
+ * The authenticated dashboard area, reached only after sign-in (AuthGuard). The
+ * setup redirect here concerns the local mining stack.
  */
-function Router() {
+function AppRoutes() {
   const [location, navigate] = useLocation();
   const { isLoading, isOrchestrated, needsSetup } = useSetupStatus();
 
-  // Redirect to setup if needed (only when orchestration backend is present)
   useEffect(() => {
     if (!isLoading && isOrchestrated && needsSetup && location !== '/setup') {
       navigate('/setup');
     }
   }, [isLoading, isOrchestrated, needsSetup, location, navigate]);
 
-  // Brief loading state while checking setup status (max ~2s due to timeout)
-  // Don't block for too long - if backend is unavailable, just show the app
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="h-8 w-8 mx-auto rounded-lg bg-primary animate-pulse flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">SV2</span>
-          </div>
-          <p className="text-sm text-muted-foreground">Checking configuration...</p>
-        </div>
-      </div>
-    );
+    return <FullScreenStatus message="Checking configuration..." />;
   }
 
   return (
     <Switch>
-      <Route path="/">
-        <UnifiedDashboard />
-      </Route>
       <Route path="/setup">
         <Setup />
       </Route>
       <Route path="/settings">
         <Settings />
+      </Route>
+      <Route path="/">
+        <UnifiedDashboard />
       </Route>
       {/* Fallback to dashboard */}
       <Route>
@@ -67,10 +51,46 @@ function Router() {
   );
 }
 
+function Router() {
+  return (
+    <Switch>
+      <Route path="/signin">
+        <SignIn />
+      </Route>
+      <Route path="/signup">
+        <SignUp />
+      </Route>
+      {/* Both enter the one continuous recovery flow (email -> token -> ...). */}
+      <Route path="/forgot-password">
+        <ResetPassword />
+      </Route>
+      <Route path="/reset-password">
+        <ResetPassword />
+      </Route>
+      <Route path="/broker/signin">
+        <BrokerComingSoon />
+      </Route>
+      <Route path="/broker/signup">
+        <BrokerComingSoon />
+      </Route>
+      {/* Everything else requires a signed-in miner */}
+      <Route>
+        <AuthGuard>
+          <AppRoutes />
+        </AuthGuard>
+      </Route>
+    </Switch>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
+      <ToastProvider>
+        <AuthProvider>
+          <Router />
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
