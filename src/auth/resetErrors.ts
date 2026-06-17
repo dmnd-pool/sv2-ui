@@ -1,16 +1,16 @@
-import { DmndApiError } from '@/dmnd';
+import { DmndApiError } from '@/api';
+
+/** The exact message the API returns when a reset needs the account's 2FA code. */
+const TWO_FACTOR_REQUIRED_MESSAGE = 'Invalid 2FA token';
 
 /**
  * Whether a failed reset_password attempt means the account needs a 2FA code, so
  * the flow should show the "verify it's you" step and resubmit with the code.
  *
  * Reset is try-then-ask: submit with no 2FA code first, and only ask for one if
- * the backend says it's required. The exact prod signal is unconfirmed — staging
- * deliberately doesn't enforce 2FA, so we can't observe it there — so this
- * matches the known 2FA error shapes seen on other endpoints (the 404 "Invalid
- * 2FA token" and the 401 invalid-2fa-token). One-line change once confirmed.
+ * the backend says it's required. The backend signals that with this exact
+ * message, so we match it exactly rather than guessing with a pattern.
  */
 export function isTwoFactorRequiredError(error: unknown): boolean {
-  if (!(error instanceof DmndApiError)) return false;
-  return /2fa|two[- ]?factor|authenticator|invalid.?token/i.test(error.message);
+  return error instanceof DmndApiError && error.message === TWO_FACTOR_REQUIRED_MESSAGE;
 }
