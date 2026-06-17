@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, Redirect } from 'wouter';
+import { Link, Redirect, useLocation } from 'wouter';
+import { Check } from 'lucide-react';
 import { LiLetter } from 'solar-icon-react/li';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { AuthHeading } from '@/components/auth/AuthHeading';
@@ -12,35 +13,41 @@ import { SignupStepper } from '@/components/auth/SignupStepper';
 import { AuthSubmit } from '@/components/auth/AuthSubmit';
 import { useToast } from '@/components/ui/toast';
 import { Input } from '@/components/ui/input';
-import { DmndApiError } from '@/dmnd';
-import { createSession, useAuth } from '@/auth';
+import { DmndApiError } from '@/api';
+import { useAuth } from '@/auth';
 import {
   signUpDetailsSchema,
   type SignUpDetailsValues,
   signUpPasswordSchema,
   type SignUpPasswordValues,
 } from '@/auth/schemas';
-import { getDmndClient } from '@/dmnd';
+import { getDmndClient } from '@/api';
 
 /**
- * Signup is two steps on one route: account details, then password. Creating
- * the account logs the user straight in and lands them on the dashboard.
+ * Signup is two steps on one route: account details, then password. Creating the
+ * account lands on a success screen; the user signs in from there (we don't
+ * auto-login, so an account pending approval is handled gracefully).
  */
 export function SignUp() {
   const { session } = useAuth();
   const [details, setDetails] = useState<SignUpDetailsValues | null>(null);
+  const [created, setCreated] = useState(false);
 
-  // Once signed in (after creating the account), leave the public signup route;
-  // the auth guard takes over. Matches SignIn's redirect-on-session pattern and
-  // avoids an imperative navigate that races the sign-in re-render.
+  // A signed-in user has no business on the public signup route; the auth guard
+  // takes over. Matches SignIn's redirect-on-session pattern.
   if (session) {
     return <Redirect to="/" replace />;
   }
 
+  if (created) {
+    return <SignUpSuccess />;
+  }
   if (details === null) {
     return <DetailsStep onNext={setDetails} />;
   }
-  return <PasswordStep details={details} onBack={() => setDetails(null)} />;
+  return (
+    <PasswordStep details={details} onBack={() => setDetails(null)} onCreated={() => setCreated(true)} />
+  );
 }
 
 function DetailsStep({ onNext }: { onNext: (values: SignUpDetailsValues) => void }) {
@@ -137,8 +144,15 @@ function DetailsStep({ onNext }: { onNext: (values: SignUpDetailsValues) => void
   );
 }
 
-function PasswordStep({ details, onBack }: { details: SignUpDetailsValues; onBack: () => void }) {
-  const { signIn } = useAuth();
+function PasswordStep({
+  details,
+  onBack,
+  onCreated,
+}: {
+  details: SignUpDetailsValues;
+  onBack: () => void;
+  onCreated: () => void;
+}) {
   const toast = useToast();
   const [passwordFocused, setPasswordFocused] = useState(false);
   const {
@@ -157,14 +171,6 @@ function PasswordStep({ details, onBack }: { details: SignUpDetailsValues; onBac
   // strength meter, not a separate line, and cleared as soon as the user edits.
   const [serverPwError, setServerPwError] = useState<string | null>(null);
   useEffect(() => setServerPwError(null), [passwordValue]);
-
-  const finishSignUp = async (password: string) => {
-    const account = await getDmndClient().login(details.email, password);
-    // signIn flips the session; the SignUp redirect guard then routes to '/'.
-    signIn(
-      createSession({ token: account.token, accountId: String(account.id), email: account.email }),
-    );
-  };
 
   const onSubmit = async (values: SignUpPasswordValues) => {
     // Phase 1: create the account. Only signup failures are handled here, so a
@@ -193,9 +199,10 @@ function PasswordStep({ details, onBack }: { details: SignUpDetailsValues; onBac
       else toast({ type: 'error', message: 'Unable to create account. Please try again.' });
       return;
     }
-    // Phase 2: account created. Confirm, then sign in and go to the dashboard.
+    // Phase 2: account created. Show the success screen; the user signs in from
+    // there. We deliberately don't auto-login.
     toast({ type: 'success', message: 'Account created successfully.' });
-    await finishSignUp(values.password);
+    onCreated();
   };
 
   return (
@@ -264,6 +271,30 @@ function PasswordStep({ details, onBack }: { details: SignUpDetailsValues; onBac
           Sign in
         </Link>
       </p>
+    </AuthLayout>
+  );
+}
+
+function SignUpSuccess() {
+  const [, navigate] = useLocation();
+  return (
+    <AuthLayout onBack={() => navigate('/signin')}>
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success">
+          <Check className="h-6 w-6 text-white" />
+        </div>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">
+            Account created
+          </h1>
+          <p className="text-xs font-light text-body-alt">
+            Your account has been created successfully
+          </p>
+        </div>
+        <AuthSubmit className="mt-2 w-auto px-8" onClick={() => navigate('/signin')}>
+          Go to sign in
+        </AuthSubmit>
+      </div>
     </AuthLayout>
   );
 }
