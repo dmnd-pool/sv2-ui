@@ -11,7 +11,7 @@ import { authErrorMessage } from '@/components/auth/authError';
 import { useToast } from '@/components/ui/toast';
 import { createSession, readNextParam, useAuth } from '@/auth';
 import { signInSchema, type SignInValues } from '@/auth/schemas';
-import { getDmndClient } from '@/dmnd';
+import { getDmndClient } from '@/api';
 
 export function SignIn() {
   const { session, signIn } = useAuth();
@@ -37,9 +37,7 @@ export function SignIn() {
     try {
       const account = await getDmndClient().login(values.email, values.password);
       toast({ type: 'success', message: 'Sign in successful' });
-      signIn(
-        createSession({ token: account.token, accountId: String(account.id), email: account.email }),
-      );
+      signIn(createSession({ accountId: String(account.id), email: account.email }));
     } catch (e) {
       toast({ type: 'error', message: authErrorMessage(e, 'Incorrect email or password.') });
     }

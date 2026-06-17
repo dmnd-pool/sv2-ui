@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
+import { getDmndClient } from '@/api';
 import { createAuthStore, type AuthStore, type SignOutReason } from './authStore';
 import type { Session } from './session';
 
@@ -65,6 +66,19 @@ export function AuthProvider({ children, store: injectedStore }: AuthProviderPro
     return () => {
       if (owns) store.teardown();
     };
+  }, [store]);
+
+  // On startup, validate a session restored from storage against the backend.
+  // The auth cookie is HttpOnly so we can't inspect it here; check_auth confirms
+  // it's still valid. If it isn't, drop the local session and route to sign-in.
+  const validatedRef = useRef(false);
+  useEffect(() => {
+    if (validatedRef.current) return;
+    validatedRef.current = true;
+    if (!store.getSnapshot().session) return;
+    getDmndClient()
+      .checkAuth()
+      .catch(() => store.signOut('expired'));
   }, [store]);
 
   const value = useMemo<AuthContextValue>(

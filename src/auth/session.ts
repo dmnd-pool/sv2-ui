@@ -3,14 +3,15 @@ export const IDLE_TTL_MS = 30 * 60 * 1000;
 export const STORAGE_KEY = 'dmnd_session';
 
 /**
- * The browser-side session: the DMND token, the account id (sent as X-Account-ID
- * on authed calls), and the email for display. Lives in sessionStorage (per tab,
- * gone on tab close). The two timestamps are a UX convenience; real expiry is
- * enforced server-side, so the user is sent back to sign-in promptly rather
- * than discovering a dead session mid-action.
+ * The browser-side session. Auth itself lives in the backend's HttpOnly cookie,
+ * which JS can't read, so we keep only lightweight, non-sensitive data: the
+ * account id (sent as X-Account-ID on authed calls) and the email for display.
+ * Lives in sessionStorage (per tab, gone on tab close). The two timestamps are a
+ * UX convenience; real expiry is enforced server-side (the cookie + check_auth),
+ * so the user is sent back to sign-in promptly rather than discovering a dead
+ * session mid-action.
  */
 export interface Session {
-  token: string;
   accountId: string;
   email: string;
   expiresAt: number;
@@ -18,7 +19,6 @@ export interface Session {
 }
 
 export interface CreateSessionInput {
-  token: string;
   accountId: string;
   email: string;
   now?: number;
@@ -27,7 +27,6 @@ export interface CreateSessionInput {
 export function createSession(input: CreateSessionInput): Session {
   const now = input.now ?? Date.now();
   return {
-    token: input.token,
     accountId: input.accountId,
     email: input.email,
     expiresAt: now + FIXED_TTL_MS,
@@ -71,9 +70,8 @@ function isValidSession(v: unknown): v is Session {
   if (typeof v !== 'object' || v === null) return false;
   const s = v as Record<string, unknown>;
   return (
-    typeof s.token === 'string' &&
-    s.token.length > 0 &&
     typeof s.accountId === 'string' &&
+    s.accountId.length > 0 &&
     typeof s.email === 'string' &&
     typeof s.expiresAt === 'number' &&
     typeof s.idleExpiresAt === 'number'

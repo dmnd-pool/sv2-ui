@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDmndClient } from './client';
-import { DmndApiError } from './types';
+import { createDmndClient } from '../client';
+import { DmndApiError } from '../types';
 
 interface Call {
   url: string;
@@ -34,7 +34,7 @@ test('login posts email and password to log_user and returns the session', async
   const result = await client.login('m@x.io', 'pw');
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, '/dmnd-api/api/log_user');
+  assert.ok(calls[0].url.endsWith('/api/log_user'));
   assert.equal(calls[0].init.method, 'POST');
   assert.deepEqual(JSON.parse(calls[0].init.body as string), {
     email: 'm@x.io',
@@ -74,7 +74,7 @@ test('resetPassword posts email, code, two_fa_token and new_password (snake_case
 
   await client.resetPassword('m@x.io', '123456', '654321', 'river-tunnel-9');
 
-  assert.equal(calls[0].url, '/dmnd-api/api/reset_password');
+  assert.ok(calls[0].url.endsWith('/api/reset_password'));
   assert.equal(calls[0].init.method, 'POST');
   assert.deepEqual(JSON.parse(calls[0].init.body as string), {
     email: 'm@x.io',
@@ -90,7 +90,7 @@ test('signup posts the full account body, defaulting company fields and referral
 
   await client.signup({ email: 'm@x.io', password: 'longenough', firstName: 'Ada', lastName: 'Lovelace' });
 
-  assert.equal(calls[0].url, '/dmnd-api/api/users');
+  assert.ok(calls[0].url.endsWith('/api/users'));
   assert.deepEqual(JSON.parse(calls[0].init.body as string), {
     register: {
       email: 'm@x.io',
@@ -103,6 +103,18 @@ test('signup posts the full account body, defaulting company fields and referral
       language: 'En',
     },
   });
+});
+
+test('checkAuth GETs check_auth and returns the session', async () => {
+  const session = { token: 'x', id: '42', email: 'm@x.io', two_factor_secret: null };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(session));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.checkAuth();
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.endsWith('/api/check_auth'));
+  assert.deepEqual(result, session);
 });
 
 test('signup forwards company fields and referral when provided', async () => {

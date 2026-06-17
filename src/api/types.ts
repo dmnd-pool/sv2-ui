@@ -50,6 +50,8 @@ export interface DmndClient {
   signup(input: SignupInput, req?: RequestOptions): Promise<void>;
   login(email: string, password: string, req?: RequestOptions): Promise<DmndSession>;
   logout(req?: RequestOptions): Promise<void>;
+  /** Validates the session cookie (used on app startup to restore a session). */
+  checkAuth(req?: RequestOptions): Promise<DmndSession>;
   forgotPassword(email: string, req?: RequestOptions): Promise<void>;
   resetPassword(
     email: string,

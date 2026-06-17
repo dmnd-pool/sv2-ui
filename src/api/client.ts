@@ -6,7 +6,13 @@ import {
   type SignupInput,
 } from './types';
 
-const BASE_PATH = '/dmnd-api';
+// The DMND dashboard API is called directly: it sets CORS for our origin and
+// allows credentials, so the browser sends the HttpOnly session cookie on every
+// call. Overridable for production via VITE_DMND_API_BASE; defaults to staging
+// so dev and review never hit production.
+const API_BASE =
+  (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_DMND_API_BASE ??
+  'https://staging-user-dashboard-server.dmnd.work';
 
 /**
  * Auth calls are interactive, so they use a short retry budget: a login that
@@ -109,7 +115,7 @@ async function request<T>(
     if (accountId) headers['X-Account-ID'] = accountId;
 
     try {
-      const response = await opts.fetchImpl(`${BASE_PATH}${spec.path}`, {
+      const response = await opts.fetchImpl(`${API_BASE}${spec.path}`, {
         method: spec.method,
         headers,
         // DMND auth is cookie-based; send the session cookie on every call. The
@@ -183,6 +189,13 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
     },
     logout(req) {
       return request<void>({ method: 'POST', path: '/api/logout' }, opts, req);
+    },
+    checkAuth(req) {
+      // Validates the session cookie on app startup. The session no longer stores
+      // a token, so this call (cookie + X-Account-ID header) is how we confirm
+      // the user is still logged in; it throws on 401, which the auth layer
+      // treats as signed out.
+      return request<DmndSession>({ method: 'GET', path: '/api/check_auth' }, opts, req);
     },
     forgotPassword(email, req) {
       return request<void>({ method: 'POST', path: '/api/forgot_password', body: { email } }, opts, req);

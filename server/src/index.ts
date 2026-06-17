@@ -4,7 +4,7 @@
  * Handles Docker orchestration for the SV2 mining stack.
  */
 
-import express, { type Request, type Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs/promises';
@@ -317,96 +317,6 @@ app.use('/jdc-api', async (req, res) => {
     res.status(response.status).set('Content-Type', response.headers.get('Content-Type') || 'application/json').send(data);
   } catch {
     res.status(502).json({ error: 'Cannot connect to JDC monitoring API' });
-  }
-});
-
-/**
- * Proxy requests to the DMND cloud dashboard API.
- *
- * The browser can't call dmnd.work directly (CORS), so auth and account calls
- * go through here. The upstream base is overridable via DMND_API_BASE. It
- * defaults to the STAGING server, not production: development and review must
- * not run against production (per DMND). Point a real production deployment at
- * production explicitly via DMND_API_BASE.
- * /dmnd-api/api/log_user -> $DMND_API_BASE/api/log_user
- */
-const DMND_API_BASE =
-  process.env.DMND_API_BASE ?? 'https://staging-user-dashboard-server.dmnd.work';
-
-const DMND_RATE_LIMIT = 20;
-const DMND_RATE_WINDOW_MS = 60_000;
-// Once the bucket map grows past this, drop expired entries on the next
-// request. Piggybacking on traffic means an idle server does no periodic work
-// and memory stays bounded under IP churn.
-const DMND_SWEEP_THRESHOLD = 256;
-const dmndRateBuckets = new Map<string, { count: number; windowStart: number }>();
-
-function sweepRateBuckets(now: number): void {
-  for (const [ip, bucket] of dmndRateBuckets) {
-    if (now - bucket.windowStart > DMND_RATE_WINDOW_MS) {
-      dmndRateBuckets.delete(ip);
-    }
-  }
-}
-
-function dmndRateLimitOk(req: Request, res: Response): boolean {
-  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
-  const now = Date.now();
-  if (dmndRateBuckets.size >= DMND_SWEEP_THRESHOLD) sweepRateBuckets(now);
-
-  const bucket = dmndRateBuckets.get(ip);
-  if (!bucket || now - bucket.windowStart > DMND_RATE_WINDOW_MS) {
-    dmndRateBuckets.set(ip, { count: 1, windowStart: now });
-    return true;
-  }
-  if (bucket.count >= DMND_RATE_LIMIT) {
-    const retryAfter = Math.ceil((DMND_RATE_WINDOW_MS - (now - bucket.windowStart)) / 1000);
-    res.set('Retry-After', String(Math.max(1, retryAfter))).status(429).json({ error: 'Too many requests' });
-    return false;
-  }
-  bucket.count += 1;
-  return true;
-}
-
-app.use('/dmnd-api', async (req, res) => {
-  if (!dmndRateLimitOk(req, res)) return;
-
-  // Forward only what DMND auth needs: the JSON body, the session cookie, and
-  // the X-Account-ID header. Host, Origin and the rest are dropped so nothing
-  // about the local origin leaks upstream.
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (typeof req.headers.cookie === 'string') headers.Cookie = req.headers.cookie;
-  // DMND authenticates each call with the session cookie PLUS an X-Account-ID
-  // header (the account id from login); the cookie name itself is keyed by id.
-  const accountId = req.headers['x-account-id'];
-  if (typeof accountId === 'string') headers['X-Account-ID'] = accountId;
-
-  const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
-  try {
-    const upstream = await fetch(`${DMND_API_BASE}${req.url}`, {
-      method: req.method,
-      headers,
-      body: hasBody ? JSON.stringify(req.body) : undefined,
-      signal: AbortSignal.timeout(15_000),
-    });
-    // DMND auth is cookie-based. Relay the session cookie back to the browser.
-    // In dev (http://localhost) the upstream's `Secure; SameSite=None` cookie
-    // would be dropped by the browser, so relax those attributes; in production
-    // (https) the cookie passes through untouched.
-    const setCookies = upstream.headers.getSetCookie();
-    if (setCookies.length > 0) {
-      const cookies = isProduction
-        ? setCookies
-        : setCookies.map((c) => c.replace(/;\s*Secure/gi, '').replace(/;\s*SameSite=None/gi, '; SameSite=Lax'));
-      res.set('Set-Cookie', cookies);
-    }
-    const data = await upstream.text();
-    res
-      .status(upstream.status)
-      .set('Content-Type', upstream.headers.get('Content-Type') || 'application/json')
-      .send(data);
-  } catch {
-    res.status(502).json({ error: 'Cannot reach DMND cloud API' });
   }
 });
 

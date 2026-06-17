@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAuthStore } from './authStore';
-import { createSession } from './session';
+import { createAuthStore } from '../authStore';
+import { createSession } from '../session';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -43,30 +43,30 @@ function channelBus() {
   return { make };
 }
 
-test('a second tab claiming the same token signs the first tab out', () => {
+test('a second tab claiming the same account signs the first tab out', () => {
   const bus = channelBus();
-  const session = createSession({ token: 'shared', accountId: '1', email: 'm@x.io' });
+  const session = createSession({ accountId: '1', email: 'm@x.io' });
 
   const tabA = createAuthStore({ tabId: 'A', storage: memoryStorage(), channelFactory: bus.make });
   tabA.signIn(session);
-  assert.equal(tabA.getSnapshot().session?.token, 'shared');
+  assert.equal(tabA.getSnapshot().session?.accountId, '1');
 
   const tabB = createAuthStore({ tabId: 'B', storage: memoryStorage(), channelFactory: bus.make });
   tabB.signIn(session);
 
   assert.equal(tabA.getSnapshot().session, null);
   assert.equal(tabA.getSnapshot().signOutReason, 'duplicate_tab');
-  assert.equal(tabB.getSnapshot().session?.token, 'shared');
+  assert.equal(tabB.getSnapshot().session?.accountId, '1');
 });
 
-test('a tab with a different token is left alone', () => {
+test('a tab with a different account is left alone', () => {
   const bus = channelBus();
 
   const tabA = createAuthStore({ tabId: 'A', storage: memoryStorage(), channelFactory: bus.make });
-  tabA.signIn(createSession({ token: 'aaa', accountId: '1', email: 'a@x.io' }));
+  tabA.signIn(createSession({ accountId: '1', email: 'a@x.io' }));
 
   const tabB = createAuthStore({ tabId: 'B', storage: memoryStorage(), channelFactory: bus.make });
-  tabB.signIn(createSession({ token: 'bbb', accountId: '2', email: 'b@x.io' }));
+  tabB.signIn(createSession({ accountId: '2', email: 'b@x.io' }));
 
-  assert.equal(tabA.getSnapshot().session?.token, 'aaa');
+  assert.equal(tabA.getSnapshot().session?.accountId, '1');
 });

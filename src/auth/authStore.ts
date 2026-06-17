@@ -6,7 +6,7 @@ import {
   refreshIdle,
   isExpired,
 } from './session';
-import { setDmndAccountId } from '@/dmnd';
+import { setDmndAccountId } from '@/api';
 
 export type SignOutReason = 'user' | 'expired' | 'duplicate_tab';
 
@@ -39,7 +39,7 @@ const CLAIM_MSG = 'CLAIM_SESSION';
 interface ClaimMessage {
   type: typeof CLAIM_MSG;
   tabId: string;
-  token: string;
+  accountId: string;
 }
 
 function generateTabId(): string {
@@ -89,24 +89,24 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     emit();
   };
 
-  // A second tab signing in with the same token claims the session; the older
-  // tab clears itself so one token is never live in two places at once.
+  // A second tab signing in as the same account claims the session; the older
+  // tab clears itself so one account isn't live in two places at once.
   const handleMessage = (msg: unknown) => {
     if (!msg || typeof msg !== 'object') return;
     const m = msg as Partial<ClaimMessage>;
     if (m.type !== CLAIM_MSG) return;
     if (m.tabId === tabId) return;
     if (!state.session) return;
-    if (m.token !== state.session.token) return;
+    if (m.accountId !== state.session.accountId) return;
     clearSession(storage);
     setState({ session: null, signOutReason: 'duplicate_tab' });
   };
 
   // Best-effort cross-tab claim. The channel can be closed (e.g. a StrictMode
   // remount in dev reuses the store after teardown), so posting must not throw.
-  const postClaim = (token: string) => {
+  const postClaim = (accountId: string) => {
     try {
-      channel?.postMessage({ type: CLAIM_MSG, tabId, token } satisfies ClaimMessage);
+      channel?.postMessage({ type: CLAIM_MSG, tabId, accountId } satisfies ClaimMessage);
     } catch {
       // channel closed; cross-tab logout degrades but sign-in still works
     }
@@ -114,7 +114,7 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
 
   if (channel) {
     channel.onmessage = (ev: MessageEvent) => handleMessage(ev.data);
-    if (state.session) postClaim(state.session.token);
+    if (state.session) postClaim(state.session.accountId);
   }
 
   return {
@@ -131,7 +131,7 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     signIn(session) {
       writeSession(session, storage);
       setState({ session, signOutReason: null });
-      postClaim(session.token);
+      postClaim(session.accountId);
     },
     signOut(reason: SignOutReason = 'user') {
       clearSession(storage);
