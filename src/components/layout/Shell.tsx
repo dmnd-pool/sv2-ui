@@ -1,32 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Sun, Moon, Menu, X, LayoutDashboard, Settings } from 'lucide-react';
+import { Sun, Moon, Menu, X, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { cn, formatUptime } from '@/lib/utils';
 import type { AppMode, AppFeatures } from '@/types/api';
 import { getAppFeatures } from '@/types/api';
 import { useUiConfig } from '@/hooks/useUiConfig';
-
-function useTheme() {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
-
-  return { isDark, toggle: () => setIsDark(!isDark) };
-}
+import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/auth';
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -60,6 +40,7 @@ export function Shell({
 }: ShellProps) {
   const [location] = useLocation();
   const { isDark, toggle } = useTheme();
+  const { signOut } = useAuth();
   const { config } = useUiConfig();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -197,6 +178,16 @@ export function Shell({
             {/* Theme toggle — desktop only (mobile: in hamburger) */}
             <span className="hidden sm:block shrink-0"><ThemeBtn /></span>
 
+            {/* Sign out — desktop only (mobile: in hamburger) */}
+            <button
+              onClick={() => signOut()}
+              aria-label="Sign out"
+              title="Sign out"
+              className="hidden sm:flex relative w-7 h-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/8 transition-all duration-150 shrink-0"
+            >
+              <LogOut className="h-[14px] w-[14px]" />
+            </button>
+
             {/* Hamburger — mobile only */}
             <button
               className="sm:hidden relative w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/8 transition-all duration-150"
@@ -252,6 +243,13 @@ export function Shell({
             >
               {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
               {isDark ? 'Light mode' : 'Dark mode'}
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="flex items-center w-full px-3 py-2.5 rounded-lg text-[14px] font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-150"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign out
             </button>
           </nav>
         </div>

@@ -57,10 +57,14 @@ export function useSetupStatus() {
   });
 
   const status = query.data;
-  
-  // Consider loaded when: we have data, OR we have an error, OR query is not loading
-  // This ensures we don't get stuck in loading state
-  const isLoading = query.isLoading && !query.isError && status === undefined;
+
+  // Loading is the FIRST load only. `isFetched` flips true after the first
+  // settle and stays true, so background refetches (refetchInterval) never flip
+  // this back to true. Without this, every 10s refetch re-entered the caller's
+  // loading branch, which on a page without the backend (e.g. the hosted
+  // preview) remounted the whole authed subtree and wiped in-progress form
+  // input. isFetched survives refetches.
+  const isLoading = query.isLoading && !query.isFetched;
 
   return {
     isLoading,
