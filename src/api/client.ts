@@ -1,4 +1,6 @@
 import {
+  type BrokerAccount,
+  type BrokerSignupInput,
   DmndApiError,
   type DmndClient,
   type DmndSession,
@@ -99,6 +101,26 @@ interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT';
   path: string;
   body?: unknown;
+}
+
+/**
+ * The broker endpoints spell the referral code two ways: `/api/broker/log`
+ * returns `referenceCode`, `/api/brokers` returns `reference_code`. Normalize
+ * both to `referenceCode` so callers don't care which endpoint produced it.
+ */
+interface RawBrokerAccount {
+  id: string | number;
+  email: string;
+  referenceCode?: string;
+  reference_code?: string;
+}
+
+function normalizeBrokerAccount(raw: RawBrokerAccount): BrokerAccount {
+  return {
+    id: raw.id,
+    email: raw.email,
+    referenceCode: raw.referenceCode ?? raw.reference_code ?? '',
+  };
 }
 
 async function request<T>(
@@ -212,6 +234,38 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         opts,
         req,
       );
+    },
+    async brokerLogin(email, password, req): Promise<BrokerAccount> {
+      // Brokers are a separate tree from miners: cookie-based, no token. Body is
+      // just {email, password} (no language, unlike miner login).
+      const raw = await request<RawBrokerAccount>(
+        { method: 'POST', path: '/api/broker/log', body: { email, password } },
+        opts,
+        req,
+      );
+      return normalizeBrokerAccount(raw);
+    },
+    async brokerSignup(input: BrokerSignupInput, req): Promise<BrokerAccount> {
+      // Unlike miner /api/users (which needs a nested {register:{...}}),
+      // /api/brokers takes a flat body. Note companyLocation here vs the miner's
+      // companyPrimaryLocation.
+      const raw = await request<RawBrokerAccount>(
+        {
+          method: 'POST',
+          path: '/api/brokers',
+          body: {
+            email: input.email,
+            password: input.password,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            companyName: input.companyName,
+            companyLocation: input.companyLocation,
+          },
+        },
+        opts,
+        req,
+      );
+      return normalizeBrokerAccount(raw);
     },
   };
 }

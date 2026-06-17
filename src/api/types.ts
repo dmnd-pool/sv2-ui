@@ -44,6 +44,28 @@ export interface SignupInput {
   referralCode?: string;
 }
 
+/**
+ * Broker login (`/api/broker/log`) and signup (`/api/brokers`) return the broker
+ * id, email, and a referral/reference code. The spec spells that code two ways
+ * (login `referenceCode`, signup `reference_code`); the client normalizes both
+ * to `referenceCode`. Brokers are a separate auth tree from miners: no token,
+ * cookie-based session.
+ */
+export interface BrokerAccount {
+  id: string | number;
+  email: string;
+  referenceCode: string;
+}
+
+export interface BrokerSignupInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  companyLocation: string;
+}
+
 // Auth is cookie-based: once login sets the session cookie, the proxy forwards
 // it on every call, so these methods don't take a token argument.
 export interface DmndClient {
@@ -60,4 +82,6 @@ export interface DmndClient {
     newPassword: string,
     req?: RequestOptions,
   ): Promise<void>;
+  brokerLogin(email: string, password: string, req?: RequestOptions): Promise<BrokerAccount>;
+  brokerSignup(input: BrokerSignupInput, req?: RequestOptions): Promise<BrokerAccount>;
 }

@@ -160,3 +160,45 @@ test('a 4xx with a server message surfaces it as an unknown error', async () => 
     (e: unknown) => e instanceof DmndApiError && e.code === 'unknown' && e.message === 'Add another word or two',
   );
 });
+
+test('brokerLogin posts to broker/log and maps referenceCode', async () => {
+  const { fetchImpl, calls } = fakeFetch(() =>
+    jsonResponse({ id: 7, email: 'b@x.io', referenceCode: 'RC-1' }),
+  );
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.brokerLogin('b@x.io', 'pw');
+
+  assert.ok(calls[0].url.endsWith('/api/broker/log'));
+  assert.equal(calls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), { email: 'b@x.io', password: 'pw' });
+  assert.deepEqual(result, { id: 7, email: 'b@x.io', referenceCode: 'RC-1' });
+});
+
+test('brokerSignup posts a flat body to /api/brokers and normalizes reference_code', async () => {
+  const { fetchImpl, calls } = fakeFetch(() =>
+    jsonResponse({ id: '9', email: 'b@x.io', reference_code: 'RC-9' }),
+  );
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.brokerSignup({
+    email: 'b@x.io',
+    password: 'longenough',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    companyName: 'Demand',
+    companyLocation: 'Lisbon, PT',
+  });
+
+  assert.ok(calls[0].url.endsWith('/api/brokers'));
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    email: 'b@x.io',
+    password: 'longenough',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    companyName: 'Demand',
+    companyLocation: 'Lisbon, PT',
+  });
+  // snake_case reference_code from signup normalizes to referenceCode
+  assert.deepEqual(result, { id: '9', email: 'b@x.io', referenceCode: 'RC-9' });
+});
