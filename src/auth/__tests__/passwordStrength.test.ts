@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { levelFromScore, quickStrength, scoreStrength } from './passwordStrength';
+import { levelFromScore, quickStrength, scoreStrength } from '../passwordStrength';
 
 test('levelFromScore maps zxcvbn scores to the 3-segment levels', () => {
   assert.equal(levelFromScore(0), 'weak');

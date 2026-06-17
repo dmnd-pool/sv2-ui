@@ -22,7 +22,7 @@ import {
   type ResetPasswordValues,
 } from '@/auth/schemas';
 import { isTwoFactorRequiredError } from '@/auth/resetErrors';
-import { DmndApiError, getDmndClient } from '@/dmnd';
+import { DmndApiError, getDmndClient } from '@/api';
 
 /**
  * Password recovery, one continuous in-app flow: email -> reset token -> new

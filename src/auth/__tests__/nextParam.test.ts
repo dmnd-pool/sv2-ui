@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { readNextParam } from './nextParam';
+import { readNextParam } from '../nextParam';
 
 test('readNextParam returns a same-origin path unchanged', () => {
   assert.equal(readNextParam('?next=%2Fworkers'), '/workers');

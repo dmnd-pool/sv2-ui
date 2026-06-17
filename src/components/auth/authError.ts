@@ -1,4 +1,4 @@
-import { DmndApiError } from '@/dmnd';
+import { DmndApiError } from '@/api';
 
 /**
  * Turns a failed DMND call into a short, user-facing line. The unauthorized

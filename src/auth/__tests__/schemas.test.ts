@@ -8,7 +8,7 @@ import {
   signInSchema,
   signUpDetailsSchema,
   signUpPasswordSchema,
-} from './schemas';
+} from '../schemas';
 
 function firstError(result: {
   success: boolean;

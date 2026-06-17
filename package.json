@@ -16,7 +16,7 @@
     "build:all": "npm run build && npm run build:server",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --test --import tsx src/**/*.test.ts",
+    "test": "node --test --import tsx src/*/__tests__/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
