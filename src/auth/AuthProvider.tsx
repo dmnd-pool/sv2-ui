@@ -63,6 +63,10 @@ export function AuthProvider({ children, store: injectedStore }: AuthProviderPro
 
   useEffect(() => {
     const owns = ownsStore.current;
+    // Connect the cross-tab channel here (not in the store constructor) so only
+    // the mounted store listens; StrictMode's discarded initializer store never
+    // does, which keeps a refresh from being seen as a duplicate-tab claim.
+    if (owns) store.connect();
     return () => {
       if (owns) store.teardown();
     };

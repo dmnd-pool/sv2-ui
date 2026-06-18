@@ -48,10 +48,12 @@ test('a second tab claiming the same account signs the first tab out', () => {
   const session = createSession({ accountId: '1', email: 'm@x.io' });
 
   const tabA = createAuthStore({ tabId: 'A', storage: memoryStorage(), channelFactory: bus.make });
+  tabA.connect();
   tabA.signIn(session);
   assert.equal(tabA.getSnapshot().session?.accountId, '1');
 
   const tabB = createAuthStore({ tabId: 'B', storage: memoryStorage(), channelFactory: bus.make });
+  tabB.connect();
   tabB.signIn(session);
 
   assert.equal(tabA.getSnapshot().session, null);
@@ -63,10 +65,30 @@ test('a tab with a different account is left alone', () => {
   const bus = channelBus();
 
   const tabA = createAuthStore({ tabId: 'A', storage: memoryStorage(), channelFactory: bus.make });
+  tabA.connect();
   tabA.signIn(createSession({ accountId: '1', email: 'a@x.io' }));
 
   const tabB = createAuthStore({ tabId: 'B', storage: memoryStorage(), channelFactory: bus.make });
+  tabB.connect();
   tabB.signIn(createSession({ accountId: '2', email: 'b@x.io' }));
 
   assert.equal(tabA.getSnapshot().session?.accountId, '1');
+});
+
+test('a store that never connected is not cleared by another tab claiming the same account', () => {
+  // Models the StrictMode case: the store from the double-invoked useState
+  // initializer is never mounted, so connect() never runs. It must not listen,
+  // or a plain refresh would clear the session (the dev refresh bug).
+  const bus = channelBus();
+  const session = createSession({ accountId: '1', email: 'm@x.io' });
+
+  const ghost = createAuthStore({ tabId: 'ghost', storage: memoryStorage(), channelFactory: bus.make });
+  ghost.signIn(session); // has the session, but never connect()ed
+
+  const live = createAuthStore({ tabId: 'live', storage: memoryStorage(), channelFactory: bus.make });
+  live.connect();
+  live.signIn(session); // same account claim broadcast on the bus
+
+  // The unconnected store ignored the claim and kept its session.
+  assert.equal(ghost.getSnapshot().session?.accountId, '1');
 });

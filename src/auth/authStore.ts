@@ -18,6 +18,8 @@ export interface AuthState {
 export interface AuthStore {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => AuthState;
+  /** Subscribe to the cross-tab channel; call once from a React effect on mount. */
+  connect: () => void;
   signIn: (session: Session) => void;
   signOut: (reason?: SignOutReason) => void;
   bumpActivity: (now?: number) => void;
@@ -58,12 +60,15 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
   const tabId = options.tabId ?? generateTabId();
   const storage =
     options.storage ?? (typeof sessionStorage !== 'undefined' ? sessionStorage : undefined);
-  const channel =
+  const resolveChannel = (): BroadcastChannel | null =>
     options.channel !== undefined
       ? options.channel
       : options.channelFactory
         ? options.channelFactory()
         : defaultChannel();
+  // Opened lazily in connect(), not here, so a store that is constructed but
+  // never mounted does not hold a live channel.
+  let channel: BroadcastChannel | null = null;
 
   if (!storage) {
     throw new Error('createAuthStore: no Storage available');
@@ -112,13 +117,21 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     }
   };
 
-  if (channel) {
-    channel.onmessage = (ev: MessageEvent) => handleMessage(ev.data);
-    if (state.session) postClaim(state.session.accountId);
-  }
-
   return {
     tabId,
+    connect() {
+      // Subscribe to the cross-tab channel and claim the current session. Run
+      // from a React effect (not the constructor) so a store that is built but
+      // never mounted -- e.g. StrictMode double-invoking the useState
+      // initializer in dev -- never listens, and so can't clear another
+      // instance's session on a refresh.
+      if (channel) return;
+      channel = resolveChannel();
+      if (channel) {
+        channel.onmessage = (ev: MessageEvent) => handleMessage(ev.data);
+        if (state.session) postClaim(state.session.accountId);
+      }
+    },
     subscribe(cb) {
       listeners.add(cb);
       return () => {
@@ -152,6 +165,7 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     },
     teardown() {
       channel?.close();
+      channel = null;
       listeners.clear();
     },
   };
