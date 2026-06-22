@@ -28,9 +28,10 @@ export function SignIn() {
     defaultValues: { email: '', password: '' },
   });
 
-  // Already signed in (or just signed in): the redirect carries post-login nav.
+  // Already signed in (or just signed in): the redirect carries post-login nav,
+  // defaulting to the dashboard home.
   if (session) {
-    return <Redirect to={readNextParam(search)} replace />;
+    return <Redirect to={readNextParam(search, '/home')} replace />;
   }
 
   const onSubmit = async (values: SignInValues) => {

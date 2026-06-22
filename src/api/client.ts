@@ -2,8 +2,11 @@ import {
   DmndApiError,
   type DmndClient,
   type DmndSession,
+  type HashratePoint,
+  type HashrateSnapshot,
   type RequestOptions,
   type SignupInput,
+  type WorkersResponse,
 } from './types';
 
 // The DMND dashboard API is called directly: it sets CORS for our origin and
@@ -212,6 +215,43 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         opts,
         req,
       );
+    },
+    activate2fa(code, req) {
+      // The body field is literally `token` and holds the 6-digit CODE (the
+      // session rides in the cookie + X-Account-ID header). Verified live.
+      return request<void>({ method: 'PUT', path: '/api/activate_2fa', body: { token: code } }, opts, req);
+    },
+    setBitcoinAddress(address, twoFaToken, req) {
+      // Snake_case body (bundle-verified); sub_account_id is null for the master
+      // account. The API rejects an empty/missing two_fa_token with a
+      // 2FA-required error, which the Bitcoin step uses to prompt for the code.
+      return request<void>(
+        {
+          method: 'POST',
+          path: '/api/bitcoin_address',
+          body: { bitcoin_address: address, two_fa_token: twoFaToken, sub_account_id: null },
+        },
+        opts,
+        req,
+      );
+    },
+    getHashrate(req) {
+      return request<HashrateSnapshot>({ method: 'GET', path: '/api/user/hashrate' }, opts, req);
+    },
+    async getHashrateHistory(range, req) {
+      // The series endpoint returns a scalar (0.0) for a no-activity account and,
+      // when populated, an array of points. Only an array is a real series; any
+      // other shape collapses to [] so the chart shows its empty state.
+      const result = await request<unknown>(
+        { method: 'GET', path: `/api/user/hashrate/history?range=${encodeURIComponent(range)}` },
+        opts,
+        req,
+      );
+      return Array.isArray(result) ? (result as HashratePoint[]) : [];
+    },
+    getWorkers(from, to, req) {
+      const query = new URLSearchParams({ from, to }).toString();
+      return request<WorkersResponse>({ method: 'GET', path: `/api/workers?${query}` }, opts, req);
     },
   };
 }

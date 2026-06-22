@@ -1,10 +1,15 @@
 import { useEffect } from 'react';
-import { Switch, Route, useLocation } from 'wouter';
+import { Switch, Route, Redirect, useLocation } from 'wouter';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { UnifiedDashboard } from '@/pages/UnifiedDashboard';
 import { Settings } from '@/pages/Settings';
 import { Setup } from '@/pages/Setup';
+import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { ComingSoon } from '@/components/dashboard/ComingSoon';
+import { DashboardHome } from '@/pages/dashboard/DashboardHome';
+import { WorkersPage } from '@/pages/workers/WorkersPage';
+import { Onboarding } from '@/pages/onboarding/Onboarding';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
@@ -15,10 +20,11 @@ import { FullScreenStatus } from '@/components/layout/FullScreenStatus';
 import { useSetupStatus } from '@/hooks/useSetupStatus';
 
 /**
- * The authenticated dashboard area, reached only after sign-in (AuthGuard). The
- * setup redirect here concerns the local mining stack.
+ * The local mining-stack area (translator / JDC telemetry from the Express
+ * server). Its setup redirect only concerns that local stack, so it stays
+ * scoped here rather than gating the DMND dashboard pages.
  */
-function AppRoutes() {
+function LocalRoutes() {
   const [location, navigate] = useLocation();
   const { isLoading, isOrchestrated, needsSetup } = useSetupStatus();
 
@@ -40,12 +46,66 @@ function AppRoutes() {
       <Route path="/settings">
         <Settings />
       </Route>
-      <Route path="/">
+      <Route path="/local">
         <UnifiedDashboard />
       </Route>
-      {/* Fallback to dashboard */}
+      {/* Fallback to the local dashboard */}
       <Route>
         <UnifiedDashboard />
+      </Route>
+    </Switch>
+  );
+}
+
+/**
+ * The authenticated area, reached only after sign-in (AuthGuard). DMND dashboard
+ * pages render inside the sidebar shell; the local mining-stack views keep their
+ * routes (/local, /settings, /setup) via LocalRoutes.
+ */
+function AppRoutes() {
+  return (
+    <Switch>
+      <Route path="/home">
+        <DashboardShell>
+          <DashboardHome />
+        </DashboardShell>
+      </Route>
+      <Route path="/workers">
+        <DashboardShell>
+          <WorkersPage />
+        </DashboardShell>
+      </Route>
+      <Route path="/subaccounts">
+        <DashboardShell>
+          <ComingSoon title="Subaccounts" />
+        </DashboardShell>
+      </Route>
+      <Route path="/rewards">
+        <DashboardShell>
+          <ComingSoon title="Rewards" />
+        </DashboardShell>
+      </Route>
+      <Route path="/api-keys">
+        <DashboardShell>
+          <ComingSoon title="API keys" />
+        </DashboardShell>
+      </Route>
+      <Route path="/account">
+        <DashboardShell>
+          <ComingSoon title="Settings" />
+        </DashboardShell>
+      </Route>
+      {/* Full-screen account-setup flow, reached from the home prompt. */}
+      <Route path="/onboarding">
+        <Onboarding />
+      </Route>
+      {/* The DMND dashboard is the landing; the local stratum view lives at /local. */}
+      <Route path="/">
+        <Redirect to="/home" replace />
+      </Route>
+      {/* Everything else is the local mining-stack surface. */}
+      <Route>
+        <LocalRoutes />
       </Route>
     </Switch>
   );
