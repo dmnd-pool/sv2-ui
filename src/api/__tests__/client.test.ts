@@ -241,3 +241,53 @@ test('broker requests never send the miner X-Account-ID header', async () => {
     assert.equal((call.init.headers as Record<string, string>)['X-Account-ID'], undefined);
   }
 });
+
+test('getHashrateHistory GETs the historical endpoint with from/to and returns the points', async () => {
+  const points = [{ observed_at: '2026-06-30T00:00:00Z', pplns_hashrate: 1, fpps_hashrate: 2, total_hashrate: 3 }];
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(points));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.getHashrateHistory('2026-06-23T00:00:00.000Z', '2026-06-30T00:00:00.000Z');
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.includes('/api/user/hashrate/historical?'));
+  assert.ok(calls[0].url.includes('from=2026-06-23T00%3A00%3A00.000Z'));
+  assert.ok(calls[0].url.includes('to=2026-06-30T00%3A00%3A00.000Z'));
+  assert.deepEqual(result, points);
+});
+
+test('getHashrateHistory collapses a non-array response to an empty series', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse(0));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  assert.deepEqual(await client.getHashrateHistory('a', 'b'), []);
+});
+
+test('getAllWorkers follows next_cursor across pages and concatenates the roster', async () => {
+  const pages = [
+    { workers: [{ name: 'w1' }], next_cursor: 'c1' },
+    { workers: [{ name: 'w2' }], next_cursor: null },
+  ];
+  let i = 0;
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(pages[i++]));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const workers = await client.getAllWorkers();
+
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].url.includes('/api/workers/all?'));
+  assert.ok(!calls[0].url.includes('cursor='));
+  assert.ok(calls[1].url.includes('cursor=c1'));
+  assert.deepEqual(workers.map((w) => w.name), ['w1', 'w2']);
+});
+
+test('getPayoutAddresses GETs the payout addresses', async () => {
+  const addrs = { fpps_payout_address: 'bc1qfpps', pplns_payout_address: 'bc1qpplns' };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(addrs));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.getPayoutAddresses();
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.endsWith('/api/payouts/addresses'));
+  assert.deepEqual(result, addrs);
+});

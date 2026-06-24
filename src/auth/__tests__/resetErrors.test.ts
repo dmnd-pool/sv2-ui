@@ -17,7 +17,7 @@ test('isTwoFactorRequiredError is false for near-misses and other failures', () 
     isTwoFactorRequiredError(new DmndApiError("This email doesn't have an account", 'unknown')),
     false,
   );
-  assert.equal(isTwoFactorRequiredError(new DmndApiError('Cannot reach DMND cloud API', 'network')), false);
+  assert.equal(isTwoFactorRequiredError(new DmndApiError('Cannot reach DMND API server', 'network')), false);
   assert.equal(isTwoFactorRequiredError(new Error('Invalid 2FA token')), false); // not a DmndApiError
   assert.equal(isTwoFactorRequiredError(null), false);
 });
