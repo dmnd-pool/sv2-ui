@@ -30,3 +30,13 @@ test('readNextParam rejects absolute urls and non-path values', () => {
 test('readNextParam falls back to / on malformed encoding', () => {
   assert.equal(readNextParam('?next=%2Fworkers%ZZ'), '/');
 });
+
+test('readNextParam uses the given fallback for absent and unsafe values, but honours a valid next', () => {
+  // The dashboard lands signed-in users on /home rather than the local root.
+  assert.equal(readNextParam('', '/home'), '/home');
+  assert.equal(readNextParam('?next=', '/home'), '/home');
+  assert.equal(readNextParam('?next=%2F%2Fevil.com', '/home'), '/home');
+  assert.equal(readNextParam('?next=https%3A%2F%2Fevil.com', '/home'), '/home');
+  // a safe same-origin target is still respected over the fallback
+  assert.equal(readNextParam('?next=%2Frewards', '/home'), '/rewards');
+});

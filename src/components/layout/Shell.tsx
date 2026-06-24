@@ -16,7 +16,7 @@ interface NavItem {
 
 function getNavItems(_features: AppFeatures, _appMode: AppMode): NavItem[] {
   return [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/local' },
     { icon: Settings, label: 'Settings', href: '/settings' },
   ];
 }
@@ -71,7 +71,7 @@ export function Shell({
   }, [menuOpen]);
 
   const Logo = () => (
-    <Link href="/" className="shrink-0 flex items-center">
+    <Link href="/local" className="shrink-0 flex items-center">
       {config.customLogoDataUrl ? (
         <img
           src={config.customLogoDataUrl}
