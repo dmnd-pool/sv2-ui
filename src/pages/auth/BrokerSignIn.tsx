@@ -13,11 +13,6 @@ import { signInSchema, type SignInValues } from '@/auth/schemas';
 import { createBrokerSession, useBrokerAuth } from '@/auth';
 import { getDmndClient } from '@/api';
 
-/**
- * Broker sign-in. Same form as the miner SignIn, wired to the separate broker
- * auth tree (`/api/broker/log`, cookie-based, no token) and landing on the
- * broker area. The "sign in as miner" toggle crosses back to the miner flow.
- */
 export function BrokerSignIn() {
   const { session, signIn } = useBrokerAuth();
   const toast = useToast();

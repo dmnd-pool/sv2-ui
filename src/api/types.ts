@@ -44,13 +44,6 @@ export interface SignupInput {
   referralCode?: string;
 }
 
-/**
- * Broker login (`/api/broker/log`) and signup (`/api/brokers`) return the broker
- * id, email, and a referral/reference code. The spec spells that code two ways
- * (login `referenceCode`, signup `reference_code`); the client normalizes both
- * to `referenceCode`. Brokers are a separate auth tree from miners: no token,
- * cookie-based session.
- */
 export interface BrokerAccount {
   id: string | number;
   email: string;

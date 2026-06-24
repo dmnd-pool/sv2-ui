@@ -2,13 +2,7 @@ import { FIXED_TTL_MS, IDLE_TTL_MS } from './session';
 
 export const BROKER_STORAGE_KEY = 'dmnd_broker_session';
 
-/**
- * The browser-side broker session. Brokers are a separate auth tree from miners
- * (cookie-based, no token, no X-Account-ID), so this is stored under its own key
- * and never mixed with the miner session. The two timestamps mirror the miner
- * session as a UX convenience; the cookie is the real session and is enforced
- * server-side.
- */
+/** The HttpOnly cookie is the real session; these timestamps only drive client-side expiry. */
 export interface BrokerSession {
   brokerId: string;
   email: string;

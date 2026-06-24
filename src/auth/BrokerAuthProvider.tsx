@@ -15,12 +15,9 @@ export interface BrokerAuthContextValue {
 const BrokerAuthContext = createContext<BrokerAuthContextValue | null>(null);
 
 /**
- * Broker auth state, kept deliberately lighter than the miner AuthProvider:
- * there is no broker `check_auth` endpoint to rehydrate against and only one
- * broker route today, so this is a sessionStorage-backed marker rather than the
- * full cross-tab + idle-expiry machinery. `readBrokerSession` drops an expired
- * session on read, so a stale session never grants access. When the real broker
- * dashboard lands, this can grow to match the miner provider.
+ * Broker auth state backed by sessionStorage. There is no broker `check_auth`
+ * endpoint to rehydrate against, so there is no cross-tab or idle-expiry
+ * machinery; `readBrokerSession` drops an expired session on read.
  */
 export function BrokerAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<BrokerSession | null>(() => readBrokerSession());

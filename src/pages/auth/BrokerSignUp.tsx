@@ -24,10 +24,8 @@ import {
 import { getDmndClient } from '@/api';
 
 /**
- * Broker signup, two steps on one route like the miner SignUp: details, then
- * password. Unlike miners, company name and location are required and there's no
- * referral field. Creating the account lands on a success screen; the broker
- * signs in from there (no auto-login).
+ * Broker signup is two steps on one route: details, then password. Creating the
+ * account lands on a success screen; the broker signs in from there (no auto-login).
  */
 export function BrokerSignUp() {
   const { session } = useBrokerAuth();
@@ -172,8 +170,7 @@ function PasswordStep({
   });
   const passwordValue = watch('password');
   const passwordReg = register('password');
-  // A server-side password rejection is shown through the strength meter, not a
-  // separate line, and cleared as soon as the user edits.
+  // Surface a server-side password rejection in the strength meter; clear it on edit.
   const [serverPwError, setServerPwError] = useState<string | null>(null);
   useEffect(() => setServerPwError(null), [passwordValue]);
 
@@ -197,8 +194,6 @@ function PasswordStep({
       else toast({ type: 'error', message: 'Unable to create account. Please try again.' });
       return;
     }
-    // Account created. Show the success screen; the broker signs in from there
-    // (no auto-login).
     toast({ type: 'success', message: 'Account created successfully.' });
     onCreated();
   };

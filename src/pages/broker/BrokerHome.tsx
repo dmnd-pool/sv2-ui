@@ -3,12 +3,7 @@ import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthSubmit } from '@/components/auth/AuthSubmit';
 import { useBrokerAuth } from '@/auth';
 
-/**
- * Placeholder broker landing. The real broker dashboard (the portfolio table of
- * managed miners, spec section 8) is a later PR; for now a signed-in broker sees
- * their account details and can sign out. Signing out clears the broker session,
- * so BrokerGuard redirects back to the broker sign-in.
- */
+/** Placeholder broker landing until the broker dashboard ships: account details and sign-out. */
 export function BrokerHome() {
   const { session, signOut } = useBrokerAuth();
 

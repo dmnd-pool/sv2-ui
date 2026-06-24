@@ -46,9 +46,6 @@ export const resetTokenSchema = z.object({
 });
 export type ResetTokenValues = z.infer<typeof resetTokenSchema>;
 
-// Broker signup: company name and location are REQUIRED (asterisks on the
-// design), unlike the optional miner fields, and the API has no `| null` on
-// them. No referral on the broker flow.
 export const brokerSignUpDetailsSchema = z.object({
   firstName: z.string().trim().min(1, 'Enter your first name'),
   lastName: z.string().trim().min(1, 'Enter your last name'),

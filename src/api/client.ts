@@ -101,13 +101,12 @@ interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT';
   path: string;
   body?: unknown;
+  /** Broker endpoints are a separate tree and must not carry the miner X-Account-ID header. */
+  omitAccountId?: boolean;
 }
 
-/**
- * The broker endpoints spell the referral code two ways: `/api/broker/log`
- * returns `referenceCode`, `/api/brokers` returns `reference_code`. Normalize
- * both to `referenceCode` so callers don't care which endpoint produced it.
- */
+// /api/broker/log returns `referenceCode`, /api/brokers returns `reference_code`;
+// normalizeBrokerAccount maps both to `referenceCode`.
 interface RawBrokerAccount {
   id: string | number;
   email: string;
@@ -134,7 +133,7 @@ async function request<T>(
     if (req.signal?.aborted) throw new DmndApiError('Request cancelled', 'network');
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (accountId) headers['X-Account-ID'] = accountId;
+    if (accountId && !spec.omitAccountId) headers['X-Account-ID'] = accountId;
 
     try {
       const response = await opts.fetchImpl(`${API_BASE}${spec.path}`, {
@@ -236,23 +235,19 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
       );
     },
     async brokerLogin(email, password, req): Promise<BrokerAccount> {
-      // Brokers are a separate tree from miners: cookie-based, no token. Body is
-      // just {email, password} (no language, unlike miner login).
       const raw = await request<RawBrokerAccount>(
-        { method: 'POST', path: '/api/broker/log', body: { email, password } },
+        { method: 'POST', path: '/api/broker/log', body: { email, password }, omitAccountId: true },
         opts,
         req,
       );
       return normalizeBrokerAccount(raw);
     },
     async brokerSignup(input: BrokerSignupInput, req): Promise<BrokerAccount> {
-      // Unlike miner /api/users (which needs a nested {register:{...}}),
-      // /api/brokers takes a flat body. Note companyLocation here vs the miner's
-      // companyPrimaryLocation.
       const raw = await request<RawBrokerAccount>(
         {
           method: 'POST',
           path: '/api/brokers',
+          omitAccountId: true,
           body: {
             email: input.email,
             password: input.password,

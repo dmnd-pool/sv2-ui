@@ -111,7 +111,7 @@ test('resetTokenSchema requires a non-empty token and trims it', () => {
   assert.equal(ok.success && ok.data.token, 'W9qbD2xh');
 });
 
-test('brokerSignUpDetailsSchema requires company name and location (unlike miner)', () => {
+test('brokerSignUpDetailsSchema requires company name and location', () => {
   assert.equal(
     brokerSignUpDetailsSchema.safeParse({
       firstName: 'Ada',
