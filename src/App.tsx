@@ -9,6 +9,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { ComingSoon } from '@/components/dashboard/ComingSoon';
 import { DashboardHome } from '@/pages/dashboard/DashboardHome';
 import { AccountSetup } from '@/pages/account-setup/AccountSetup';
+import { WorkersPage } from '@/pages/workers/WorkersPage';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
@@ -73,7 +74,7 @@ function AppRoutes() {
       </Route>
       <Route path="/workers">
         <DashboardShell>
-          <ComingSoon title="Workers" />
+          <WorkersPage />
         </DashboardShell>
       </Route>
       <Route path="/subaccounts">
