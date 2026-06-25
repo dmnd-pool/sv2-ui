@@ -44,6 +44,21 @@ export interface SignupInput {
   referralCode?: string;
 }
 
+export interface BrokerAccount {
+  id: string | number;
+  email: string;
+  referenceCode: string;
+}
+
+export interface BrokerSignupInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  companyLocation: string;
+}
+
 // Auth is cookie-based: once login sets the session cookie, the proxy forwards
 // it on every call, so these methods don't take a token argument.
 export interface DmndClient {
@@ -60,4 +75,6 @@ export interface DmndClient {
     newPassword: string,
     req?: RequestOptions,
   ): Promise<void>;
+  brokerLogin(email: string, password: string, req?: RequestOptions): Promise<BrokerAccount>;
+  brokerSignup(input: BrokerSignupInput, req?: RequestOptions): Promise<BrokerAccount>;
 }

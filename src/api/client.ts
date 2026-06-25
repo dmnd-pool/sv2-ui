@@ -1,4 +1,6 @@
 import {
+  type BrokerAccount,
+  type BrokerSignupInput,
   DmndApiError,
   type DmndClient,
   type DmndSession,
@@ -99,6 +101,25 @@ interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT';
   path: string;
   body?: unknown;
+  /** Broker endpoints are a separate tree and must not carry the miner X-Account-ID header. */
+  omitAccountId?: boolean;
+}
+
+// /api/broker/log returns `referenceCode`, /api/brokers returns `reference_code`;
+// normalizeBrokerAccount maps both to `referenceCode`.
+interface RawBrokerAccount {
+  id: string | number;
+  email: string;
+  referenceCode?: string;
+  reference_code?: string;
+}
+
+function normalizeBrokerAccount(raw: RawBrokerAccount): BrokerAccount {
+  return {
+    id: raw.id,
+    email: raw.email,
+    referenceCode: raw.referenceCode ?? raw.reference_code ?? '',
+  };
 }
 
 async function request<T>(
@@ -112,7 +133,7 @@ async function request<T>(
     if (req.signal?.aborted) throw new DmndApiError('Request cancelled', 'network');
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (accountId) headers['X-Account-ID'] = accountId;
+    if (accountId && !spec.omitAccountId) headers['X-Account-ID'] = accountId;
 
     try {
       const response = await opts.fetchImpl(`${API_BASE}${spec.path}`, {
@@ -212,6 +233,34 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         opts,
         req,
       );
+    },
+    async brokerLogin(email, password, req): Promise<BrokerAccount> {
+      const raw = await request<RawBrokerAccount>(
+        { method: 'POST', path: '/api/broker/log', body: { email, password }, omitAccountId: true },
+        opts,
+        req,
+      );
+      return normalizeBrokerAccount(raw);
+    },
+    async brokerSignup(input: BrokerSignupInput, req): Promise<BrokerAccount> {
+      const raw = await request<RawBrokerAccount>(
+        {
+          method: 'POST',
+          path: '/api/brokers',
+          omitAccountId: true,
+          body: {
+            email: input.email,
+            password: input.password,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            companyName: input.companyName,
+            companyLocation: input.companyLocation,
+          },
+        },
+        opts,
+        req,
+      );
+      return normalizeBrokerAccount(raw);
     },
   };
 }

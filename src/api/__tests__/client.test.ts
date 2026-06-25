@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDmndClient } from '../client';
+import { createDmndClient, setDmndAccountId } from '../client';
 import { DmndApiError } from '../types';
 
 interface Call {
@@ -159,4 +159,85 @@ test('a 4xx with a server message surfaces it as an unknown error', async () => 
     () => client.login('a@b.co', 'pw'),
     (e: unknown) => e instanceof DmndApiError && e.code === 'unknown' && e.message === 'Add another word or two',
   );
+});
+
+test('brokerLogin posts to broker/log and maps referenceCode', async () => {
+  const { fetchImpl, calls } = fakeFetch(() =>
+    jsonResponse({ id: 7, email: 'b@x.io', referenceCode: 'RC-1' }),
+  );
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.brokerLogin('b@x.io', 'pw');
+
+  assert.ok(calls[0].url.endsWith('/api/broker/log'));
+  assert.equal(calls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), { email: 'b@x.io', password: 'pw' });
+  assert.deepEqual(result, { id: 7, email: 'b@x.io', referenceCode: 'RC-1' });
+});
+
+test('brokerSignup posts a flat body to /api/brokers and normalizes reference_code', async () => {
+  const { fetchImpl, calls } = fakeFetch(() =>
+    jsonResponse({ id: '9', email: 'b@x.io', reference_code: 'RC-9' }),
+  );
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.brokerSignup({
+    email: 'b@x.io',
+    password: 'longenough',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    companyName: 'Demand',
+    companyLocation: 'Lisbon, PT',
+  });
+
+  assert.ok(calls[0].url.endsWith('/api/brokers'));
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    email: 'b@x.io',
+    password: 'longenough',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    companyName: 'Demand',
+    companyLocation: 'Lisbon, PT',
+  });
+  // snake_case reference_code from signup normalizes to referenceCode
+  assert.deepEqual(result, { id: '9', email: 'b@x.io', referenceCode: 'RC-9' });
+});
+
+test('miner requests send the X-Account-ID header when an account id is set', async () => {
+  const { fetchImpl, calls } = fakeFetch(() =>
+    jsonResponse({ token: 'x', id: '42', email: 'm@x.io', two_factor_secret: null }),
+  );
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  setDmndAccountId('42');
+  try {
+    await client.checkAuth();
+  } finally {
+    setDmndAccountId(null);
+  }
+  assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
+});
+
+test('broker requests never send the miner X-Account-ID header', async () => {
+  const { fetchImpl, calls } = fakeFetch(() =>
+    jsonResponse({ id: 7, email: 'b@x.io', referenceCode: 'RC-1' }),
+  );
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  // A miner account id can linger in the same tab; broker calls must ignore it.
+  setDmndAccountId('42');
+  try {
+    await client.brokerLogin('b@x.io', 'pw');
+    await client.brokerSignup({
+      email: 'b@x.io',
+      password: 'longenough',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      companyName: 'Demand',
+      companyLocation: 'Lisbon, PT',
+    });
+  } finally {
+    setDmndAccountId(null);
+  }
+  for (const call of calls) {
+    assert.equal((call.init.headers as Record<string, string>)['X-Account-ID'], undefined);
+  }
 });

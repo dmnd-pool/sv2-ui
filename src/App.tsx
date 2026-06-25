@@ -8,8 +8,10 @@ import { Setup } from '@/pages/Setup';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
-import { BrokerComingSoon } from '@/pages/auth/BrokerComingSoon';
-import { AuthProvider, AuthGuard } from '@/auth';
+import { BrokerSignIn } from '@/pages/auth/BrokerSignIn';
+import { BrokerSignUp } from '@/pages/auth/BrokerSignUp';
+import { BrokerHome } from '@/pages/broker/BrokerHome';
+import { AuthProvider, AuthGuard, BrokerAuthProvider, BrokerGuard } from '@/auth';
 import { ToastProvider } from '@/components/ui/toast';
 import { FullScreenStatus } from '@/components/layout/FullScreenStatus';
 import { useSetupStatus } from '@/hooks/useSetupStatus';
@@ -68,10 +70,15 @@ function Router() {
         <ResetPassword />
       </Route>
       <Route path="/broker/signin">
-        <BrokerComingSoon />
+        <BrokerSignIn />
       </Route>
       <Route path="/broker/signup">
-        <BrokerComingSoon />
+        <BrokerSignUp />
+      </Route>
+      <Route path="/broker">
+        <BrokerGuard>
+          <BrokerHome />
+        </BrokerGuard>
       </Route>
       {/* Everything else requires a signed-in miner */}
       <Route>
@@ -88,7 +95,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <AuthProvider>
-          <Router />
+          <BrokerAuthProvider>
+            <Router />
+          </BrokerAuthProvider>
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>

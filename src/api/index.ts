@@ -1,5 +1,7 @@
 export { DmndApiError } from './types';
 export type {
+  BrokerAccount,
+  BrokerSignupInput,
   DmndApiErrorCode,
   DmndClient,
   DmndSession,

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  brokerPasswordSchema,
+  brokerSignUpDetailsSchema,
   emailSchema,
   resetPasswordSchema,
   resetTokenSchema,
@@ -107,4 +109,56 @@ test('resetTokenSchema requires a non-empty token and trims it', () => {
   const ok = resetTokenSchema.safeParse({ token: '  W9qbD2xh  ' });
   assert.equal(ok.success, true);
   assert.equal(ok.success && ok.data.token, 'W9qbD2xh');
+});
+
+test('brokerSignUpDetailsSchema requires company name and location', () => {
+  assert.equal(
+    brokerSignUpDetailsSchema.safeParse({
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'b@x.io',
+      companyName: 'Demand',
+      companyLocation: 'Lisbon, PT',
+    }).success,
+    true,
+  );
+  assert.equal(
+    firstError(
+      brokerSignUpDetailsSchema.safeParse({
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        email: 'b@x.io',
+        companyName: '',
+        companyLocation: 'Lisbon, PT',
+      }),
+    )?.message,
+    'Enter your company name',
+  );
+  assert.equal(
+    firstError(
+      brokerSignUpDetailsSchema.safeParse({
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        email: 'b@x.io',
+        companyName: 'Demand',
+        companyLocation: '',
+      }),
+    )?.message,
+    'Enter your company location',
+  );
+});
+
+test('brokerPasswordSchema enforces length and matching, with no referral field', () => {
+  assert.equal(
+    firstError(brokerPasswordSchema.safeParse({ password: 'short', confirmPassword: 'short' }))?.message,
+    'Password should be a minimum of 9 characters',
+  );
+  const mismatch = firstError(
+    brokerPasswordSchema.safeParse({ password: 'longenough', confirmPassword: 'different' }),
+  );
+  assert.equal(mismatch?.message, 'Passwords do not match');
+  assert.equal(
+    brokerPasswordSchema.safeParse({ password: 'longenough', confirmPassword: 'longenough' }).success,
+    true,
+  );
 });
