@@ -234,6 +234,25 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         req,
       );
     },
+    activate2fa(code, req) {
+      // The body field is literally `token` and holds the 6-digit CODE (the
+      // session rides in the cookie + X-Account-ID header). Verified live.
+      return request<void>({ method: 'PUT', path: '/api/activate_2fa', body: { token: code } }, opts, req);
+    },
+    setBitcoinAddress(address, twoFaToken, req) {
+      // Snake_case body (bundle-verified); sub_account_id is null for the master
+      // account. The API rejects an empty/missing two_fa_token with a
+      // 2FA-required error, which the Bitcoin step uses to prompt for the code.
+      return request<void>(
+        {
+          method: 'POST',
+          path: '/api/bitcoin_address',
+          body: { bitcoin_address: address, two_fa_token: twoFaToken, sub_account_id: null },
+        },
+        opts,
+        req,
+      );
+    },
     async brokerLogin(email, password, req): Promise<BrokerAccount> {
       const raw = await request<RawBrokerAccount>(
         { method: 'POST', path: '/api/broker/log', body: { email, password }, omitAccountId: true },

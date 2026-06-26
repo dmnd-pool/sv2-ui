@@ -75,6 +75,14 @@ export interface DmndClient {
     newPassword: string,
     req?: RequestOptions,
   ): Promise<void>;
+  /** Confirm TOTP setup with the 6-digit code from the authenticator app. */
+  activate2fa(code: string, req?: RequestOptions): Promise<void>;
+  /**
+   * Set the payout address. The API requires a live `two_fa_token`; pass an
+   * empty string to let the caller detect a 2FA-required response and prompt
+   * for the code (the try-then-ask flow the Bitcoin step uses).
+   */
+  setBitcoinAddress(address: string, twoFaToken: string, req?: RequestOptions): Promise<void>;
   brokerLogin(email: string, password: string, req?: RequestOptions): Promise<BrokerAccount>;
   brokerSignup(input: BrokerSignupInput, req?: RequestOptions): Promise<BrokerAccount>;
 }
