@@ -1,30 +1,45 @@
-import { Link } from 'wouter';
-import { LiAltArrowRight } from 'solar-icon-react/li';
+import { LiveHashrateCard } from '@/components/home/LiveHashrateCard';
+import { ConnectWorkersCard } from '@/components/home/ConnectWorkersCard';
+import { WorkerStatCards } from '@/components/home/WorkerStatCards';
+import { MiningPerformanceChart } from '@/components/home/MiningPerformanceChart';
+import { GettingStartedCard } from '@/components/home/GettingStartedCard';
 
-/**
- * Dashboard landing placeholder: a welcome and a prompt to finish account setup.
- * The full home (live hashrate, worker stats, performance chart) is not wired here yet.
- */
+/** Recent window for the worker roster / stat cards (YYYY-MM-DD, UTC). */
+function recentRange(): { from: string; to: string } {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  return {
+    from: new Date(now - 7 * day).toISOString().slice(0, 10),
+    to: new Date(now).toISOString().slice(0, 10),
+  };
+}
+
+/** The dashboard landing: live hashrate, connect-workers credentials, worker
+ * stats, the performance chart, and a floating setup checklist. */
 export function DashboardHome() {
+  const { from, to } = recentRange();
+
   return (
     <div className="space-y-6">
       <header>
         <h2 className="text-xl font-semibold text-heading">Welcome back</h2>
-        <p className="mt-1 text-sm text-body-alt">Here is an overview of your mining account.</p>
+        <p className="mt-1 text-sm text-body-alt">Connect a worker to start mining and view performance data.</p>
       </header>
 
-      <Link
-        href="/account-setup"
-        className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-muted"
-      >
-        <div>
-          <p className="text-sm font-medium text-foreground">Finish setting up your account</p>
-          <p className="mt-1 text-sm text-body-alt">
-            Set up two-factor authentication and add your payout address.
-          </p>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <LiveHashrateCard />
         </div>
-        <LiAltArrowRight className="h-5 w-5 shrink-0 text-body-alt" />
-      </Link>
+        <div className="lg:col-span-2">
+          <ConnectWorkersCard />
+        </div>
+      </div>
+
+      <WorkerStatCards from={from} to={to} />
+
+      <MiningPerformanceChart />
+
+      <GettingStartedCard from={from} to={to} />
     </div>
   );
 }

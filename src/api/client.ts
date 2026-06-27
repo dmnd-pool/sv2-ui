@@ -4,8 +4,11 @@ import {
   DmndApiError,
   type DmndClient,
   type DmndSession,
+  type HashratePoint,
+  type HashrateSnapshot,
   type RequestOptions,
   type SignupInput,
+  type WorkersResponse,
 } from './types';
 
 // The DMND dashboard API is called directly: it sets CORS for our origin and
@@ -280,6 +283,24 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         req,
       );
       return normalizeBrokerAccount(raw);
+    },
+    getHashrate(req) {
+      return request<HashrateSnapshot>({ method: 'GET', path: '/api/user/hashrate' }, opts, req);
+    },
+    async getHashrateHistory(range, req) {
+      // The series endpoint returns a scalar (0.0) for a no-activity account and,
+      // when populated, an array of points. Only an array is a real series; any
+      // other shape collapses to [] so the chart shows its empty state.
+      const result = await request<unknown>(
+        { method: 'GET', path: `/api/user/hashrate/history?range=${encodeURIComponent(range)}` },
+        opts,
+        req,
+      );
+      return Array.isArray(result) ? (result as HashratePoint[]) : [];
+    },
+    getWorkers(from, to, req) {
+      const query = new URLSearchParams({ from, to }).toString();
+      return request<WorkersResponse>({ method: 'GET', path: `/api/workers?${query}` }, opts, req);
     },
   };
 }
