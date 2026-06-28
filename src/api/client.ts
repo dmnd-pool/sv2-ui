@@ -1,6 +1,8 @@
 import {
+  type AccountPermissions,
   type BrokerAccount,
   type BrokerSignupInput,
+  type CreateSubaccountInput,
   DmndApiError,
   type DmndClient,
   type DmndSession,
@@ -9,6 +11,9 @@ import {
   type PayoutAddresses,
   type RequestOptions,
   type SignupInput,
+  type Subaccount,
+  type SubaccountGeneratedBtcEntry,
+  type SubaccountShareStats,
   type Worker,
   type WorkersResponse,
 } from './types';
@@ -330,6 +335,63 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
     },
     getPayoutAddresses(req) {
       return request<PayoutAddresses>({ method: 'GET', path: '/api/payouts/addresses' }, opts, req);
+    },
+    getSubaccounts(req) {
+      return request<Subaccount[]>({ method: 'GET', path: '/api/user/sub_account' }, opts, req);
+    },
+    getSubaccountShareStats(id, token, req) {
+      const q = new URLSearchParams({ hours: '24', token }).toString();
+      return request<SubaccountShareStats>(
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/share_stats?${q}` },
+        opts,
+        req,
+      );
+    },
+    getSubaccountWorkers(id, token, req) {
+      const q = new URLSearchParams({ token }).toString();
+      return request<WorkersResponse>(
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/workers?${q}` },
+        opts,
+        req,
+      );
+    },
+    getSubaccountGeneratedBtc(id, token, req) {
+      const q = new URLSearchParams({ token }).toString();
+      return request<SubaccountGeneratedBtcEntry[]>(
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc?${q}` },
+        opts,
+        req,
+      );
+    },
+    getPermissions(req) {
+      return request<AccountPermissions>({ method: 'GET', path: '/api/user/permissions' }, opts, req);
+    },
+    createSubaccount(input: CreateSubaccountInput, req) {
+      // Snake_case body (bundle-verified). The create endpoint takes only the name
+      // and payout address; unlike the standalone /api/bitcoin_address it does not
+      // require a 2FA token.
+      return request<void>(
+        {
+          method: 'POST',
+          path: '/api/user/sub_account',
+          body: { sub_account: input.name, bitcoin_address: input.bitcoinAddress },
+        },
+        opts,
+        req,
+      );
+    },
+    logSubaccount(ownerToken, subaccountToken, req) {
+      // Issues a subaccount session for the "open in a new logged-in tab" flow.
+      // owner_token = the master session token; subaccount_token = the row's token.
+      return request<DmndSession>(
+        {
+          method: 'POST',
+          path: '/api/log_subaccount',
+          body: { owner_token: ownerToken, subaccount_token: subaccountToken },
+        },
+        opts,
+        req,
+      );
     },
   };
 }

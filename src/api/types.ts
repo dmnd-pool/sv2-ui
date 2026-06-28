@@ -116,6 +116,66 @@ export interface PayoutAddresses {
   pplns_payout_address: string;
 }
 
+/**
+ * Accepted/rejected share counts for a subaccount over a window
+ * (GET /api/user/sub_account/{id}/share_stats, verified live). Rejection rate is
+ * derived from `rejected / (accepted + rejected)`.
+ */
+export interface SubaccountShareStats {
+  window_hours: number;
+  pplns_accepted: number;
+  pplns_rejected: number;
+  fpps_accepted: number;
+  fpps_rejected: number;
+  accepted: number;
+  rejected: number;
+}
+
+/** Pool + broker fee fractions (GET /api/user/sub_account/{id}/fees, verified live). */
+export interface SubaccountFees {
+  pool_fee: number;
+  broker_fee: number;
+}
+
+/** One day of generated BTC (GET /api/user/sub_account/{id}/generated_btc). */
+export interface SubaccountGeneratedBtcEntry {
+  entry_day: string;
+  btc_generated: number | null;
+}
+
+/**
+ * A subaccount as returned by GET /api/user/sub_account (verified live). The list
+ * is lightweight: an id, the name (under `sub_account`), the total hashrate as a
+ * numeric string, and the subaccount's own credentials. Rejection, worker, and
+ * earnings figures come from the per-subaccount sub-endpoints (share_stats /
+ * workers / generated_btc), keyed by `id` + `token`.
+ */
+export interface Subaccount {
+  id: string;
+  sub_account?: string;
+  sub_account_name?: string;
+  subaccount?: string;
+  name?: string;
+  hashrate?: string;
+  token?: string;
+  api_token?: string;
+  fpps_token?: string;
+  bitcoin_addresses?: Record<string, unknown>;
+}
+
+/** Account capability flags (GET /api/user/permissions; snake_case, bundle-verified). */
+export interface AccountPermissions {
+  view_sub_accounts: boolean;
+  create_sub_account: boolean;
+  edit_btc_address: boolean;
+}
+
+/** Fields the create-subaccount form collects (mapped to the snake_case API body). */
+export interface CreateSubaccountInput {
+  name: string;
+  bitcoinAddress: string;
+}
+
 // Auth is cookie-based: once login sets the session cookie, the proxy forwards
 // it on every call, so these methods don't take a token argument.
 export interface DmndClient {
@@ -156,4 +216,26 @@ export interface DmndClient {
   getAllWorkers(req?: RequestOptions): Promise<Worker[]>;
   /** The account's FPPS + PPLNS payout addresses, used to compute today's earnings. */
   getPayoutAddresses(req?: RequestOptions): Promise<PayoutAddresses>;
+  /** The account's subaccounts (master only); a lightweight list, enriched per-row. */
+  getSubaccounts(req?: RequestOptions): Promise<Subaccount[]>;
+  /** Per-subaccount share counts (drives the rejection-rate column). */
+  getSubaccountShareStats(id: string, token: string, req?: RequestOptions): Promise<SubaccountShareStats>;
+  /** Per-subaccount worker roster; active/offline counts derive from this. */
+  getSubaccountWorkers(id: string, token: string, req?: RequestOptions): Promise<WorkersResponse>;
+  /** Per-subaccount daily generated BTC (drives today's earnings). */
+  getSubaccountGeneratedBtc(
+    id: string,
+    token: string,
+    req?: RequestOptions,
+  ): Promise<SubaccountGeneratedBtcEntry[]>;
+  /** Capability flags gating the Create button and the page itself. */
+  getPermissions(req?: RequestOptions): Promise<AccountPermissions>;
+  /** Create a subaccount under the master account. */
+  createSubaccount(input: CreateSubaccountInput, req?: RequestOptions): Promise<void>;
+  /**
+   * Issue a session for a subaccount so it can be opened in a new, already-logged-in
+   * tab. Returns the subaccount session; the caller does NOT swap the current
+   * session (the new tab carries its own server-set cookie).
+   */
+  logSubaccount(ownerToken: string, subaccountToken: string, req?: RequestOptions): Promise<DmndSession>;
 }
