@@ -71,7 +71,7 @@ test('enrichSubaccount combines the row with workers, share_stats, and earnings'
   const day = 24 * 60 * 60 * 1000;
   const workers = [
     worker({ name: 'a', is_connected: true }),
-    worker({ name: 'b', is_connected: false, connected_at: new Date(now - 2 * day).toISOString() }),
+    worker({ name: 'b', is_connected: false, connected_at: Math.floor((now - 2 * day) / 1000) }),
   ];
   const e = enrichSubaccount(
     row({ id: '7', sub_account: 'Farm', hashrate: '50' }),
