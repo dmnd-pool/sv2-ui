@@ -4,6 +4,24 @@ import { cn } from '@/lib/utils';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
+// Persist the desktop sidebar's collapsed state so it survives reloads. Wrapped
+// because storage access can throw (private mode / disabled cookies).
+const COLLAPSE_KEY = 'dmnd.sidebar.collapsed';
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function writeCollapsed(value: boolean): void {
+  try {
+    window.localStorage.setItem(COLLAPSE_KEY, value ? '1' : '0');
+  } catch {
+    // storage unavailable; collapse just won't persist
+  }
+}
+
 /**
  * The frame for every DMND dashboard page: a fixed sidebar on large screens, an
  * off-canvas drawer on small ones, and a scrolling content column under the top
@@ -12,7 +30,10 @@ import { TopBar } from './TopBar';
  */
 export function DashboardShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const [location] = useLocation();
+
+  useEffect(() => writeCollapsed(collapsed), [collapsed]);
 
   // Close the drawer when navigating or pressing Escape.
   useEffect(() => setDrawerOpen(false), [location]);
@@ -27,7 +48,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className="dmnd-app flex h-screen w-full overflow-hidden bg-background text-foreground">
       <aside className="hidden lg:block">
-        <Sidebar />
+        <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
       </aside>
 
       {/* Mobile drawer: kept mounted so it can slide rather than pop. */}

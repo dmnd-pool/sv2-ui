@@ -4,8 +4,13 @@ import {
   DmndApiError,
   type DmndClient,
   type DmndSession,
+  type HashratePoint,
+  type HashrateSnapshot,
+  type PayoutAddresses,
   type RequestOptions,
   type SignupInput,
+  type Worker,
+  type WorkersResponse,
 } from './types';
 
 // The DMND dashboard API is called directly: it sets CORS for our origin and
@@ -103,6 +108,8 @@ interface RequestSpec {
   body?: unknown;
   /** Broker endpoints are a separate tree and must not carry the miner X-Account-ID header. */
   omitAccountId?: boolean;
+  /** Per-call timeout override (ms). Dense responses (the historical series) need more than the interactive default. */
+  timeoutMs?: number;
 }
 
 // /api/broker/log returns `referenceCode`, /api/brokers returns `reference_code`;
@@ -143,7 +150,7 @@ async function request<T>(
         // proxy relays the login Set-Cookie back (de-Secured in dev).
         credentials: 'include',
         body: spec.body === undefined ? undefined : JSON.stringify(spec.body),
-        signal: combineSignals(opts.requestTimeoutMs, req.signal),
+        signal: combineSignals(spec.timeoutMs ?? opts.requestTimeoutMs, req.signal),
       });
 
       if (response.status === 401 || response.status === 403) {
@@ -175,7 +182,7 @@ async function request<T>(
   }
 
   if (lastError instanceof DmndApiError) throw lastError;
-  throw new DmndApiError('Cannot reach DMND cloud API', 'network');
+  throw new DmndApiError('Cannot reach DMND API server', 'network');
 }
 
 export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
@@ -280,6 +287,49 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         req,
       );
       return normalizeBrokerAccount(raw);
+    },
+    getHashrate(req) {
+      return request<HashrateSnapshot>({ method: 'GET', path: '/api/user/hashrate' }, opts, req);
+    },
+    async getHashrateHistory(from, to, req) {
+      // /api/user/hashrate/historical returns a dense array (a month is ~16k points),
+      // which legitimately takes longer than the interactive default, so give it a
+      // wider timeout. Tolerate a non-array (e.g. a scalar for a brand-new account)
+      // by collapsing to [] so the chart shows its empty state.
+      const params = new URLSearchParams({ from, to });
+      const result = await request<unknown>(
+        { method: 'GET', path: `/api/user/hashrate/historical?${params.toString()}`, timeoutMs: 20_000 },
+        opts,
+        req,
+      );
+      return Array.isArray(result) ? (result as HashratePoint[]) : [];
+    },
+    getWorkers(from, to, req) {
+      const query = new URLSearchParams({ from, to }).toString();
+      return request<WorkersResponse>({ method: 'GET', path: `/api/workers?${query}` }, opts, req);
+    },
+    async getAllWorkers(req) {
+      // The roster is paginated (default 200, max 1000). Follow next_cursor so the
+      // home's worker total is the full list, not just the first page; capped to
+      // avoid looping on a misbehaving cursor.
+      const all: Worker[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 50; page++) {
+        const params = new URLSearchParams({ limit: '1000' });
+        if (cursor) params.set('cursor', cursor);
+        const res = await request<WorkersResponse>(
+          { method: 'GET', path: `/api/workers/all?${params.toString()}` },
+          opts,
+          req,
+        );
+        all.push(...res.workers);
+        if (!res.next_cursor || res.next_cursor === cursor || res.workers.length === 0) break;
+        cursor = res.next_cursor;
+      }
+      return all;
+    },
+    getPayoutAddresses(req) {
+      return request<PayoutAddresses>({ method: 'GET', path: '/api/payouts/addresses' }, opts, req);
     },
   };
 }
