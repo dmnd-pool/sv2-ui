@@ -4,10 +4,11 @@ import { useSubaccounts, usePermissions } from '@/hooks/useSubaccounts';
 import {
   deriveSubaccountsPageStats,
   searchSubaccounts,
-  sortSubaccounts,
+  applySubaccountFilter,
+  isSubaccountFilterActive,
   subaccountsToCsv,
-  type SubaccountSortKey,
-  type SortDir,
+  EMPTY_SUBACCOUNT_FILTER,
+  type SubaccountFilter,
 } from '@/lib/subaccountsTable';
 import { paginate } from '@/lib/workersTable';
 import { SubaccountsStatCards } from '@/components/subaccounts/SubaccountsStatCards';
@@ -38,30 +39,61 @@ export function SubaccountsPage() {
   const subaccounts = useMemo(() => data ?? [], [data]);
 
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<{ key: SubaccountSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
+  const [filter, setFilter] = useState<SubaccountFilter>(EMPTY_SUBACCOUNT_FILTER);
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
 
   const stats = useMemo(() => deriveSubaccountsPageStats(subaccounts), [subaccounts]);
-  const sorted = useMemo(
-    () => sortSubaccounts(searchSubaccounts(subaccounts, query), sort.key, sort.dir),
-    [subaccounts, query, sort],
+  // Search narrows by name, then the Filter popover applies status/rejection and the
+  // Sort by order (default name asc). Export mirrors exactly what's on screen.
+  const visible = useMemo(
+    () => applySubaccountFilter(searchSubaccounts(subaccounts, query), filter),
+    [subaccounts, query, filter],
   );
-  const pageData = paginate(sorted, page, PAGE_SIZE);
+  const pageData = paginate(visible, page, PAGE_SIZE);
 
   const canCreate = permissions?.create_sub_account ?? false;
   // Header actions only make sense once there's a populated table to act on; the
   // empty and error states carry their own primary button instead.
   const hasData = !isLoading && !isError && subaccounts.length > 0;
 
+  // Any change to search or filter can shrink the result set, so jump back to page 1
+  // to avoid stranding the user on a now-empty page.
   const changeQuery = (next: string) => {
     setQuery(next);
     setPage(1);
   };
-  const changeSort = (key: SubaccountSortKey) => {
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  const applyFilter = (next: SubaccountFilter) => {
+    setFilter(next);
     setPage(1);
   };
+  const resetFilter = () => {
+    setFilter(EMPTY_SUBACCOUNT_FILTER);
+    setPage(1);
+  };
+
+  // Distinguish the two "no match" states: a filter with no results vs a search
+  // with no results. Filter takes precedence since it is the stronger signal.
+  const filterActive = isSubaccountFilterActive(filter);
+  const hasQuery = query.trim().length > 0;
+  const tableEmpty =
+    visible.length > 0
+      ? undefined
+      : filterActive
+        ? {
+            title: 'No subaccounts match this filter',
+            hint: 'Adjust or clear your filters.',
+            clearLabel: 'Clear filters',
+            onClear: resetFilter,
+          }
+        : hasQuery
+          ? {
+              title: 'No subaccounts found',
+              hint: 'Try a different subaccount name or clear your search.',
+              clearLabel: 'Clear search',
+              onClear: () => changeQuery(''),
+            }
+          : undefined;
 
   // Subaccounts are master-only; a permitted-false account gets a clear message
   // instead of an empty table.
@@ -94,7 +126,7 @@ export function SubaccountsPage() {
             )}
             <button
               type="button"
-              onClick={() => downloadCsv(subaccountsToCsv(sorted))}
+              onClick={() => downloadCsv(subaccountsToCsv(visible))}
               className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--btn))] px-4 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
               <LiDownloadMinimalistic className="h-4 w-4" /> Export CSV
@@ -130,9 +162,17 @@ export function SubaccountsPage() {
         <>
           <SubaccountsStatCards stats={stats} />
           <div className="rounded-xl border border-border bg-card">
-            <SubaccountsToolbar query={query} onQuery={changeQuery} />
-            <SubaccountsTable subaccounts={pageData.items} sort={sort} onSort={changeSort} />
-            <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
+            <SubaccountsToolbar
+              query={query}
+              onQuery={changeQuery}
+              filter={filter}
+              onApplyFilter={applyFilter}
+              onResetFilter={resetFilter}
+            />
+            <SubaccountsTable subaccounts={pageData.items} empty={tableEmpty} />
+            {visible.length > 0 && (
+              <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
+            )}
           </div>
         </>
       )}

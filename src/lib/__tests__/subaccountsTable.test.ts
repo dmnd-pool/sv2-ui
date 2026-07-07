@@ -13,7 +13,11 @@ import {
   sortSubaccounts,
   subaccountsToCsv,
   formatBtc,
+  applySubaccountFilter,
+  isSubaccountFilterActive,
+  EMPTY_SUBACCOUNT_FILTER,
   type EnrichedSubaccount,
+  type SubaccountFilter,
 } from '@/lib/subaccountsTable';
 
 function row(over: Partial<Subaccount> = {}): Subaccount {
@@ -126,4 +130,65 @@ test('formatBtc trims float noise and trailing zeros', () => {
   assert.equal(formatBtc(0.001 + 0.0004), '0.0014');
   assert.equal(formatBtc(0), '0');
   assert.equal(formatBtc(0.00042), '0.00042');
+});
+
+const f = (over: Partial<SubaccountFilter> = {}): SubaccountFilter => ({ ...EMPTY_SUBACCOUNT_FILTER, ...over });
+
+test('isSubaccountFilterActive is true only when a facet is set', () => {
+  assert.equal(isSubaccountFilterActive(EMPTY_SUBACCOUNT_FILTER), false);
+  assert.equal(isSubaccountFilterActive(f({ status: 'healthy' })), true);
+  assert.equal(isSubaccountFilterActive(f({ sortBy: 'hashrate_desc' })), true);
+});
+
+test('applySubaccountFilter: empty filter passes all, default order is name asc', () => {
+  const rows = [enriched({ id: '1', name: 'Beta' }), enriched({ id: '2', name: 'alpha' })];
+  assert.deepEqual(applySubaccountFilter(rows, EMPTY_SUBACCOUNT_FILTER).map((s) => s.name), ['alpha', 'Beta']);
+});
+
+test('applySubaccountFilter: status buckets (healthy / has offline / >24h)', () => {
+  const rows = [
+    enriched({ id: 'h', offline: 0, offline24h: 0 }),
+    enriched({ id: 'o', offline: 2, offline24h: 0 }),
+    enriched({ id: 'd', offline: 3, offline24h: 1 }),
+  ];
+  assert.deepEqual(applySubaccountFilter(rows, f({ status: 'healthy' })).map((s) => s.id), ['h']);
+  // "has offline" includes the >24h subset (both o and d have offline > 0)
+  assert.deepEqual(applySubaccountFilter(rows, f({ status: 'has_offline' })).map((s) => s.id).sort(), ['d', 'o']);
+  assert.deepEqual(applySubaccountFilter(rows, f({ status: 'has_offline_24h' })).map((s) => s.id), ['d']);
+});
+
+test('applySubaccountFilter: rejection buckets with inclusive 1%-3% edges; null excluded when active', () => {
+  const rows = [
+    enriched({ id: 'lt', rejection: 0.005 }),
+    enriched({ id: 'lo', rejection: 0.01 }), // exactly 1% -> in the 1%-3% bucket
+    enriched({ id: 'hi', rejection: 0.03 }), // exactly 3% -> in the 1%-3% bucket
+    enriched({ id: 'gt', rejection: 0.05 }),
+    enriched({ id: 'nul', rejection: null }),
+  ];
+  assert.deepEqual(applySubaccountFilter(rows, f({ rejection: 'lt1' })).map((s) => s.id), ['lt']);
+  assert.deepEqual(applySubaccountFilter(rows, f({ rejection: '1to3' })).map((s) => s.id).sort(), ['hi', 'lo']);
+  assert.deepEqual(applySubaccountFilter(rows, f({ rejection: 'gt3' })).map((s) => s.id), ['gt']);
+  // a null rejection (no shares) matches no bucket, so it is filtered out
+  assert.equal(applySubaccountFilter(rows, f({ rejection: 'lt1' })).some((s) => s.id === 'nul'), false);
+});
+
+test('applySubaccountFilter: sort by hashrate and earnings, both directions', () => {
+  const rows = [
+    enriched({ id: 'a', hashrate: 50, todayEarnings: 0.003 }),
+    enriched({ id: 'b', hashrate: 200, todayEarnings: 0.001 }),
+  ];
+  assert.deepEqual(applySubaccountFilter(rows, f({ sortBy: 'hashrate_desc' })).map((s) => s.id), ['b', 'a']);
+  assert.deepEqual(applySubaccountFilter(rows, f({ sortBy: 'hashrate_asc' })).map((s) => s.id), ['a', 'b']);
+  assert.deepEqual(applySubaccountFilter(rows, f({ sortBy: 'earnings_desc' })).map((s) => s.id), ['a', 'b']);
+  assert.deepEqual(applySubaccountFilter(rows, f({ sortBy: 'earnings_asc' })).map((s) => s.id), ['b', 'a']);
+});
+
+test('applySubaccountFilter: status and rejection combine (AND), then sort', () => {
+  const rows = [
+    enriched({ id: 'keep', offline: 1, rejection: 0.02, hashrate: 10 }),
+    enriched({ id: 'wrongStatus', offline: 0, rejection: 0.02, hashrate: 99 }),
+    enriched({ id: 'wrongRej', offline: 1, rejection: 0.5, hashrate: 99 }),
+  ];
+  const out = applySubaccountFilter(rows, f({ status: 'has_offline', rejection: '1to3', sortBy: 'hashrate_desc' }));
+  assert.deepEqual(out.map((s) => s.id), ['keep']);
 });

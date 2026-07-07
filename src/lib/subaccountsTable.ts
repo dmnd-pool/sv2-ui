@@ -118,6 +118,72 @@ export function sortSubaccounts(subs: EnrichedSubaccount[], key: SubaccountSortK
   });
 }
 
+// The Filter popover options. Production does not implement this filter and the
+// spec does not mention it, so the buckets below are derived from the design labels
+// plus the data we already enrich, not prod-verified.
+export type SubaccountStatusFilter = 'healthy' | 'has_offline' | 'has_offline_24h';
+export type SubaccountRejectionFilter = 'lt1' | '1to3' | 'gt3';
+export type SubaccountSortOption = 'hashrate_desc' | 'hashrate_asc' | 'earnings_desc' | 'earnings_asc';
+
+export interface SubaccountFilter {
+  status: SubaccountStatusFilter | null;
+  rejection: SubaccountRejectionFilter | null;
+  sortBy: SubaccountSortOption | null;
+}
+
+export const EMPTY_SUBACCOUNT_FILTER: SubaccountFilter = { status: null, rejection: null, sortBy: null };
+
+/** True when any facet is set; drives the Filter button's active dot and the no-match copy. */
+export function isSubaccountFilterActive(f: SubaccountFilter): boolean {
+  return f.status !== null || f.rejection !== null || f.sortBy !== null;
+}
+
+/** "Healthy" = no offline workers; the >24h option is the subset of has-offline. */
+function matchesStatus(s: EnrichedSubaccount, status: SubaccountStatusFilter): boolean {
+  switch (status) {
+    case 'healthy':
+      return s.offline === 0;
+    case 'has_offline':
+      return s.offline > 0;
+    case 'has_offline_24h':
+      return s.offline24h > 0;
+  }
+}
+
+/** Rejection buckets; the 1%-3% band is inclusive of both edges. A null rate (no shares) matches none. */
+function matchesRejection(s: EnrichedSubaccount, bucket: SubaccountRejectionFilter): boolean {
+  if (s.rejection === null) return false;
+  switch (bucket) {
+    case 'lt1':
+      return s.rejection < 0.01;
+    case '1to3':
+      return s.rejection >= 0.01 && s.rejection <= 0.03;
+    case 'gt3':
+      return s.rejection > 0.03;
+  }
+}
+
+/** Filter by status + rejection (AND), then order by the chosen sort (default: name asc). */
+export function applySubaccountFilter(subs: EnrichedSubaccount[], filter: SubaccountFilter): EnrichedSubaccount[] {
+  const filtered = subs.filter(
+    (s) =>
+      (filter.status === null || matchesStatus(s, filter.status)) &&
+      (filter.rejection === null || matchesRejection(s, filter.rejection)),
+  );
+  switch (filter.sortBy) {
+    case 'hashrate_desc':
+      return sortSubaccounts(filtered, 'hashrate', 'desc');
+    case 'hashrate_asc':
+      return sortSubaccounts(filtered, 'hashrate', 'asc');
+    case 'earnings_desc':
+      return sortSubaccounts(filtered, 'earnings', 'desc');
+    case 'earnings_asc':
+      return sortSubaccounts(filtered, 'earnings', 'asc');
+    case null:
+      return sortSubaccounts(filtered, 'name', 'asc');
+  }
+}
+
 /** BTC amount for display: clamps to 8 dp and trims float noise + trailing zeros. */
 export function formatBtc(n: number): string {
   return Number(n.toFixed(8)).toString();
