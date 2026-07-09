@@ -1,6 +1,6 @@
 import { LiWallet } from 'solar-icon-react/li';
 
-/** New-user state: no payouts yet. Centered under the page header divider (matches the design). */
+/** Shown when the account has no payouts. */
 export function PayoutsEmptyState() {
   return (
     <div className="flex flex-col items-center px-4 py-16 text-center">

@@ -6,9 +6,8 @@ import { buildPayouts, sortPayoutsByDateDesc, type Payout } from '@/lib/payoutsT
 import { useAccountProfile, userBitcoinAddresses } from '@/hooks/useAccountData';
 
 const PAYOUTS_POLL_MS = 15 * 60 * 1000;
-// The pool payout wallets are shared (they pay many miners), so scanning their full
-// on-chain history for this user's payouts is unbounded. Cap the window + pages; the
-// Blockstream path is temporary (a pool-wallet API replaces it), so we don't over-fetch.
+// Cap how far back and how many pages we scan per wallet so a high-volume wallet
+// can't loop unbounded.
 const WINDOW_DAYS = 90;
 const MAX_PAGES = 25;
 

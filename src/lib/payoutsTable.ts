@@ -141,13 +141,13 @@ export function truncateMiddle(value: string, head: number, tail: number): strin
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** Payout date in the design's "21 Jun, 2026" style (UTC). */
+/** Format a unix-second timestamp as "21 Jun, 2026" (UTC). */
 export function formatPayoutDate(sec: number): string {
   const d = new Date(sec * 1000);
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}, ${d.getUTCFullYear()}`;
 }
 
-/** Block-explorer link for a payout transaction (matches the production dashboard). */
+/** Block-explorer URL for a transaction id. */
 export function mempoolTxUrl(txid: string): string {
   return `https://mempool.space/tx/${txid}`;
 }
@@ -161,7 +161,7 @@ function csvCell(value: string): string {
   return /[",\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
-/** CSV in the production payouts schema (`timestamp,kind,amount_btc,txid,from,to`). */
+/** CSV with header `timestamp,kind,amount_btc,txid,from,to`; kind uppercased, cells guarded. */
 export function payoutsToCsv(payouts: Payout[]): string {
   const rows = payouts.map((p) =>
     [

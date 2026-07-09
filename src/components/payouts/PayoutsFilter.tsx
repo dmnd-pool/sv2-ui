@@ -1,20 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { LiCalendarMinimalistic, LiTuning } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
-import type { PayoutMode, PayoutDatePreset } from '@/lib/payoutsTable';
+import { BitcoinCircleIcon } from '@/components/dashboard/icons/BitcoinCircleIcon';
+import type { PayoutMode, PayoutDatePreset, AmountSort } from '@/lib/payoutsTable';
 
-type Category = 'date' | 'mode';
+type Category = 'date' | 'mode' | 'amount';
 
 /** The Filter popover's draft selection (UI state; the page maps the date preset to a cutoff). */
 export interface PayoutFilterDraft {
   datePreset: PayoutDatePreset | null;
   mode: PayoutMode | null;
+  amountSort: AmountSort | null;
 }
 
-export const EMPTY_PAYOUT_FILTER_DRAFT: PayoutFilterDraft = { datePreset: null, mode: null };
+export const EMPTY_PAYOUT_FILTER_DRAFT: PayoutFilterDraft = { datePreset: null, mode: null, amountSort: null };
 
 export function isPayoutDraftActive(d: PayoutFilterDraft): boolean {
-  return d.datePreset !== null || d.mode !== null;
+  return d.datePreset !== null || d.mode !== null || d.amountSort !== null;
 }
 
 const DATE_OPTIONS: { value: PayoutDatePreset; label: string }[] = [
@@ -26,10 +28,15 @@ const MODE_OPTIONS: { value: PayoutMode; label: string }[] = [
   { value: 'pplns', label: 'PPLNS' },
   { value: 'fpps', label: 'FPPS' },
 ];
+const AMOUNT_OPTIONS: { value: AmountSort; label: string }[] = [
+  { value: 'highest', label: 'Highest first' },
+  { value: 'lowest', label: 'Lowest first' },
+];
 
-const CATEGORIES: { key: Category; label: string; Icon: typeof LiCalendarMinimalistic }[] = [
+const CATEGORIES: { key: Category; label: string; Icon: ComponentType<{ className?: string }> }[] = [
   { key: 'date', label: 'Date', Icon: LiCalendarMinimalistic },
   { key: 'mode', label: 'Mode', Icon: LiTuning },
+  { key: 'amount', label: 'Amount', Icon: BitcoinCircleIcon },
 ];
 
 function Option({ label, checked, onClick }: { label: string; checked: boolean; onClick: () => void }) {
@@ -57,9 +64,9 @@ function Option({ label, checked, onClick }: { label: string; checked: boolean; 
 const Divider = () => <div className="w-px shrink-0 self-stretch bg-border" aria-hidden />;
 
 /**
- * The payouts Filter popover (Date + Mode; the Custom range and Amount sort are
- * deferred). Draft-then-Apply: "Apply filter(s)" commits and closes, "Reset" clears
- * the draft and the applied filter. Closes on outside click or Escape.
+ * The payouts Filter popover with Date, Mode, and Amount categories. Draft-then-Apply:
+ * "Apply filter(s)" commits the draft and closes; "Reset" clears the draft and the
+ * applied filter. Closes on outside click or Escape.
  */
 export function PayoutsFilter({
   applied,
@@ -165,6 +172,15 @@ export function PayoutsFilter({
           {category === 'mode' &&
             MODE_OPTIONS.map((o) => (
               <Option key={o.value} label={o.label} checked={draft.mode === o.value} onClick={() => pick('mode', o.value)} />
+            ))}
+          {category === 'amount' &&
+            AMOUNT_OPTIONS.map((o) => (
+              <Option
+                key={o.value}
+                label={o.label}
+                checked={draft.amountSort === o.value}
+                onClick={() => pick('amountSort', o.value)}
+              />
             ))}
         </div>
       </div>

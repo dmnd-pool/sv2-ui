@@ -1,9 +1,4 @@
-/**
- * A bitcoin-in-circle glyph in the linear/outline style, to pair with the solar
- * outline icons. A clean, compact redraw of the design's bitcoin-circle glyph bound
- * to `currentColor` (the raw Figma SVG export is a single 58KB over-subdivided path,
- * too heavy to inline).
- */
+/** A bitcoin-in-circle outline glyph bound to `currentColor`. */
 export function BitcoinCircleIcon({ className }: { className?: string }) {
   return (
     <svg
