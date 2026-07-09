@@ -13,6 +13,11 @@ import {
   mempoolTxUrl,
   sinceForPreset,
   isPayoutFilterActive,
+  sortPayoutsByAmount,
+  payoutsInRange,
+  exportPresetRange,
+  monthInfo,
+  clampRange,
   EMPTY_PAYOUT_FILTER,
   type Payout,
 } from '@/lib/payoutsTable';
@@ -112,6 +117,39 @@ test('isPayoutFilterActive is true only when a facet is set', () => {
 test('formatPayoutDate renders the "21 Jun, 2026" style in UTC', () => {
   const sec = Math.floor(Date.UTC(2026, 5, 21, 10, 0, 0) / 1000);
   assert.equal(formatPayoutDate(sec), '21 Jun, 2026');
+});
+
+test('sortPayoutsByAmount orders by amount, highest or lowest first', () => {
+  const rows = [payout({ txid: 'mid', amountSats: 200 }), payout({ txid: 'hi', amountSats: 900 }), payout({ txid: 'lo', amountSats: 50 })];
+  assert.deepEqual(sortPayoutsByAmount(rows, 'highest').map((r) => r.txid), ['hi', 'mid', 'lo']);
+  assert.deepEqual(sortPayoutsByAmount(rows, 'lowest').map((r) => r.txid), ['lo', 'mid', 'hi']);
+});
+
+test('payoutsInRange keeps payouts within [startSec, endSec] inclusive', () => {
+  const rows = [payout({ txid: 'a', date: 100 }), payout({ txid: 'b', date: 200 }), payout({ txid: 'c', date: 300 })];
+  assert.deepEqual(payoutsInRange(rows, 150, 300).map((r) => r.txid), ['b', 'c']);
+  assert.deepEqual(payoutsInRange(rows, 200, 200).map((r) => r.txid), ['b']); // single-day inclusive both ends
+  assert.deepEqual(payoutsInRange(rows, 0, 99).map((r) => r.txid), []);
+});
+
+test('exportPresetRange returns [now-window, now] for each preset', () => {
+  const now = Date.UTC(2026, 5, 30, 12, 0, 0);
+  const nowSec = Math.floor(now / 1000);
+  assert.deepEqual(exportPresetRange('24h', now), { startSec: nowSec - 86400, endSec: nowSec });
+  assert.deepEqual(exportPresetRange('7d', now), { startSec: nowSec - 7 * 86400, endSec: nowSec });
+  assert.deepEqual(exportPresetRange('30d', now), { startSec: nowSec - 30 * 86400, endSec: nowSec });
+});
+
+test('monthInfo gives days-in-month and a Monday-based first weekday', () => {
+  // January 2026: 31 days, the 1st is a Thursday -> Monday-based index 3.
+  assert.deepEqual(monthInfo(2026, 0), { daysInMonth: 31, firstWeekdayMon: 3 });
+  // February 2026 (non-leap): 28 days, the 1st is a Sunday -> Monday-based index 6.
+  assert.deepEqual(monthInfo(2026, 1), { daysInMonth: 28, firstWeekdayMon: 6 });
+});
+
+test('clampRange normalizes so start <= end regardless of pick order', () => {
+  assert.deepEqual(clampRange(300, 100), { startSec: 100, endSec: 300 });
+  assert.deepEqual(clampRange(100, 300), { startSec: 100, endSec: 300 });
 });
 
 test('payoutsToCsv emits the production schema header, uppercase kind, and guards formula injection', () => {

@@ -25,13 +25,51 @@ export interface PayoutFilter {
 
 export const EMPTY_PAYOUT_FILTER: PayoutFilter = { mode: null, sinceSec: null };
 
-/** The date presets the Filter offers (the "Custom" range is deferred). */
+/** The date presets shared by the Filter and the Export range picker. */
 export type PayoutDatePreset = '24h' | '7d' | '30d';
 const PRESET_DAYS: Record<PayoutDatePreset, number> = { '24h': 1, '7d': 7, '30d': 30 };
+const DAY_SEC = 24 * 60 * 60;
 
 /** The unix-second cutoff for a date preset, relative to `nowMs`. */
 export function sinceForPreset(preset: PayoutDatePreset, nowMs: number): number {
-  return Math.floor(nowMs / 1000) - PRESET_DAYS[preset] * 24 * 60 * 60;
+  return Math.floor(nowMs / 1000) - PRESET_DAYS[preset] * DAY_SEC;
+}
+
+/** Sort direction for the Filter's Amount category (Highest / Lowest first). */
+export type AmountSort = 'highest' | 'lowest';
+
+/** Order payouts by amount; "highest" is descending, "lowest" ascending. */
+export function sortPayoutsByAmount(payouts: Payout[], dir: AmountSort): Payout[] {
+  const factor = dir === 'highest' ? -1 : 1;
+  return [...payouts].sort((a, b) => (a.amountSats - b.amountSats) * factor);
+}
+
+export interface DateRange {
+  startSec: number;
+  endSec: number;
+}
+
+/** Payouts whose block time falls within [startSec, endSec], inclusive of both ends. */
+export function payoutsInRange(payouts: Payout[], startSec: number, endSec: number): Payout[] {
+  return payouts.filter((p) => p.date >= startSec && p.date <= endSec);
+}
+
+/** The [now - window, now] range for an export preset (used by the Export CSV picker). */
+export function exportPresetRange(preset: PayoutDatePreset, nowMs: number): DateRange {
+  const endSec = Math.floor(nowMs / 1000);
+  return { startSec: endSec - PRESET_DAYS[preset] * DAY_SEC, endSec };
+}
+
+/** Normalize a two-date pick so the earlier is the start (calendar can pick either order). */
+export function clampRange(aSec: number, bSec: number): DateRange {
+  return { startSec: Math.min(aSec, bSec), endSec: Math.max(aSec, bSec) };
+}
+
+/** Days in the month and the Monday-based index (0=Mon..6=Sun) of its first day, for the calendar grid. */
+export function monthInfo(year: number, month0: number): { daysInMonth: number; firstWeekdayMon: number } {
+  const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+  const firstWeekdaySun = new Date(Date.UTC(year, month0, 1)).getUTCDay(); // 0=Sun..6=Sat
+  return { daysInMonth, firstWeekdayMon: (firstWeekdaySun + 6) % 7 };
 }
 
 /** True when any facet is set (drives the Filter button's active dot + no-match copy). */
