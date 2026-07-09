@@ -85,7 +85,7 @@ export function CreateSubaccountModal({ onClose }: { onClose: () => void }) {
           <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
             <LiCheckCircle className="h-12 w-12 text-success" />
             <p className="mt-3 text-base font-semibold text-foreground">Subaccount created</p>
-            <p className="mt-1 text-sm text-body-alt">{name.trim()} is ready. It now appears in your subaccounts.</p>
+            <p className="mt-1 text-sm text-body-alt">{name.trim()} is ready.</p>
             <button
               type="button"
               onClick={onClose}
