@@ -145,6 +145,91 @@ test('signup forwards company fields and referral when provided', async () => {
   });
 });
 
+test('getSubaccounts GETs user/sub_account, sends X-Account-ID, and returns the list', async () => {
+  const rows = [{ sub_account_id: 1, sub_account: 'Main Farm', today_generated_btc: 0.00042 }];
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  setDmndAccountId('42');
+  try {
+    const result = await client.getSubaccounts();
+    assert.equal(calls[0].init.method, 'GET');
+    assert.ok(calls[0].url.endsWith('/api/user/sub_account'));
+    assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
+    assert.deepEqual(result, rows);
+  } finally {
+    setDmndAccountId(null);
+  }
+});
+
+test('getPermissions GETs user/permissions and returns the flags', async () => {
+  const perms = { view_sub_accounts: true, create_sub_account: true, edit_btc_address: false };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(perms));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.getPermissions();
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.endsWith('/api/user/permissions'));
+  assert.deepEqual(result, perms);
+});
+
+test('createSubaccount POSTs sub_account and bitcoin_address', async () => {
+  const { fetchImpl, calls } = fakeFetch(() => new Response('', { status: 200 }));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  await client.createSubaccount({ name: 'Warehouse 01', bitcoinAddress: 'bc1qexample' });
+
+  assert.ok(calls[0].url.endsWith('/api/user/sub_account'));
+  assert.equal(calls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    sub_account: 'Warehouse 01',
+    bitcoin_address: 'bc1qexample',
+  });
+});
+
+test('logSubaccount POSTs owner_token and subaccount_token and returns the new session', async () => {
+  const session = { token: 'sub-tok', id: '7', email: 'm@x.io', two_factor_secret: null };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(session));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.logSubaccount('owner-tok', 'subacct-tok');
+
+  assert.ok(calls[0].url.endsWith('/api/log_subaccount'));
+  assert.equal(calls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    owner_token: 'owner-tok',
+    subaccount_token: 'subacct-tok',
+  });
+  assert.deepEqual(result, session);
+});
+
+test('getSubaccountSummary GETs the per-subaccount summary with a token and the X-Account-ID header', async () => {
+  const body = { sub_account_id: -77, hashrate: null, share_stats: null, fees: null, today_generated_btc: null };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(body));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  setDmndAccountId('42');
+  try {
+    await client.getSubaccountSummary('-77', 'sub-tok', {});
+    assert.equal(calls[0].init.method, 'GET');
+    assert.ok(calls[0].url.includes('/api/user/sub_account/-77/summary'));
+    assert.ok(calls[0].url.includes('token=sub-tok'));
+    assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
+  } finally {
+    setDmndAccountId(null);
+  }
+});
+
+test('getSubaccountWorkers GETs the per-subaccount workers with a token', async () => {
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse({ workers: [], next_cursor: null }));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  await client.getSubaccountWorkers('-77', 'sub-tok');
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.includes('/api/user/sub_account/-77/workers'));
+  assert.ok(calls[0].url.includes('token=sub-tok'));
+});
+
 test('a 4xx with a server message surfaces it as an unknown error', async () => {
   const { fetchImpl } = fakeFetch(
     () =>
