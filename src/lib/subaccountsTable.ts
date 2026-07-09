@@ -1,17 +1,12 @@
-import type { Subaccount, SubaccountShareStats, SubaccountGeneratedBtcEntry, Worker } from '@/api/types';
+import type { Subaccount, SubaccountShareStats, SubaccountSummary, Worker } from '@/api/types';
 import { deriveWorkersPageStats } from '@/lib/workersTable';
 
 export type SubaccountSortKey = 'name' | 'hashrate' | 'rejection' | 'earnings';
 export type SortDir = 'asc' | 'desc';
 
-/**
- * Display name for a subaccount. The API returns the name under one of several
- * keys; the first non-empty one wins, falling back to the id.
- */
+/** Display name for a subaccount; falls back to the id when the name is blank. */
 export function subaccountName(s: Subaccount): string {
-  const candidates = [s.sub_account, s.sub_account_name, s.subaccount, s.name];
-  const name = candidates.find((c) => typeof c === 'string' && c.trim().length > 0);
-  return name ? name.trim() : `Subaccount ${s.id}`;
+  return s.sub_account.trim() || `Subaccount ${s.id}`;
 }
 
 /** Total hashrate (H/s) from the list row's numeric string; 0 when blank or NaN. */
@@ -27,14 +22,7 @@ export function rejectionFromStats(stats: SubaccountShareStats | null | undefine
   return total > 0 ? stats.rejected / total : null;
 }
 
-/** Today's generated BTC: the entry whose day matches `now` (UTC); 0 otherwise. */
-export function todayEarnings(entries: SubaccountGeneratedBtcEntry[], now: number): number {
-  const today = new Date(now).toISOString().slice(0, 10);
-  const entry = entries.find((e) => typeof e.entry_day === 'string' && e.entry_day.slice(0, 10) === today);
-  return entry?.btc_generated ?? 0;
-}
-
-/** The per-row view model assembled from the list row plus its sub-endpoint data. */
+/** The per-row view model assembled from the list row plus its summary and worker roster. */
 export interface EnrichedSubaccount {
   id: string;
   name: string;
@@ -46,12 +34,11 @@ export interface EnrichedSubaccount {
   todayEarnings: number;
 }
 
-/** Combine a subaccount row with its share_stats, worker roster, and generated BTC. */
+/** Combine a subaccount row with its summary (rejection + earnings) and worker roster (counts). */
 export function enrichSubaccount(
   row: Subaccount,
-  shareStats: SubaccountShareStats | null,
+  summary: SubaccountSummary | null,
   workers: Worker[],
-  generatedBtc: SubaccountGeneratedBtcEntry[],
   now: number,
 ): EnrichedSubaccount {
   const stats = deriveWorkersPageStats(workers, now);
@@ -62,8 +49,8 @@ export function enrichSubaccount(
     active: stats.active,
     offline: stats.offline,
     offline24h: stats.offline24h,
-    rejection: rejectionFromStats(shareStats),
-    todayEarnings: todayEarnings(generatedBtc, now),
+    rejection: rejectionFromStats(summary?.share_stats),
+    todayEarnings: summary?.today_generated_btc ?? 0,
   };
 }
 
@@ -118,9 +105,8 @@ export function sortSubaccounts(subs: EnrichedSubaccount[], key: SubaccountSortK
   });
 }
 
-// The Filter popover options. Production does not implement this filter and the
-// spec does not mention it, so the buckets below are derived from the design labels
-// plus the data we already enrich, not prod-verified.
+// Filter facets: a status bucket, a rejection-rate bucket, and a sort option. Each
+// maps to a value already on the enriched row; null means the facet is unset.
 export type SubaccountStatusFilter = 'healthy' | 'has_offline' | 'has_offline_24h';
 export type SubaccountRejectionFilter = 'lt1' | '1to3' | 'gt3';
 export type SubaccountSortOption = 'hashrate_desc' | 'hashrate_asc' | 'earnings_desc' | 'earnings_asc';

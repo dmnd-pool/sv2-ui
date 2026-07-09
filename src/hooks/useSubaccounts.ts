@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDmndClient } from '@/api';
 import { useAuth } from '@/auth';
-import type { CreateSubaccountInput, SubaccountGeneratedBtcEntry, Worker } from '@/api/types';
+import type { CreateSubaccountInput, Worker } from '@/api/types';
 import { enrichSubaccount, type EnrichedSubaccount } from '@/lib/subaccountsTable';
 
 // Cloud data refreshes every 5 minutes (spec cadence); the client already retries
@@ -9,10 +9,10 @@ import { enrichSubaccount, type EnrichedSubaccount } from '@/lib/subaccountsTabl
 const CLOUD_POLL_MS = 5 * 60 * 1000;
 
 /**
- * The account's subaccounts, each enriched with its share_stats (rejection), worker
- * roster (active/offline counts), and generated BTC (today's earnings) from the
- * per-subaccount sub-endpoints. Enrichment is resilient: a failed sub-call defaults
- * that metric rather than failing the whole list.
+ * The account's subaccounts, each enriched with its summary (rejection + today's
+ * earnings in one response) and worker roster (active/offline counts, which the
+ * summary does not carry). Enrichment is resilient: a failed sub-call defaults that
+ * metric rather than failing the whole list.
  */
 export function useSubaccounts() {
   const { session } = useAuth();
@@ -25,15 +25,14 @@ export function useSubaccounts() {
       return Promise.all(
         list.map(async (row) => {
           const token = row.token ?? '';
-          const [stats, workers, generated] = await Promise.all([
-            client.getSubaccountShareStats(row.id, token, { signal }).catch(() => null),
+          const [summary, workers] = await Promise.all([
+            client.getSubaccountSummary(row.id, token, { signal }).catch(() => null),
             client
               .getSubaccountWorkers(row.id, token, { signal })
               .then((r) => r.workers)
               .catch(() => [] as Worker[]),
-            client.getSubaccountGeneratedBtc(row.id, token, { signal }).catch(() => [] as SubaccountGeneratedBtcEntry[]),
           ]);
-          return enrichSubaccount(row, stats, workers, generated, now);
+          return enrichSubaccount(row, summary, workers, now);
         }),
       );
     },

@@ -12,8 +12,7 @@ import {
   type RequestOptions,
   type SignupInput,
   type Subaccount,
-  type SubaccountGeneratedBtcEntry,
-  type SubaccountShareStats,
+  type SubaccountSummary,
   type Worker,
   type WorkersResponse,
 } from './types';
@@ -339,10 +338,10 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
     getSubaccounts(req) {
       return request<Subaccount[]>({ method: 'GET', path: '/api/user/sub_account' }, opts, req);
     },
-    getSubaccountShareStats(id, token, req) {
-      const q = new URLSearchParams({ hours: '24', token }).toString();
-      return request<SubaccountShareStats>(
-        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/share_stats?${q}` },
+    getSubaccountSummary(id, token, req) {
+      const q = new URLSearchParams({ token }).toString();
+      return request<SubaccountSummary>(
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/summary?${q}` },
         opts,
         req,
       );
@@ -351,14 +350,6 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
       const q = new URLSearchParams({ token }).toString();
       return request<WorkersResponse>(
         { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/workers?${q}` },
-        opts,
-        req,
-      );
-    },
-    getSubaccountGeneratedBtc(id, token, req) {
-      const q = new URLSearchParams({ token }).toString();
-      return request<SubaccountGeneratedBtcEntry[]>(
-        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc?${q}` },
         opts,
         req,
       );

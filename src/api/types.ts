@@ -137,30 +137,24 @@ export interface SubaccountFees {
   broker_fee: number;
 }
 
-/** One day of generated BTC (GET /api/user/sub_account/{id}/generated_btc). */
-export interface SubaccountGeneratedBtcEntry {
-  entry_day: string;
-  btc_generated: number | null;
-}
-
-/**
- * A subaccount as returned by GET /api/user/sub_account (verified live). The list
- * is lightweight: an id, the name (under `sub_account`), the total hashrate as a
- * numeric string, and the subaccount's own credentials. Rejection, worker, and
- * earnings figures come from the per-subaccount sub-endpoints (share_stats /
- * workers / generated_btc), keyed by `id` + `token`.
- */
+/** A subaccount row from GET /api/user/sub_account. `sub_account` is the name; `hashrate` is a numeric string. */
 export interface Subaccount {
   id: string;
-  sub_account?: string;
-  sub_account_name?: string;
-  subaccount?: string;
-  name?: string;
-  hashrate?: string;
-  token?: string;
-  api_token?: string;
-  fpps_token?: string;
-  bitcoin_addresses?: Record<string, unknown>;
+  sub_account: string;
+  token: string;
+  api_token: string;
+  fpps_token: string | null;
+  hashrate: string;
+  bitcoin_addresses: Record<string, boolean>;
+}
+
+/** GET /api/user/sub_account/{id}/summary?token= : one response with the row's stats, fees, and today's BTC. */
+export interface SubaccountSummary {
+  sub_account_id: number;
+  hashrate: HashrateSnapshot | null;
+  share_stats: SubaccountShareStats | null;
+  fees: SubaccountFees | null;
+  today_generated_btc: number | null;
 }
 
 /** Account capability flags (GET /api/user/permissions; snake_case, bundle-verified). */
@@ -218,16 +212,10 @@ export interface DmndClient {
   getPayoutAddresses(req?: RequestOptions): Promise<PayoutAddresses>;
   /** The account's subaccounts (master only); a lightweight list, enriched per-row. */
   getSubaccounts(req?: RequestOptions): Promise<Subaccount[]>;
-  /** Per-subaccount share counts (drives the rejection-rate column). */
-  getSubaccountShareStats(id: string, token: string, req?: RequestOptions): Promise<SubaccountShareStats>;
+  /** Per-subaccount hashrate, share stats, fees, and today's BTC in one response. */
+  getSubaccountSummary(id: string, token: string, req?: RequestOptions): Promise<SubaccountSummary>;
   /** Per-subaccount worker roster; active/offline counts derive from this. */
   getSubaccountWorkers(id: string, token: string, req?: RequestOptions): Promise<WorkersResponse>;
-  /** Per-subaccount daily generated BTC (drives today's earnings). */
-  getSubaccountGeneratedBtc(
-    id: string,
-    token: string,
-    req?: RequestOptions,
-  ): Promise<SubaccountGeneratedBtcEntry[]>;
   /** Capability flags gating the Create button and the page itself. */
   getPermissions(req?: RequestOptions): Promise<AccountPermissions>;
   /** Create a subaccount under the master account. */

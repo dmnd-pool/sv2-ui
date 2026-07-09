@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Subaccount, SubaccountShareStats, Worker } from '@/api/types';
+import type { Subaccount, SubaccountShareStats, SubaccountSummary, Worker } from '@/api/types';
 import {
   subaccountName,
   parseHashrate,
   rejectionFromStats,
-  todayEarnings,
   enrichSubaccount,
   deriveSubaccountsPageStats,
   searchSubaccounts,
@@ -21,7 +20,16 @@ import {
 } from '@/lib/subaccountsTable';
 
 function row(over: Partial<Subaccount> = {}): Subaccount {
-  return { id: '1', ...over };
+  return {
+    id: '1',
+    sub_account: 'X',
+    token: 't',
+    api_token: 'a',
+    fpps_token: null,
+    hashrate: '',
+    bitcoin_addresses: {},
+    ...over,
+  };
 }
 function enriched(over: Partial<EnrichedSubaccount> = {}): EnrichedSubaccount {
   return { id: '1', name: 'X', hashrate: 0, active: 0, offline: 0, offline24h: 0, rejection: null, todayEarnings: 0, ...over };
@@ -40,12 +48,11 @@ const STATS: SubaccountShareStats = {
   rejected: 2,
 };
 
-test('subaccountName prefers sub_account, then the other keys, then the id', () => {
-  assert.equal(subaccountName(row({ sub_account: 'A', name: 'B' })), 'A');
-  assert.equal(subaccountName(row({ sub_account_name: 'C' })), 'C');
-  assert.equal(subaccountName(row({ subaccount: 'D' })), 'D');
-  assert.equal(subaccountName(row({ name: 'E' })), 'E');
-  assert.equal(subaccountName(row({ id: 'zz9' })), 'Subaccount zz9');
+test('subaccountName uses sub_account (trimmed), falling back to the id when blank', () => {
+  assert.equal(subaccountName(row({ sub_account: 'A' })), 'A');
+  assert.equal(subaccountName(row({ sub_account: '  Farm  ' })), 'Farm');
+  assert.equal(subaccountName(row({ sub_account: '', id: 'zz9' })), 'Subaccount zz9');
+  assert.equal(subaccountName(row({ sub_account: '   ', id: 'zz9' })), 'Subaccount zz9');
 });
 
 test('parseHashrate parses the numeric string; 0 when blank or NaN', () => {
@@ -61,17 +68,12 @@ test('rejectionFromStats derives rejected/(accepted+rejected); null without shar
   assert.equal(rejectionFromStats(null), null);
 });
 
-test("todayEarnings picks today's entry, else 0", () => {
-  const now = Date.UTC(2026, 5, 29, 12);
-  const today = new Date(now).toISOString().slice(0, 10);
-  assert.equal(todayEarnings([{ entry_day: today, btc_generated: 0.0007 }], now), 0.0007);
-  assert.equal(todayEarnings([{ entry_day: '2020-01-01', btc_generated: 9 }], now), 0);
-  assert.equal(todayEarnings([], now), 0);
-});
+function summary(over: Partial<SubaccountSummary> = {}): SubaccountSummary {
+  return { sub_account_id: 1, hashrate: null, share_stats: null, fees: null, today_generated_btc: null, ...over };
+}
 
-test('enrichSubaccount combines the row with workers, share_stats, and earnings', () => {
+test('enrichSubaccount combines the row with workers and the summary (rejection + earnings)', () => {
   const now = Date.UTC(2026, 5, 29, 12);
-  const today = new Date(now).toISOString().slice(0, 10);
   const day = 24 * 60 * 60 * 1000;
   const workers = [
     worker({ name: 'a', is_connected: true }),
@@ -79,15 +81,23 @@ test('enrichSubaccount combines the row with workers, share_stats, and earnings'
   ];
   const e = enrichSubaccount(
     row({ id: '7', sub_account: 'Farm', hashrate: '50' }),
-    { ...STATS, accepted: 99, rejected: 1 },
+    summary({ share_stats: { ...STATS, accepted: 99, rejected: 1 }, today_generated_btc: 0.002 }),
     workers,
-    [{ entry_day: today, btc_generated: 0.002 }],
     now,
   );
   assert.deepEqual(
     { id: e.id, name: e.name, hashrate: e.hashrate, active: e.active, offline: e.offline, offline24h: e.offline24h, rejection: e.rejection, todayEarnings: e.todayEarnings },
     { id: '7', name: 'Farm', hashrate: 50, active: 1, offline: 1, offline24h: 1, rejection: 1 / 100, todayEarnings: 0.002 },
   );
+});
+
+test('enrichSubaccount defaults rejection to null and earnings to 0 when the summary is missing', () => {
+  const now = Date.UTC(2026, 5, 29, 12);
+  const e = enrichSubaccount(row({ id: '9', sub_account: 'NoSummary', hashrate: '10' }), null, [], now);
+  assert.equal(e.rejection, null);
+  assert.equal(e.todayEarnings, 0);
+  assert.equal(e.hashrate, 10);
+  assert.equal(e.active, 0);
 });
 
 test('deriveSubaccountsPageStats sums active workers, hashrate, and earnings', () => {

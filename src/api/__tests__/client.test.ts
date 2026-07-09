@@ -203,16 +203,15 @@ test('logSubaccount POSTs owner_token and subaccount_token and returns the new s
   assert.deepEqual(result, session);
 });
 
-test('getSubaccountShareStats GETs the per-subaccount share_stats with hours + token', async () => {
-  const stats = { window_hours: 24, accepted: 10, rejected: 1 };
-  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(stats));
+test('getSubaccountSummary GETs the per-subaccount summary with a token and the X-Account-ID header', async () => {
+  const body = { sub_account_id: -77, hashrate: null, share_stats: null, fees: null, today_generated_btc: null };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(body));
   const client = createDmndClient({ fetchImpl, backoffMs: 0 });
   setDmndAccountId('42');
   try {
-    await client.getSubaccountShareStats('-77', 'sub-tok', {});
+    await client.getSubaccountSummary('-77', 'sub-tok', {});
     assert.equal(calls[0].init.method, 'GET');
-    assert.ok(calls[0].url.includes('/api/user/sub_account/-77/share_stats'));
-    assert.ok(calls[0].url.includes('hours=24'));
+    assert.ok(calls[0].url.includes('/api/user/sub_account/-77/summary'));
     assert.ok(calls[0].url.includes('token=sub-tok'));
     assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
   } finally {
@@ -228,17 +227,6 @@ test('getSubaccountWorkers GETs the per-subaccount workers with a token', async 
 
   assert.equal(calls[0].init.method, 'GET');
   assert.ok(calls[0].url.includes('/api/user/sub_account/-77/workers'));
-  assert.ok(calls[0].url.includes('token=sub-tok'));
-});
-
-test('getSubaccountGeneratedBtc GETs the per-subaccount generated_btc with a token', async () => {
-  const { fetchImpl, calls } = fakeFetch(() => jsonResponse([]));
-  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
-
-  await client.getSubaccountGeneratedBtc('-77', 'sub-tok');
-
-  assert.equal(calls[0].init.method, 'GET');
-  assert.ok(calls[0].url.includes('/api/user/sub_account/-77/generated_btc'));
   assert.ok(calls[0].url.includes('token=sub-tok'));
 });
 
