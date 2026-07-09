@@ -11,6 +11,7 @@ import { DashboardHome } from '@/pages/dashboard/DashboardHome';
 import { AccountSetup } from '@/pages/account-setup/AccountSetup';
 import { WorkersPage } from '@/pages/workers/WorkersPage';
 import { SubaccountsPage } from '@/pages/subaccounts/SubaccountsPage';
+import { PayoutsPage } from '@/pages/payouts/PayoutsPage';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
@@ -81,6 +82,11 @@ function AppRoutes() {
       <Route path="/subaccounts">
         <DashboardShell>
           <SubaccountsPage />
+        </DashboardShell>
+      </Route>
+      <Route path="/payouts">
+        <DashboardShell>
+          <PayoutsPage />
         </DashboardShell>
       </Route>
       <Route path="/rewards">
