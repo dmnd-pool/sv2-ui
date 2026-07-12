@@ -230,6 +230,29 @@ test('getSubaccountWorkers GETs the per-subaccount workers with a token', async 
   assert.ok(calls[0].url.includes('token=sub-tok'));
 });
 
+test('getGeneratedBtc GETs the generated_btc list with the X-Account-ID header', async () => {
+  const rows = [{ entry_day: '2026-06-21', hashrate: 100, btc_generated: 0.0001 }];
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  setDmndAccountId('42');
+  try {
+    const result = await client.getGeneratedBtc();
+    assert.equal(calls[0].init.method, 'GET');
+    assert.ok(calls[0].url.endsWith('/api/generated_btc'));
+    assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
+    assert.deepEqual(result, rows);
+  } finally {
+    setDmndAccountId(null);
+  }
+});
+
+test('getGeneratedBtc collapses a non-array response to an empty list', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  assert.deepEqual(await client.getGeneratedBtc(), []);
+});
+
 test('a 4xx with a server message surfaces it as an unknown error', async () => {
   const { fetchImpl } = fakeFetch(
     () =>

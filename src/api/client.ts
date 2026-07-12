@@ -9,6 +9,7 @@ import {
   type HashratePoint,
   type HashrateSnapshot,
   type PayoutAddresses,
+  type GeneratedBtcEntry,
   type RequestOptions,
   type SignupInput,
   type Subaccount,
@@ -334,6 +335,13 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
     },
     getPayoutAddresses(req) {
       return request<PayoutAddresses>({ method: 'GET', path: '/api/payouts/addresses' }, opts, req);
+    },
+    async getGeneratedBtc(req) {
+      // The daily generated-BTC list is a bare array (empty account -> []). Tolerate a
+      // non-array response (e.g. an error object) by collapsing to [] so the page shows
+      // its empty state instead of throwing.
+      const result = await request<unknown>({ method: 'GET', path: '/api/generated_btc' }, opts, req);
+      return Array.isArray(result) ? (result as GeneratedBtcEntry[]) : [];
     },
     getSubaccounts(req) {
       return request<Subaccount[]>({ method: 'GET', path: '/api/user/sub_account' }, opts, req);
