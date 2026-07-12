@@ -11,6 +11,7 @@ import { DashboardHome } from '@/pages/dashboard/DashboardHome';
 import { AccountSetup } from '@/pages/account-setup/AccountSetup';
 import { WorkersPage } from '@/pages/workers/WorkersPage';
 import { SubaccountsPage } from '@/pages/subaccounts/SubaccountsPage';
+import { GeneratedBtcPage } from '@/pages/generated-btc/GeneratedBtcPage';
 import { PayoutsPage } from '@/pages/payouts/PayoutsPage';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
@@ -89,9 +90,9 @@ function AppRoutes() {
           <PayoutsPage />
         </DashboardShell>
       </Route>
-      <Route path="/rewards">
+      <Route path="/generated-bitcoin">
         <DashboardShell>
-          <ComingSoon title="Rewards" />
+          <GeneratedBtcPage />
         </DashboardShell>
       </Route>
       <Route path="/api-keys">
