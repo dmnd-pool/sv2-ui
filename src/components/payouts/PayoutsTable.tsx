@@ -1,4 +1,6 @@
-import { LiSquareShareLine } from 'solar-icon-react/li';
+import { useState } from 'react';
+import { LiSquareShareLine, LiCopy, LiCheckCircle } from 'solar-icon-react/li';
+import { cn } from '@/lib/utils';
 import {
   formatBtcFromSats,
   formatPayoutDate,
@@ -12,6 +14,41 @@ function ModeBadge({ mode }: { mode: 'pplns' | 'fpps' }) {
   return (
     <span className="inline-flex items-center rounded-md border border-border px-3 py-1 text-xs font-medium text-body-alt">
       {mode.toUpperCase()}
+    </span>
+  );
+}
+
+/**
+ * The truncated transaction id with a copy-to-clipboard button that copies the full
+ * id. The button is hidden at rest and revealed on hover or keyboard focus; once
+ * copied it stays visible briefly to confirm.
+ */
+function TxidCell({ txid }: { txid: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    void navigator.clipboard?.writeText(txid);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <span className="group/txid inline-flex items-center gap-1.5">
+      <span className="font-mono">{truncateMiddle(txid, 6, 4)}</span>
+      <button
+        type="button"
+        onClick={copy}
+        aria-label={copied ? 'Transaction ID copied' : 'Copy transaction ID'}
+        className={cn(
+          'shrink-0 text-placeholder transition-opacity hover:text-foreground',
+          // Hidden at rest so the cell matches the design; revealed on hover or
+          // keyboard focus. On touch devices (no hover) it stays visible, and once
+          // copied it stays visible briefly to confirm.
+          copied
+            ? 'opacity-100'
+            : 'opacity-0 focus-visible:opacity-100 group-hover/txid:opacity-100 [@media(hover:none)]:opacity-100',
+        )}
+      >
+        {copied ? <LiCheckCircle className="h-3.5 w-3.5 text-success" /> : <LiCopy className="h-3.5 w-3.5" />}
+      </button>
     </span>
   );
 }
@@ -58,7 +95,9 @@ export function PayoutsTable({ payouts, empty }: { payouts: Payout[]; empty?: Pa
           {payouts.map((p) => (
             <tr key={`${p.txid}-${p.toAddress}`} className="border-b border-border last:border-0">
               <td className="px-6 py-3.5 text-foreground">{formatPayoutDate(p.date)}</td>
-              <td className="px-6 py-3.5 font-mono text-foreground">{truncateMiddle(p.txid, 6, 4)}</td>
+              <td className="px-6 py-3.5 text-foreground">
+                <TxidCell txid={p.txid} />
+              </td>
               <td className="px-6 py-3.5 font-mono text-foreground">
                 {formatBtcFromSats(p.amountSats)} <span className="text-body-alt">BTC</span>
               </td>
