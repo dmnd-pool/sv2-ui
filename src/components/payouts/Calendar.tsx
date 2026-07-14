@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LiAltArrowLeft, LiAltArrowRight } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
-import { monthInfo, clampRange, type DateRange } from '@/lib/payoutsTable';
+import { monthInfo, clampRange, fullDayRange, type DateRange } from '@/lib/payoutsTable';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -124,7 +124,7 @@ export function Calendar({ onCancel, onDone }: { onCancel: () => void; onDone: (
         <button
           type="button"
           disabled={startKey === null}
-          onClick={() => onDone(range ?? { startSec: startKey!, endSec: startKey! + 24 * 60 * 60 - 1 })}
+          onClick={() => onDone(fullDayRange(startKey!, endKey ?? startKey!))}
           className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           Done

@@ -18,6 +18,7 @@ import {
   exportPresetRange,
   monthInfo,
   clampRange,
+  fullDayRange,
   EMPTY_PAYOUT_FILTER,
   type Payout,
 } from '@/lib/payoutsTable';
@@ -150,6 +151,25 @@ test('monthInfo gives days-in-month and a Monday-based first weekday', () => {
 test('clampRange normalizes so start <= end regardless of pick order', () => {
   assert.deepEqual(clampRange(300, 100), { startSec: 100, endSec: 300 });
   assert.deepEqual(clampRange(100, 300), { startSec: 100, endSec: 300 });
+});
+
+test('fullDayRange covers 00:00:00 of the start day through 23:59:59 of the end day', () => {
+  const d10 = Math.floor(Date.UTC(2026, 6, 10) / 1000); // 2026-07-10 00:00:00
+  const d12 = Math.floor(Date.UTC(2026, 6, 12) / 1000); // 2026-07-12 00:00:00
+  const endOf12 = Math.floor(Date.UTC(2026, 6, 12, 23, 59, 59) / 1000);
+  // pick order does not matter; the later day extends to its last second
+  assert.deepEqual(fullDayRange(d12, d10), { startSec: d10, endSec: endOf12 });
+  assert.deepEqual(fullDayRange(d10, d12), { startSec: d10, endSec: endOf12 });
+  // a single day spans that whole day, not a single instant
+  assert.deepEqual(fullDayRange(d10, d10), { startSec: d10, endSec: d10 + 86399 });
+});
+
+test('a payout at 20:00 on the end day is kept when the range uses fullDayRange', () => {
+  const endDay = Math.floor(Date.UTC(2026, 6, 12) / 1000);
+  const evening = Math.floor(Date.UTC(2026, 6, 12, 20, 0, 0) / 1000); // 20:00 on the end day
+  const range = fullDayRange(Math.floor(Date.UTC(2026, 6, 10) / 1000), endDay);
+  const kept = payoutsInRange([payout({ date: evening })], range.startSec, range.endSec);
+  assert.equal(kept.length, 1); // would be dropped if the end were left at midnight
 });
 
 test('payoutsToCsv emits the production schema header, uppercase kind, and guards formula injection', () => {

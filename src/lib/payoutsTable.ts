@@ -65,6 +65,17 @@ export function clampRange(aSec: number, bSec: number): DateRange {
   return { startSec: Math.min(aSec, bSec), endSec: Math.max(aSec, bSec) };
 }
 
+/**
+ * Expand two picked calendar day-keys (each a UTC midnight) into an inclusive
+ * full-day range: 00:00:00 of the earlier day through 23:59:59 of the later day.
+ * The end must reach the last second of its day, otherwise an export ending on a
+ * day drops every payout after that day's midnight.
+ */
+export function fullDayRange(aSec: number, bSec: number): DateRange {
+  const { startSec, endSec } = clampRange(aSec, bSec);
+  return { startSec, endSec: endSec + DAY_SEC - 1 };
+}
+
 /** Days in the month and the Monday-based index (0=Mon..6=Sun) of its first day, for the calendar grid. */
 export function monthInfo(year: number, month0: number): { daysInMonth: number; firstWeekdayMon: number } {
   const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
