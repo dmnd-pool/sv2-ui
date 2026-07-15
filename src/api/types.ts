@@ -117,6 +117,18 @@ export interface PayoutAddresses {
 }
 
 /**
+ * One daily generated-BTC entry (GET /api/generated_btc, verified live).
+ * `entry_day` is a date string (YYYY-MM-DD), `hashrate` is that day's average in
+ * H/s, and `btc_generated` is the gross BTC accrued that day before payout
+ * adjustments. The endpoint returns a bare array (empty account -> []).
+ */
+export interface GeneratedBtcEntry {
+  entry_day: string;
+  hashrate: number;
+  btc_generated: number;
+}
+
+/**
  * Accepted/rejected share counts for a subaccount over a window
  * (GET /api/user/sub_account/{id}/share_stats, verified live). Rejection rate is
  * derived from `rejected / (accepted + rejected)`.
@@ -210,6 +222,8 @@ export interface DmndClient {
   getAllWorkers(req?: RequestOptions): Promise<Worker[]>;
   /** The account's FPPS + PPLNS payout addresses, used to compute today's earnings. */
   getPayoutAddresses(req?: RequestOptions): Promise<PayoutAddresses>;
+  /** The account's daily generated-BTC entries (GET /api/generated_btc); a bare array, empty when none. */
+  getGeneratedBtc(req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
   /** The account's subaccounts (master only); a lightweight list, enriched per-row. */
   getSubaccounts(req?: RequestOptions): Promise<Subaccount[]>;
   /** Per-subaccount hashrate, share stats, fees, and today's BTC in one response. */

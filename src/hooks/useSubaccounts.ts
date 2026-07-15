@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDmndClient } from '@/api';
 import { useAuth } from '@/auth';
-import type { CreateSubaccountInput, Worker } from '@/api/types';
+import type { CreateSubaccountInput } from '@/api/types';
 import { enrichSubaccount, type EnrichedSubaccount } from '@/lib/subaccountsTable';
 
 // Cloud data refreshes every 5 minutes (spec cadence); the client already retries
@@ -11,8 +11,9 @@ const CLOUD_POLL_MS = 5 * 60 * 1000;
 /**
  * The account's subaccounts, each enriched with its summary (rejection + today's
  * earnings in one response) and worker roster (active/offline counts, which the
- * summary does not carry). Enrichment is resilient: a failed sub-call defaults that
- * metric rather than failing the whole list.
+ * summary does not carry). A failed sub-call rejects the whole query so the page
+ * shows its error state, rather than silently reporting 0 workers or 0 earnings for
+ * a row whose data could not be read (a misleading figure on money data).
  */
 export function useSubaccounts() {
   const { session } = useAuth();
@@ -25,14 +26,11 @@ export function useSubaccounts() {
       return Promise.all(
         list.map(async (row) => {
           const token = row.token ?? '';
-          const [summary, workers] = await Promise.all([
-            client.getSubaccountSummary(row.id, token, { signal }).catch(() => null),
-            client
-              .getSubaccountWorkers(row.id, token, { signal })
-              .then((r) => r.workers)
-              .catch(() => [] as Worker[]),
+          const [summary, workersRes] = await Promise.all([
+            client.getSubaccountSummary(row.id, token, { signal }),
+            client.getSubaccountWorkers(row.id, token, { signal }),
           ]);
-          return enrichSubaccount(row, summary, workers, now);
+          return enrichSubaccount(row, summary, workersRes.workers, now);
         }),
       );
     },

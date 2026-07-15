@@ -100,7 +100,7 @@ export function useAccountAllWorkers() {
 }
 
 /** The user's own bitcoin (receiving) addresses from the profile (check_auth). */
-function userBitcoinAddresses(profile: DmndSession | undefined): Set<string> {
+export function userBitcoinAddresses(profile: DmndSession | undefined): Set<string> {
   const out = new Set<string>();
   const addrs = profile?.bitcoin_addresses;
   if (Array.isArray(addrs)) {

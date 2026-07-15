@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { getDmndClient } from '@/api';
+import { queryClient } from '@/lib/queryClient';
 import { createAuthStore, type AuthStore, type SignOutReason } from './authStore';
 import type { Session } from './session';
 
@@ -71,6 +72,20 @@ export function AuthProvider({ children, store: injectedStore }: AuthProviderPro
       if (owns) store.teardown();
     };
   }, [store]);
+
+  // Drop all cached account data when the account signs out (user logout, idle
+  // expiry, or a duplicate-tab claim) or switches. Otherwise the previous account's
+  // figures -- payouts, hashrate, subaccount earnings -- linger in the query cache
+  // and could be shown to the next account on a shared browser. Keyed on the account
+  // id so it fires on the transition, not on every idle-activity session bump.
+  const accountId = state.session?.accountId ?? null;
+  const prevAccountIdRef = useRef(accountId);
+  useEffect(() => {
+    if (prevAccountIdRef.current !== null && prevAccountIdRef.current !== accountId) {
+      queryClient.clear();
+    }
+    prevAccountIdRef.current = accountId;
+  }, [accountId]);
 
   // On startup, validate a session restored from storage against the backend.
   // The auth cookie is HttpOnly so we can't inspect it here; check_auth confirms

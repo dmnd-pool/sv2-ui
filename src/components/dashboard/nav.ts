@@ -1,8 +1,8 @@
 import type { ComponentType } from 'react';
-import { LiHomeAngle, LiLayersMinimalistic, LiKeyMinimalistic, LiSettingsMinimalistic } from 'solar-icon-react/li';
-import { BdHomeAngle, BdLayersMinimalistic, BdKeyMinimalistic, BdSettingsMinimalistic } from 'solar-icon-react/bd';
+import { LiHomeAngle, LiLayersMinimalistic, LiWallet, LiKeyMinimalistic, LiSettingsMinimalistic } from 'solar-icon-react/li';
+import { BdHomeAngle, BdLayersMinimalistic, BdWallet, BdKeyMinimalistic, BdSettingsMinimalistic } from 'solar-icon-react/bd';
 import { MiningIcon } from './icons/MiningIcon';
-import { CoinsIcon } from './icons/CoinsIcon';
+import { BitcoinCircleIcon } from './icons/BitcoinCircleIcon';
 
 type IconComp = ComponentType<{ className?: string }>;
 
@@ -22,7 +22,8 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { icon: MiningIcon, label: 'Workers', href: '/workers' },
       { icon: LiLayersMinimalistic, iconActive: BdLayersMinimalistic, label: 'Subaccounts', href: '/subaccounts' },
-      { icon: CoinsIcon, label: 'Rewards', href: '/rewards' },
+      { icon: BitcoinCircleIcon, label: 'Generated BTC', href: '/generated-bitcoin' },
+      { icon: LiWallet, iconActive: BdWallet, label: 'Payouts', href: '/payouts' },
     ],
   },
   {

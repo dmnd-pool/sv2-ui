@@ -14,10 +14,14 @@ interface ToastItem {
   id: number;
   type: ToastType;
   message: string;
+  /** Optional second line under the bold title (e.g. the CSV-export toasts). */
+  description?: string;
 }
 
 interface ToastContextValue {
-  toast: (input: { type: ToastType; message: string }) => void;
+  /** Shows a toast and returns its id so the caller can dismiss it early. */
+  toast: (input: { type: ToastType; message: string; description?: string }) => number;
+  dismiss: (id: number) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -53,16 +57,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (input: { type: ToastType; message: string }) => {
+    (input: { type: ToastType; message: string; description?: string }) => {
       const id = nextId++;
       setToasts((current) => [...current, { id, ...input }]);
       setTimeout(() => dismiss(id), DURATION_MS);
+      return id;
     },
     [dismiss],
   );
 
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={{ toast, dismiss }}>
       {children}
       <div className="dmnd-auth pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4">
         {toasts.map((t) => {
@@ -72,12 +77,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={t.id}
               role="status"
               className={cn(
-                'pointer-events-auto flex items-center gap-2.5 rounded-[16px] px-4 py-3 text-sm font-bold shadow-lg',
+                'pointer-events-auto flex items-center gap-2.5 rounded-[16px] px-4 py-3 text-sm shadow-lg',
                 TINT[t.type],
               )}
             >
               <Icon className={cn('h-4 w-4 shrink-0', ICON_COLOR[t.type])} />
-              <span>{t.message}</span>
+              <div className="flex flex-col">
+                <span className="font-bold">{t.message}</span>
+                {t.description && <span className="text-xs font-normal opacity-80">{t.description}</span>}
+              </div>
               <button
                 type="button"
                 onClick={() => dismiss(t.id)}
@@ -98,4 +106,11 @@ export function useToast(): ToastContextValue['toast'] {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used within a ToastProvider');
   return ctx.toast;
+}
+
+/** Both the toast fn and a dismiss handle, for flows that replace a toast (e.g. CSV export). */
+export function useToastControls(): ToastContextValue {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error('useToastControls must be used within a ToastProvider');
+  return ctx;
 }
