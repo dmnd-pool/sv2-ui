@@ -13,6 +13,7 @@ import { WorkersPage } from '@/pages/workers/WorkersPage';
 import { SubaccountsPage } from '@/pages/subaccounts/SubaccountsPage';
 import { GeneratedBtcPage } from '@/pages/generated-btc/GeneratedBtcPage';
 import { PayoutsPage } from '@/pages/payouts/PayoutsPage';
+import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
@@ -102,7 +103,7 @@ function AppRoutes() {
       </Route>
       <Route path="/account">
         <DashboardShell>
-          <ComingSoon title="Settings" />
+          <SettingsPage />
         </DashboardShell>
       </Route>
       {/* Full-screen account-setup flow, reached from the home prompt. */}
