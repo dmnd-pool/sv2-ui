@@ -9,8 +9,8 @@ import { accountInitials } from './accountInitials';
 /**
  * The dashboard top bar: a hamburger (mobile drawer), the page title, and the
  * right-side actions: help, notifications, the theme toggle, and an account
- * avatar menu. Help and notifications are chrome until
- * their backends land; the avatar menu wires the existing Settings and Logout.
+ * avatar menu. Help links to the support page; notifications stay chrome until
+ * their backend lands; the avatar menu wires the existing Settings and Logout.
  */
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const [location] = useLocation();
@@ -31,13 +31,13 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       <h1 className="text-base font-semibold text-heading">{titleForPath(location)}</h1>
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
+        <Link
+          href="/help"
           aria-label="Help"
           className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-body-alt transition-colors hover:text-foreground"
         >
           <LiQuestionCircle className="h-4 w-4" />
-        </button>
+        </Link>
         <button
           type="button"
           aria-label="Notifications"
