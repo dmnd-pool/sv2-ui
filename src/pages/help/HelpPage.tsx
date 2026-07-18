@@ -62,9 +62,6 @@ const ROWS: HelpRow[] = [
  * confirmed URL is not shown rather than linking nowhere.
  */
 export function HelpPage() {
-  // Drop any row without a confirmed destination (FAQ and Telegram until their URLs exist).
-  const rows = ROWS.filter((r) => r.href.length > 0);
-
   return (
     <div className="space-y-6">
       <header>
@@ -90,7 +87,7 @@ export function HelpPage() {
         </section>
 
         <section className="divide-y divide-border">
-          {rows.map((row) => (
+          {ROWS.map((row) => (
             <div key={row.title} className="flex items-start justify-between gap-4 py-5 first:pt-0">
               <div className="flex min-w-0 gap-3">
                 <row.icon className="mt-0.5 h-5 w-5 shrink-0 text-body-alt" />
@@ -99,15 +96,26 @@ export function HelpPage() {
                   <p className="mt-0.5 text-sm text-body-alt">{row.description}</p>
                 </div>
               </div>
-              <a
-                href={row.href}
-                target={row.href.startsWith('mailto:') ? undefined : '_blank'}
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-              >
-                {row.action}
-                <LiAltArrowRight className="h-3.5 w-3.5" />
-              </a>
+              {row.href ? (
+                <a
+                  href={row.href}
+                  target={row.href.startsWith('mailto:') ? undefined : '_blank'}
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  {row.action}
+                  <LiAltArrowRight className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                // Placeholder until the destination URL exists: shown per the design, not clickable.
+                <span
+                  aria-disabled
+                  className="inline-flex shrink-0 cursor-default items-center gap-1 rounded-full border border-border px-4 py-2 text-xs font-medium text-foreground"
+                >
+                  {row.action}
+                  <LiAltArrowRight className="h-3.5 w-3.5" />
+                </span>
+              )}
             </div>
           ))}
         </section>
