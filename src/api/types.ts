@@ -201,6 +201,12 @@ export interface DmndClient {
   /** Confirm TOTP setup with the 6-digit code from the authenticator app. */
   activate2fa(code: string, req?: RequestOptions): Promise<void>;
   /**
+   * Fetch a fresh 2FA provisioning secret to re-set-up (reset) two-factor auth,
+   * returning the session object with a non-null `two_factor_secret`. A GET, so it
+   * does not itself change the live secret; activate2fa commits the new one.
+   */
+  newTwoFactor(req?: RequestOptions): Promise<DmndSession>;
+  /**
    * Set the payout address. The API requires a live `two_fa_token`; pass an
    * empty string to let the caller detect a 2FA-required response and prompt
    * for the code (the try-then-ask flow the Bitcoin step uses).

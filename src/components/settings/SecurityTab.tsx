@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { LiLockPassword, LiShieldCheck, LiShieldKeyhole } from 'solar-icon-react/li';
 import { useAuth } from '@/auth';
 import { useAccountProfile } from '@/hooks/useAccountData';
 import { Enable2faModal } from './Enable2faModal';
+import { Manage2faModal } from './Manage2faModal';
 
 function SectionHeading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -21,18 +21,20 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle: string }
 /**
  * The Security tab: the sign-in email (read-only), password, and two-factor
  * authentication. 2FA state comes from the profile (a null `two_factor_secret` means
- * it is active). Enabling opens the QR flow; there is no disable endpoint yet, so an
- * active account shows status only. Password changes reuse the account-recovery flow,
- * the only backed way to set a new password.
+ * it is active). Enabling opens the QR flow; an active account can Manage 2FA to reset
+ * it (there is no disable endpoint, so the design's Disable is a Reset here). The
+ * Change password button is present but not wired: it must not link to the recovery
+ * flow, and the dedicated reset-password endpoint does not exist yet.
  */
 export function SecurityTab() {
   const { session } = useAuth();
-  const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useAccountProfile();
   const [enabling, setEnabling] = useState(false);
+  const [managing, setManaging] = useState(false);
 
   const twoFaEnabled = !!profile && profile.two_factor_secret == null;
+  const refreshProfile = () => void queryClient.invalidateQueries({ queryKey: ['account', 'profile'] });
 
   return (
     <div className="max-w-2xl space-y-10">
@@ -56,10 +58,14 @@ export function SecurityTab() {
             <LiLockPassword className="h-4 w-4" />
             <span className="tracking-widest">........</span>
           </span>
+          {/* Present per the design but disabled: the recovery flow must not be used
+              for this (per review), and the dedicated reset-password endpoint is not
+              available yet. Wire it up once that endpoint exists. */}
           <button
             type="button"
-            onClick={() => navigate('/forgot-password')}
-            className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            disabled
+            title="Password reset is coming soon"
+            className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-40"
           >
             Change password
           </button>
@@ -74,9 +80,18 @@ export function SecurityTab() {
         {isLoading ? (
           <div className="h-10 animate-pulse rounded-lg bg-muted" />
         ) : twoFaEnabled ? (
-          <div className="flex items-center gap-2">
-            <LiShieldCheck className="h-4 w-4 text-success" />
-            <span className="text-sm text-foreground">2FA is enabled</span>
+          <div className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-2">
+              <LiShieldCheck className="h-4 w-4 text-success" />
+              <span className="text-sm text-foreground">2FA is enabled</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setManaging(true)}
+              className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              Manage
+            </button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4">
@@ -95,12 +110,8 @@ export function SecurityTab() {
         )}
       </div>
 
-      {enabling && (
-        <Enable2faModal
-          onClose={() => setEnabling(false)}
-          onEnabled={() => void queryClient.invalidateQueries({ queryKey: ['account', 'profile'] })}
-        />
-      )}
+      {enabling && <Enable2faModal onClose={() => setEnabling(false)} onEnabled={refreshProfile} />}
+      {managing && <Manage2faModal onClose={() => setManaging(false)} onChanged={refreshProfile} />}
     </div>
   );
 }
