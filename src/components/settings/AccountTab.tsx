@@ -1,9 +1,32 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LiCopy, LiCheckCircle } from 'solar-icon-react/li';
+import { LiCopy, LiCheckCircle, LiClockCircle } from 'solar-icon-react/li';
 import { useAccountProfile, userBitcoinAddresses } from '@/hooks/useAccountData';
 import { truncateMiddle } from '@/lib/payoutsTable';
 import { ChangeBitcoinAddressModal } from './ChangeBitcoinAddressModal';
+
+// The session does not yet carry the miner's name or company (tracked server-side by
+// issue #14); until it does, the profile fields show placeholder values so the section
+// keeps its designed shape. Editing profile info is not allowed for now, so the fields
+// are read-only (no Save button); swap these for the real values, and the KYB status,
+// once the account endpoint returns them.
+const PROFILE_PLACEHOLDER = {
+  firstName: 'John',
+  lastName: 'Doe',
+  companyName: 'DMND Mining Ltd',
+  companyLocation: 'Lisbon, PT',
+};
+
+/** A labelled read-only field styled like the other settings inputs. */
+function ReadonlyField({ label, value, children }: { label: string; value: string; children?: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-sm text-body-alt">{label}</span>
+      <div className="rounded-2xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground">{value}</div>
+      {children}
+    </div>
+  );
+}
 
 function CopyAddressButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -37,7 +60,27 @@ export function AccountTab() {
   const addresses = profile ? [...userBitcoinAddresses(profile)] : [];
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-10">
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-heading">Profile</h2>
+          <p className="mt-1 text-sm text-body-alt">Manage your personal information and company details</p>
+        </div>
+        <div className="h-px w-full bg-border" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ReadonlyField label="First name" value={PROFILE_PLACEHOLDER.firstName} />
+          <ReadonlyField label="Last name" value={PROFILE_PLACEHOLDER.lastName} />
+        </div>
+        <ReadonlyField label="Company name" value={PROFILE_PLACEHOLDER.companyName}>
+          <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-warning">
+            <LiClockCircle className="h-3.5 w-3.5" />
+            KYB verification is in review
+          </span>
+        </ReadonlyField>
+        <ReadonlyField label="Company location" value={PROFILE_PLACEHOLDER.companyLocation} />
+      </div>
+
+      <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-heading">Bitcoin address</h2>
         <p className="mt-1 text-sm text-body-alt">This is the address you receive your mining payouts.</p>
@@ -79,6 +122,7 @@ export function AccountTab() {
           </div>
         </div>
       )}
+      </div>
 
       {changing && (
         <ChangeBitcoinAddressModal
