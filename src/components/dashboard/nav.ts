@@ -42,7 +42,10 @@ export const SETTINGS_ITEM: NavItem = {
 
 const ALL_ITEMS = [...NAV_GROUPS.flatMap((group) => group.items), SETTINGS_ITEM];
 
+// Routes reachable outside the sidebar (top-bar actions) still need a title.
+const EXTRA_TITLES: Record<string, string> = { '/help': 'Help & Support' };
+
 /** The page title shown in the top bar for a given route. */
 export function titleForPath(path: string): string {
-  return ALL_ITEMS.find((item) => item.href === path)?.label ?? 'Home';
+  return ALL_ITEMS.find((item) => item.href === path)?.label ?? EXTRA_TITLES[path] ?? 'Home';
 }

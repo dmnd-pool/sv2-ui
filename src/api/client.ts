@@ -251,6 +251,14 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
       // session rides in the cookie + X-Account-ID header). Verified live.
       return request<void>({ method: 'PUT', path: '/api/activate_2fa', body: { token: code } }, opts, req);
     },
+    newTwoFactor(req) {
+      // Returns a session-shaped object carrying a FRESH `two_factor_secret` to
+      // re-provision 2FA, even when it is already active (unlike check_auth, which
+      // hides the secret once enabled). A GET, so it is safe to call without
+      // committing anything; activate2fa is what overwrites the live secret.
+      // Verified live: GET /api/new_2fa returns the user object with a 32-char secret.
+      return request<DmndSession>({ method: 'GET', path: '/api/new_2fa' }, opts, req);
+    },
     setBitcoinAddress(address, twoFaToken, req) {
       // Snake_case body (bundle-verified); sub_account_id is null for the master
       // account. The API rejects an empty/missing two_fa_token with a
