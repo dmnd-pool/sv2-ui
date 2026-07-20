@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { LiGlobal, LiAltArrowDown } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 import type { ThemePreference } from '@/lib/theme';
@@ -61,10 +62,10 @@ const THEMES: { variant: ThemePreference; label: string }[] = [
 ];
 
 /**
- * The Preferences tab: the dashboard theme (light / dark / system, persisted locally).
- * The design's Localization control is intentionally omitted: language switching is not
- * offered (there is no update endpoint, and the account language is fixed server-side),
- * so a language picker here would be a control that never takes effect.
+ * The Preferences tab: the dashboard theme (light / dark / system, persisted locally)
+ * and the display language. The language is shown read-only: the account language is
+ * fixed server-side with no update endpoint, so the copy states what the language IS
+ * rather than inviting a choice the user cannot make.
  */
 export function PreferencesTab() {
   const { preference, setTheme } = useTheme();
@@ -87,6 +88,29 @@ export function PreferencesTab() {
               onSelect={() => setTheme(t.variant)}
             />
           ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-heading">Localization</h2>
+          {/* States the language rather than offering a choice: the account language is
+              set server-side and there is no endpoint to change it. */}
+          <p className="mt-1 text-sm text-body-alt">The language used across your dashboard</p>
+        </div>
+        <div className="h-px w-full bg-border" />
+        <div className="space-y-1.5">
+          <span className="text-sm text-body-alt">Display language</span>
+          <div
+            className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground"
+            aria-disabled
+          >
+            <span className="flex items-center gap-2">
+              <LiGlobal className="h-4 w-4 text-body-alt" />
+              English
+            </span>
+            <LiAltArrowDown className="h-4 w-4 text-placeholder" />
+          </div>
         </div>
       </div>
     </div>
