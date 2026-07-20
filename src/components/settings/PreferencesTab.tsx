@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { LiGlobal, LiAltArrowDown } from 'solar-icon-react/li';
+import { LiGlobal } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 import type { ThemePreference } from '@/lib/theme';
@@ -102,14 +102,13 @@ export function PreferencesTab() {
         <div className="space-y-1.5">
           <span className="text-sm text-body-alt">Display language</span>
           <div
-            className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground"
+            className="flex items-center gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground"
             aria-disabled
           >
             <span className="flex items-center gap-2">
               <LiGlobal className="h-4 w-4 text-body-alt" />
               English
             </span>
-            <LiAltArrowDown className="h-4 w-4 text-placeholder" />
           </div>
         </div>
       </div>
