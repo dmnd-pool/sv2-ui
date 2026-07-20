@@ -1,7 +1,7 @@
 import { LiArrowRightUp } from 'solar-icon-react/li';
 
 // DMND product version shown on the About tab (distinct from the sv2-ui build).
-const DASHBOARD_VERSION = 'v2.1.0';
+const DASHBOARD_VERSION = 'v2.0.0';
 
 // External resources shown on the About tab. Contact opens the DMND support inbox.
 // Rows with a confirmed destination link out; the rest render as non-interactive
