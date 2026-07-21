@@ -143,7 +143,11 @@ export interface SubaccountShareStats {
   rejected: number;
 }
 
-/** Pool + broker fee fractions (GET /api/user/sub_account/{id}/fees, verified live). */
+/**
+ * Pool + broker fee rates, already expressed in percent (2 = 2%), per the spec's
+ * `/api/user/fees` "rates (%)" and prod's "Pool fee %" / "Broker fee %" columns.
+ * From GET /api/user/fees and GET /api/user/sub_account/{id}/fees.
+ */
 export interface SubaccountFees {
   pool_fee: number;
   broker_fee: number;
@@ -167,6 +171,35 @@ export interface SubaccountSummary {
   share_stats: SubaccountShareStats | null;
   fees: SubaccountFees | null;
   today_generated_btc: number | null;
+}
+
+/**
+ * The read-only data a watcher link may access. One scope per data surface; the
+ * link's holder can read nothing else.
+ */
+export type WatcherScope = 'hashrate_read' | 'workers_read' | 'earnings_read' | 'rejects_read' | 'fees_read';
+
+/**
+ * A watcher link (GET /api/api-tokens, verified live). `user_id` is the account the
+ * link can read (the master account or one of its subaccounts) and is what the
+ * shareable URL embeds alongside `token`. `expires_at` is null for links that never
+ * expire, which is every link the API issues today.
+ */
+export interface WatcherLink {
+  id: string;
+  user_id: string;
+  token: string;
+  owner_email: string;
+  owner_first_name: string | null;
+  scopes: WatcherScope[];
+  created_at: string;
+  expires_at: string | null;
+}
+
+/** The fields the create-watcher-link form collects (mapped to the snake_case body). */
+export interface CreateWatcherLinkInput {
+  targetUserId: string;
+  scopes: WatcherScope[];
 }
 
 /** Account capability flags (GET /api/user/permissions; snake_case, bundle-verified). */
@@ -238,6 +271,12 @@ export interface DmndClient {
   getSubaccountWorkers(id: string, token: string, req?: RequestOptions): Promise<WorkersResponse>;
   /** Capability flags gating the Create button and the page itself. */
   getPermissions(req?: RequestOptions): Promise<AccountPermissions>;
+  /** The account's watcher links (GET /api/api-tokens); a bare array, empty when none. */
+  getWatcherLinks(req?: RequestOptions): Promise<WatcherLink[]>;
+  /** Issue a watcher link for one account (master or subaccount) with the given scopes. */
+  createWatcherLink(input: CreateWatcherLinkInput, req?: RequestOptions): Promise<WatcherLink>;
+  /** Revoke a watcher link by id; it stops working immediately. */
+  revokeWatcherLink(id: string, req?: RequestOptions): Promise<void>;
   /** Create a subaccount under the master account. */
   createSubaccount(input: CreateSubaccountInput, req?: RequestOptions): Promise<void>;
   /**

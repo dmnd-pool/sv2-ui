@@ -253,6 +253,66 @@ test('getGeneratedBtc collapses a non-array response to an empty list', async ()
   assert.deepEqual(await client.getGeneratedBtc(), []);
 });
 
+test('getWatcherLinks GETs the api-tokens list with the X-Account-ID header', async () => {
+  const rows = [
+    {
+      id: '199',
+      user_id: '-739',
+      token: 'TOK',
+      owner_email: 'm@x.io',
+      owner_first_name: 'Ada',
+      scopes: ['hashrate_read', 'workers_read'],
+      created_at: '2026-06-29T08:24:00Z',
+      expires_at: null,
+    },
+  ];
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+  setDmndAccountId('42');
+  try {
+    const result = await client.getWatcherLinks();
+    assert.equal(calls[0].init.method, 'GET');
+    assert.ok(calls[0].url.endsWith('/api/api-tokens'));
+    assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
+    assert.deepEqual(result, rows);
+  } finally {
+    setDmndAccountId(null);
+  }
+});
+
+test('getWatcherLinks collapses a non-array response to an empty list', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  assert.deepEqual(await client.getWatcherLinks(), []);
+});
+
+test('createWatcherLink POSTs the target account and scopes in snake_case', async () => {
+  const created = { id: '200', user_id: '-739', token: 'NEW', scopes: ['hashrate_read'] };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(created));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.createWatcherLink({ targetUserId: '-739', scopes: ['hashrate_read'] });
+
+  assert.ok(calls[0].url.endsWith('/api/api-tokens'));
+  assert.equal(calls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    target_user_id: '-739',
+    scopes: ['hashrate_read'],
+  });
+  assert.deepEqual(result, created);
+});
+
+test('revokeWatcherLink DELETEs the link by id', async () => {
+  const { fetchImpl, calls } = fakeFetch(() => new Response('', { status: 200 }));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  await client.revokeWatcherLink('531');
+
+  assert.equal(calls[0].init.method, 'DELETE');
+  assert.ok(calls[0].url.endsWith('/api/api-tokens/531'));
+});
+
 test('a 4xx with a server message surfaces it as an unknown error', async () => {
   const { fetchImpl } = fakeFetch(
     () =>

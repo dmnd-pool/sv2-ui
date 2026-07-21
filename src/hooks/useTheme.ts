@@ -42,3 +42,23 @@ export function useTheme() {
     toggle: () => setPreference((p) => (resolveIsDark(p, prefersDark) ? 'light' : 'dark')),
   };
 }
+
+/**
+ * Apply the saved theme's `dark` class for a surface with no theme control of its own,
+ * such as the public Watcher View. It reads the preference (default light) and follows
+ * the OS while that preference is `system`, but never writes it. Without this a public
+ * page keeps the `dark` class index.html ships with and ignores a viewer who chose
+ * light, so a watcher link opens dark even when the owner's dashboard is light.
+ */
+export function useAppliedTheme() {
+  useEffect(() => {
+    const apply = () => {
+      const preference = normalizeThemePreference(localStorage.getItem('theme'));
+      document.documentElement.classList.toggle('dark', resolveIsDark(preference, systemPrefersDark()));
+    };
+    apply();
+    const mql = window.matchMedia(DARK_QUERY);
+    mql.addEventListener('change', apply);
+    return () => mql.removeEventListener('change', apply);
+  }, []);
+}

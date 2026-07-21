@@ -43,6 +43,24 @@ export function useSubaccounts() {
 }
 
 /**
+ * The raw subaccount rows, without the per-row enrichment calls. Callers that only
+ * need to map an id to a name (rather than render the subaccounts table) use this so
+ * they cost one request instead of two per subaccount, and so an enrichment failure
+ * cannot take their page down with it.
+ */
+export function useSubaccountList() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ['account', 'subaccounts', 'list'],
+    queryFn: ({ signal }) => getDmndClient().getSubaccounts({ signal }),
+    enabled: !!session,
+    staleTime: CLOUD_POLL_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+/**
  * Capability flags for the account. Stable for a session, so fetched once and not
  * polled; gates the Create button (create_sub_account) and page (view_sub_accounts).
  */
