@@ -26,7 +26,7 @@ jobs:
       - uses: pulumi/actions@v6
         with:
           command: up
-          stack-name: dmnd-tech-org/demand-user-dashboard-staging
+          stack-name: dmnd-tech-org/demand-user-dashboard-frontend/staging
           work-dir: deployment/staging
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
