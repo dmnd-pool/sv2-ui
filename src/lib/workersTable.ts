@@ -46,11 +46,20 @@ export function workerKind(worker: Worker): 'pplns' | 'fpps' {
   return worker.is_fpps ? 'fpps' : 'pplns';
 }
 
+/** Accepted+rejected share count across both schemes. */
+export function workerTotalShares(worker: Worker): number {
+  return (worker.total_shares ?? 0) + (worker.fpps_total_shares ?? 0);
+}
+
+/** Rejected share count across both schemes. */
+export function workerRejectedShares(worker: Worker): number {
+  return (worker.rejected_shares ?? 0) + (worker.fpps_rejected_shares ?? 0);
+}
+
 /** Per-worker rejected/total share fraction (0..1), combining both schemes; null with no shares. */
 export function workerRejection(worker: Worker): number | null {
-  const total = (worker.total_shares ?? 0) + (worker.fpps_total_shares ?? 0);
-  const rejected = (worker.rejected_shares ?? 0) + (worker.fpps_rejected_shares ?? 0);
-  return total > 0 ? rejected / total : null;
+  const total = workerTotalShares(worker);
+  return total > 0 ? workerRejectedShares(worker) / total : null;
 }
 
 function plural(n: number, unit: string): string {
@@ -70,6 +79,46 @@ export function formatLastSeen(worker: Worker, now: number): string {
   const days = Math.floor(hrs / 24);
   const remHrs = hrs % 24;
   return remHrs > 0 ? `${plural(days, 'day')} ${plural(remHrs, 'hr')} ago` : `${plural(days, 'day')} ago`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/**
+ * The worker's connection time as "18 Jun 2026, 08:24 UTC" (the details panel's
+ * "Connected Since"). Uses the same seconds-vs-ms handling as lastSeenMs; null or
+ * unparseable timestamps render "Unknown".
+ */
+export function formatConnectedSince(worker: Worker): string {
+  const at = worker.connected_at;
+  if (at == null || !Number.isFinite(at)) return 'Unknown';
+  const ms = at < 1e12 ? at * 1000 : at;
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return 'Unknown';
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
+}
+
+/**
+ * How long an offline worker has been offline, spelled out for the details banner:
+ * "less than a minute", "42 minutes", "3 hours", "1 day 18 hours", "2 days". Full
+ * unit words, no trailing "ago" (unlike the table's formatLastSeen). Returns null
+ * for a connected worker or when the last-seen time is unknown.
+ */
+export function formatOfflineDuration(worker: Worker, now: number): string | null {
+  if (worker.is_connected) return null;
+  const seen = lastSeenMs(worker, now);
+  if (seen == null) return null;
+  const mins = Math.floor((now - seen) / 60000);
+  if (mins < 1) return 'less than a minute';
+  if (mins < 60) return plural(mins, 'minute');
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return plural(hrs, 'hour');
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs % 24;
+  return remHrs > 0 ? `${plural(days, 'day')} ${plural(remHrs, 'hour')}` : plural(days, 'day');
 }
 
 export interface WorkersPageStats {
@@ -101,6 +150,49 @@ export function filterByTab(workers: Worker[], tab: WorkersTab): Worker[] {
   if (tab === 'all') return workers;
   const wantOnline = tab === 'online';
   return workers.filter((w) => w.is_connected === wantOnline);
+}
+
+// The advanced Filter popover (separate from the All/Online/Offline tabs). Status and
+// Mode are multi-select (a worker matches if it is in ANY chosen bucket); Rejection is
+// single-select. An empty facet does not constrain. Buckets are design-derived.
+export type WorkerModeFilter = 'PPLNS' | 'FPPS';
+export type WorkerRejectionFilter = 'lt1' | '1to3' | 'gt3';
+
+export interface WorkerFilter {
+  status: WorkerStatus[];
+  mode: WorkerModeFilter[];
+  rejection: WorkerRejectionFilter | null;
+}
+
+export const EMPTY_WORKER_FILTER: WorkerFilter = { status: [], mode: [], rejection: null };
+
+/** True when any facet is set (drives the Filter button's active dot). */
+export function isWorkerFilterActive(filter: WorkerFilter): boolean {
+  return filter.status.length > 0 || filter.mode.length > 0 || filter.rejection !== null;
+}
+
+/** Which rejection bucket a worker falls in; null when it has no shares yet (no rate). */
+function rejectionBucket(worker: Worker): WorkerRejectionFilter | null {
+  const rej = workerRejection(worker);
+  if (rej === null) return null;
+  if (rej < 0.01) return 'lt1';
+  if (rej <= 0.03) return '1to3';
+  return 'gt3';
+}
+
+/**
+ * Apply the advanced filter to the roster. Facets combine with AND (a worker must pass
+ * every set facet); within the multi-select Status and Mode facets the chosen options
+ * combine with OR. A worker with no shares has no rejection rate, so it never matches a
+ * rejection bucket.
+ */
+export function applyWorkerFilter(workers: Worker[], filter: WorkerFilter, now: number): Worker[] {
+  return workers.filter((w) => {
+    if (filter.status.length > 0 && !filter.status.includes(classifyWorker(w, now))) return false;
+    if (filter.mode.length > 0 && !filter.mode.includes(workerMode(w))) return false;
+    if (filter.rejection !== null && rejectionBucket(w) !== filter.rejection) return false;
+    return true;
+  });
 }
 
 /** Display labels for the status column; single source of truth (also used by StatusBadge). */
@@ -179,6 +271,23 @@ export function paginate<T>(items: T[], page: number, pageSize: number): Page<T>
   const safePage = Math.min(Math.max(1, page), totalPages);
   const start = (safePage - 1) * pageSize;
   return { items: items.slice(start, start + pageSize), page: safePage, totalPages };
+}
+
+/**
+ * Restrict the roster to workers whose last connection falls inside an inclusive
+ * [startSec, endSec] window, for the CSV export's date range. `/api/workers/all` takes
+ * no date parameter (verified live and in the spec: it returns every worker ever
+ * connected), so the range is applied here over `connected_at` — i.e. "workers that
+ * were connected during this period". A worker with no timestamp cannot be placed in
+ * time and is excluded from a ranged export rather than silently included.
+ */
+export function filterWorkersByRange(workers: Worker[], startSec: number, endSec: number, now: number): Worker[] {
+  return workers.filter((w) => {
+    const seen = lastSeenMs(w, now);
+    if (seen == null) return false;
+    const sec = Math.floor(seen / 1000);
+    return sec >= startSec && sec <= endSec;
+  });
 }
 
 // Matches the production dashboard's workers CSV export: the raw API fields, not

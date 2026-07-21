@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { LiAddCircle, LiDownloadMinimalistic } from 'solar-icon-react/li';
+import type { Worker } from '@/api/types';
 import { useAccountAllWorkers } from '@/hooks/useAccountData';
 import {
   deriveWorkersPageStats,
@@ -8,7 +9,11 @@ import {
   sortWorkers,
   paginate,
   workersToCsv,
+  applyWorkerFilter,
+  filterWorkersByRange,
+  EMPTY_WORKER_FILTER,
   type SortDir,
+  type WorkerFilter,
   type WorkerSortKey,
   type WorkersTab,
 } from '@/lib/workersTable';
@@ -17,7 +22,11 @@ import { WorkersToolbar } from '@/components/workers/WorkersToolbar';
 import { WorkersTable } from '@/components/workers/WorkersTable';
 import { WorkersPagination } from '@/components/workers/WorkersPagination';
 import { WorkersEmptyState } from '@/components/workers/WorkersEmptyState';
-import { ConnectWorkerModal } from '@/components/workers/ConnectWorkerModal';
+import { WorkersNoResults } from '@/components/workers/WorkersNoResults';
+import { ConnectWorkersDrawer } from '@/components/workers/ConnectWorkersDrawer';
+import { WorkerDetailsPanel } from '@/components/workers/WorkerDetailsPanel';
+import { PayoutsExportModal } from '@/components/payouts/PayoutsExportModal';
+import { useToast, useToastControls } from '@/components/ui/toast';
 
 const PAGE_SIZE = 10;
 
@@ -42,20 +51,77 @@ export function WorkersPage() {
 
   const [tab, setTab] = useState<WorkersTab>('all');
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<WorkerFilter>(EMPTY_WORKER_FILTER);
   const [sort, setSort] = useState<{ key: WorkerSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [page, setPage] = useState(1);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detailsWorker, setDetailsWorker] = useState<Worker | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const toast = useToast();
+  const { dismiss } = useToastControls();
 
   const now = Date.now();
   const stats = useMemo(() => deriveWorkersPageStats(workers, now), [workers, now]);
 
   const sorted = useMemo(() => {
-    const filtered = searchWorkers(filterByTab(workers, tab), query, now);
-    return sortWorkers(filtered, sort.key, sort.dir);
-  }, [workers, tab, query, sort, now]);
+    // Pipeline: tab -> advanced filter -> search -> sort. The tab and the Filter's
+    // Status facet both narrow by health; they intersect (AND), which is expected.
+    const narrowed = applyWorkerFilter(filterByTab(workers, tab), filter, now);
+    const searched = searchWorkers(narrowed, query, now);
+    return sortWorkers(searched, sort.key, sort.dir);
+  }, [workers, tab, filter, query, sort, now]);
 
   const pageData = paginate(sorted, page, PAGE_SIZE);
   const counts: Record<WorkersTab, number> = { all: workers.length, online: stats.active, offline: stats.offline };
+
+  // Selection spans the whole filtered set (not just the visible page), so export and
+  // the header select-all reason over every matching worker. Stale names left over from
+  // a since-changed filter simply don't intersect `sorted`, so they're ignored.
+  const allSelected = sorted.length > 0 && sorted.every((w) => selected.has(w.name));
+  const someSelected = sorted.some((w) => selected.has(w.name));
+  const toggleAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (sorted.every((w) => next.has(w.name))) sorted.forEach((w) => next.delete(w.name));
+      else sorted.forEach((w) => next.add(w.name));
+      return next;
+    });
+  };
+  const toggleOne = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+  // Export the checked subset when any rows are selected, otherwise the full filtered set.
+  const exportRows = someSelected ? sorted.filter((w) => selected.has(w.name)) : sorted;
+
+  /**
+   * Export the chosen date range as CSV. `/api/workers/all` has no date parameter, so
+   * the range narrows the rows we already hold by when each worker was last connected.
+   * The CSV build is synchronous, so yield a frame first or React batches the preparing
+   * and outcome toasts into one tick and the preparing toast never paints.
+   */
+  const runExport = async (range: { startSec: number; endSec: number }) => {
+    setExportOpen(false);
+    const pending = toast({ type: 'info', message: 'Preparing export...', description: 'Generating your CSV file.' });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      downloadCsv(workersToCsv(filterWorkersByRange(exportRows, range.startSec, range.endSec, now)));
+      dismiss(pending);
+      toast({ type: 'success', message: 'Export complete', description: 'Worker data has been exported as CSV.' });
+    } catch {
+      dismiss(pending);
+      toast({
+        type: 'error',
+        message: 'Export failed',
+        description: "We couldn't generate your CSV file. Please try again.",
+      });
+    }
+  };
 
   const changeTab = (next: WorkersTab) => {
     setTab(next);
@@ -63,6 +129,14 @@ export function WorkersPage() {
   };
   const changeQuery = (next: string) => {
     setQuery(next);
+    setPage(1);
+  };
+  const applyFilter = (next: WorkerFilter) => {
+    setFilter(next);
+    setPage(1);
+  };
+  const resetFilter = () => {
+    setFilter(EMPTY_WORKER_FILTER);
     setPage(1);
   };
   const changeSort = (key: WorkerSortKey) => {
@@ -89,14 +163,25 @@ export function WorkersPage() {
           >
             Connect worker <LiAddCircle className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => downloadCsv(workersToCsv(sorted))}
-            disabled={!canExport}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--btn))] px-4 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            Export CSV <LiDownloadMinimalistic className="h-4 w-4" />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen((o) => !o)}
+              disabled={!canExport}
+              aria-expanded={exportOpen}
+              aria-haspopup="dialog"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--btn))] px-4 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              Export CSV <LiDownloadMinimalistic className="h-4 w-4" />
+            </button>
+            {exportOpen && (
+              <PayoutsExportModal
+                title="Export worker data"
+                onCancel={() => setExportOpen(false)}
+                onExport={(range) => void runExport(range)}
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -127,14 +212,52 @@ export function WorkersPage() {
         <>
           <WorkersStatCards stats={stats} />
           <div className="rounded-xl border border-border bg-card">
-            <WorkersToolbar tab={tab} onTab={changeTab} counts={counts} query={query} onQuery={changeQuery} />
-            <WorkersTable workers={pageData.items} sort={sort} onSort={changeSort} now={now} />
-            <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
+            <WorkersToolbar
+              tab={tab}
+              onTab={changeTab}
+              counts={counts}
+              query={query}
+              onQuery={changeQuery}
+              filter={filter}
+              onApplyFilter={applyFilter}
+              onResetFilter={resetFilter}
+            />
+            {sorted.length === 0 ? (
+              // Workers exist but the active search or filter matches none. Show the
+              // search variant whenever a query is present, otherwise the filter variant
+              // (the tab and advanced Filter both narrow, so either can empty the list).
+              <WorkersNoResults
+                mode={query.trim() ? 'search' : 'filter'}
+                onClear={() => {
+                  setTab('all');
+                  resetFilter();
+                }}
+              />
+            ) : (
+              <>
+                <WorkersTable
+                  workers={pageData.items}
+                  sort={sort}
+                  onSort={changeSort}
+                  now={now}
+                  selected={selected}
+                  allSelected={allSelected}
+                  someSelected={someSelected}
+                  onToggleAll={toggleAll}
+                  onToggleOne={toggleOne}
+                  onOpenDetails={setDetailsWorker}
+                />
+                <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
+              </>
+            )}
           </div>
         </>
       )}
 
-      {connectOpen && <ConnectWorkerModal onClose={() => setConnectOpen(false)} />}
+      {connectOpen && <ConnectWorkersDrawer onClose={() => setConnectOpen(false)} />}
+      {detailsWorker && (
+        <WorkerDetailsPanel worker={detailsWorker} now={now} onClose={() => setDetailsWorker(null)} />
+      )}
     </div>
   );
 }

@@ -73,7 +73,7 @@ export interface HashrateSnapshot {
 }
 
 /** Chart range options (from the dashboard bundle). Custom date range is deferred. */
-export type HashrateRange = '1H' | '1D' | '7D' | '30D';
+export type HashrateRange = '1H' | '6H' | '24H' | '7D';
 
 /**
  * One point in the hashrate time series (GET /api/user/hashrate/historical,

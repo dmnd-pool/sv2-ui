@@ -1,6 +1,8 @@
-import { LiMagnifer } from 'solar-icon-react/li';
+import { useState } from 'react';
+import { LiMagnifer, LiFilter } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
-import type { WorkersTab } from '@/lib/workersTable';
+import { isWorkerFilterActive, type WorkerFilter, type WorkersTab } from '@/lib/workersTable';
+import { WorkersFilter } from './WorkersFilter';
 
 const TABS: { key: WorkersTab; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -8,20 +10,29 @@ const TABS: { key: WorkersTab; label: string }[] = [
   { key: 'offline', label: 'Offline' },
 ];
 
-/** Table header: status tabs (with counts) and a name search box. */
+/** Table header: status tabs (with counts), a name search box, and the Filter popover. */
 export function WorkersToolbar({
   tab,
   onTab,
   counts,
   query,
   onQuery,
+  filter,
+  onApplyFilter,
+  onResetFilter,
 }: {
   tab: WorkersTab;
   onTab: (tab: WorkersTab) => void;
   counts: Record<WorkersTab, number>;
   query: string;
   onQuery: (q: string) => void;
+  filter: WorkerFilter;
+  onApplyFilter: (f: WorkerFilter) => void;
+  onResetFilter: () => void;
 }) {
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterActive = isWorkerFilterActive(filter);
+
   return (
     <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
       <h3 className="text-sm font-semibold text-heading">All workers</h3>
@@ -54,6 +65,31 @@ export function WorkersToolbar({
             aria-label="Search workers"
             className="w-full rounded-lg border border-border bg-muted py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring sm:w-56"
           />
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setFilterOpen((o) => !o)}
+            aria-expanded={filterOpen}
+            aria-haspopup="dialog"
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+              filterActive ? 'border-foreground text-foreground' : 'border-border text-body-alt hover:text-foreground',
+            )}
+          >
+            <LiFilter className="h-4 w-4" />
+            Filter
+            {filterActive && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--btn))]" aria-hidden />}
+          </button>
+          {filterOpen && (
+            <WorkersFilter
+              applied={filter}
+              onApply={onApplyFilter}
+              onReset={onResetFilter}
+              onClose={() => setFilterOpen(false)}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -37,17 +37,21 @@ export function useAccountHashrate() {
  * RFC3339 from/to window (recomputed each fetch so it slides with "now"), and the
  * dense response is downsampled before it reaches the chart.
  */
-export function useAccountHashrateHistory(range: HashrateRange) {
+export function useAccountHashrateHistory(range: HashrateRange, custom?: { from: string; to: string } | null) {
   const { session } = useAuth();
+  // A custom window is a fixed span, so it does not slide with "now" and its key is
+  // the explicit from/to; a preset recomputes its window on each fetch.
+  const key = custom ? `custom:${custom.from}:${custom.to}` : range;
   return useQuery({
-    queryKey: ['account', 'hashrate-history', range],
+    queryKey: ['account', 'hashrate-history', key],
     queryFn: async ({ signal }) => {
-      const { from, to } = rangeToWindow(range, Date.now());
-      const points = await getDmndClient().getHashrateHistory(from, to, { signal });
+      const window = custom ?? rangeToWindow(range, Date.now());
+      const points = await getDmndClient().getHashrateHistory(window.from, window.to, { signal });
       return downsampleHashrate(points, MAX_CHART_POINTS);
     },
     enabled: !!session,
-    refetchInterval: CLOUD_POLL_MS,
+    // A custom (historical) window doesn't need polling; presets stay live.
+    refetchInterval: custom ? false : CLOUD_POLL_MS,
     staleTime: CLOUD_POLL_MS,
     refetchOnWindowFocus: false,
     retry: false,
