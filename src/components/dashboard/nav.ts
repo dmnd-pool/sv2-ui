@@ -28,7 +28,9 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: 'Developer',
-    items: [{ icon: LiKeyMinimalistic, iconActive: BdKeyMinimalistic, label: 'API keys', href: '/api-keys' }],
+    items: [
+      { icon: LiKeyMinimalistic, iconActive: BdKeyMinimalistic, label: 'Watcher links', href: '/watcher-links' },
+    ],
   },
 ];
 

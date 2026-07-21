@@ -10,6 +10,7 @@ import {
   type HashrateSnapshot,
   type PayoutAddresses,
   type GeneratedBtcEntry,
+  type WatcherLink,
   type RequestOptions,
   type SignupInput,
   type Subaccount,
@@ -22,7 +23,7 @@ import {
 // allows credentials, so the browser sends the HttpOnly session cookie on every
 // call. Overridable for production via VITE_DMND_API_BASE; defaults to staging
 // so dev and review never hit production.
-const API_BASE =
+export const API_BASE =
   (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_DMND_API_BASE ??
   'https://staging-user-dashboard-server.dmnd.work';
 
@@ -108,7 +109,7 @@ async function readErrorMessage(response: Response): Promise<string | undefined>
 }
 
 interface RequestSpec {
-  method: 'GET' | 'POST' | 'PUT';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   path: string;
   body?: unknown;
   /** Broker endpoints are a separate tree and must not carry the miner X-Account-ID header. */
@@ -372,6 +373,31 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
     },
     getPermissions(req) {
       return request<AccountPermissions>({ method: 'GET', path: '/api/user/permissions' }, opts, req);
+    },
+    async getWatcherLinks(req) {
+      // A bare array (empty account -> []). Tolerate a non-array response by
+      // collapsing to [] so the page shows its empty state instead of throwing.
+      const result = await request<unknown>({ method: 'GET', path: '/api/api-tokens' }, opts, req);
+      return Array.isArray(result) ? (result as WatcherLink[]) : [];
+    },
+    createWatcherLink(input, req) {
+      // Snake_case body: the account the link may read, plus the scopes it grants.
+      return request<WatcherLink>(
+        {
+          method: 'POST',
+          path: '/api/api-tokens',
+          body: { target_user_id: input.targetUserId, scopes: input.scopes },
+        },
+        opts,
+        req,
+      );
+    },
+    revokeWatcherLink(id, req) {
+      return request<void>(
+        { method: 'DELETE', path: `/api/api-tokens/${encodeURIComponent(id)}` },
+        opts,
+        req,
+      );
     },
     createSubaccount(input: CreateSubaccountInput, req) {
       // Snake_case body (bundle-verified). The create endpoint takes only the name

@@ -6,7 +6,6 @@ import { UnifiedDashboard } from '@/pages/UnifiedDashboard';
 import { Settings } from '@/pages/Settings';
 import { Setup } from '@/pages/Setup';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { ComingSoon } from '@/components/dashboard/ComingSoon';
 import { DashboardHome } from '@/pages/dashboard/DashboardHome';
 import { AccountSetup } from '@/pages/account-setup/AccountSetup';
 import { WorkersPage } from '@/pages/workers/WorkersPage';
@@ -15,6 +14,9 @@ import { GeneratedBtcPage } from '@/pages/generated-btc/GeneratedBtcPage';
 import { PayoutsPage } from '@/pages/payouts/PayoutsPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { HelpPage } from '@/pages/help/HelpPage';
+import { WatcherLinksPage } from '@/pages/watcher-links/WatcherLinksPage';
+import { WatcherView } from '@/pages/watcher-links/WatcherView';
+import { MultiwatcherView } from '@/pages/watcher-links/MultiwatcherView';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
@@ -97,9 +99,9 @@ function AppRoutes() {
           <GeneratedBtcPage />
         </DashboardShell>
       </Route>
-      <Route path="/api-keys">
+      <Route path="/watcher-links">
         <DashboardShell>
-          <ComingSoon title="API keys" />
+          <WatcherLinksPage />
         </DashboardShell>
       </Route>
       <Route path="/account">
@@ -154,6 +156,17 @@ function Router() {
         <BrokerGuard>
           <BrokerHome />
         </BrokerGuard>
+      </Route>
+      {/* Public read-only Watcher View: opened via a shared link, authenticated by
+          the token in the URL, so it sits outside the miner AuthGuard. */}
+      <Route path="/login/watcher/:userId/:token">
+        {(params) => <WatcherView userId={params.userId} token={params.token} />}
+      </Route>
+      {/* Public multiwatcher view: a client-composed bundle of watcher tokens; the
+          mode plus the (account, token) pairs ride in the path tail (a wildcard so
+          the whole tail is captured, not just one segment). */}
+      <Route path="/login/multiwatcher/*">
+        {(params) => <MultiwatcherView rest={params['*'] ?? ''} />}
       </Route>
       {/* Everything else requires a signed-in miner */}
       <Route>
