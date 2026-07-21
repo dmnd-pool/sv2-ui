@@ -42,13 +42,13 @@ RUN npm install --omit=dev
 RUN mkdir -p /app/data/config
 
 ENV NODE_ENV=production
-ENV PORT=8080
+ENV PORT=80
 ENV CONFIG_DIR=/app/data/config
 
 # tini ensures proper signal handling (Ctrl+C works)
 RUN apk add --no-cache tini
 ENTRYPOINT ["/sbin/tini", "--"]
 
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["node", "dist/index.js"]
