@@ -1,0 +1,32 @@
+name: Pulumi Deploy Staging
+on:
+  push:
+    branches:
+      - main
+jobs:
+  staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Install Node.js dependencies for frontend
+        run: npm ci --legacy-peer-deps
+      - name: Install Node.js dependencies for Pulumi project
+        run: npm install
+        working-directory: deployment/staging
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: dmnd-tech-org/demand-user-dashboard-staging
+          work-dir: deployment/staging
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
