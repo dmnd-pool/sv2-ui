@@ -21,7 +21,7 @@ const production_two_infra = new pulumi.StackReference(
 );
 const ecsClusterArn = production_two_infra
   .requireOutput("ecs")
-  .apply(ecs => (ecs["ecsCluster"] as any)["arn"]);
+  .apply(ecs => (ecs["ecsCluster"] as { arn: string })["arn"]);
 
 // ECR repository
 const repo = new aws.ecr.Repository(`${env}-${appName}-repo`);

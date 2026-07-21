@@ -17,7 +17,7 @@ const publicSubnetIds = infra
 
 const ecsClusterArn = infra
   .requireOutput('ecs')
-  .apply(ecs => (ecs['ecsCluster'] as any)['arn']);
+  .apply(ecs => (ecs['ecsCluster'] as { arn: string })['arn']);
 
 // ECR repository
 const repo = new aws.ecr.Repository(`${env}-${appName}-repo`);
