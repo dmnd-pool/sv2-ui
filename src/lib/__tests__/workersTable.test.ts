@@ -5,13 +5,21 @@ import {
   classifyWorker,
   workerMode,
   workerRejection,
+  workerTotalShares,
+  workerRejectedShares,
   formatLastSeen,
+  formatConnectedSince,
+  formatOfflineDuration,
   deriveWorkersPageStats,
   filterByTab,
   searchWorkers,
   sortWorkers,
   paginate,
   workersToCsv,
+  EMPTY_WORKER_FILTER,
+  isWorkerFilterActive,
+  applyWorkerFilter,
+  filterWorkersByRange,
 } from '@/lib/workersTable';
 
 const NOW = Date.parse('2026-06-22T12:00:00Z'); // ms, passed as the `now` argument
@@ -66,6 +74,36 @@ test('formatLastSeen renders the buckets the column shows', () => {
   assert.equal(formatLastSeen(worker({ is_connected: false, connected_at: hrsAgo(42) }), NOW), '1 day 18 hrs ago');
   assert.equal(formatLastSeen(worker({ is_connected: false, connected_at: hrsAgo(48) }), NOW), '2 days ago');
   assert.equal(formatLastSeen(worker({ is_connected: false, connected_at: null }), NOW), 'Unknown');
+});
+
+test('workerTotalShares / workerRejectedShares sum both schemes, treating nulls as zero', () => {
+  assert.equal(workerTotalShares(worker({ total_shares: 1000, fpps_total_shares: 200 })), 1200);
+  assert.equal(workerTotalShares(worker({ total_shares: null, fpps_total_shares: null })), 0);
+  assert.equal(workerRejectedShares(worker({ rejected_shares: 10, fpps_rejected_shares: 5 })), 15);
+  assert.equal(workerRejectedShares(worker({ rejected_shares: null, fpps_rejected_shares: null })), 0);
+});
+
+test('formatConnectedSince renders the panel date "18 Jun 2026, 08:24 UTC"', () => {
+  const sec = Math.floor(Date.parse('2026-06-18T08:24:00Z') / 1000);
+  assert.equal(formatConnectedSince(worker({ connected_at: sec })), '18 Jun 2026, 08:24 UTC');
+  // a millisecond value (>= 1e12) is handled the same
+  assert.equal(formatConnectedSince(worker({ connected_at: sec * 1000 })), '18 Jun 2026, 08:24 UTC');
+  // pads single-digit hour/minute
+  const early = Math.floor(Date.parse('2026-01-05T03:07:00Z') / 1000);
+  assert.equal(formatConnectedSince(worker({ connected_at: early })), '5 Jan 2026, 03:07 UTC');
+  assert.equal(formatConnectedSince(worker({ connected_at: null })), 'Unknown');
+  assert.equal(formatConnectedSince(worker({ connected_at: undefined })), 'Unknown');
+});
+
+test('formatOfflineDuration spells out the offline span for the banner (no "ago")', () => {
+  assert.equal(formatOfflineDuration(worker({ is_connected: true }), NOW), null); // online -> no banner
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: null }), NOW), null); // unknown
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: minsAgo(0) }), NOW), 'less than a minute');
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: minsAgo(1) }), NOW), '1 minute');
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: minsAgo(42) }), NOW), '42 minutes');
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: hrsAgo(3) }), NOW), '3 hours');
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: hrsAgo(42) }), NOW), '1 day 18 hours');
+  assert.equal(formatOfflineDuration(worker({ is_connected: false, connected_at: hrsAgo(48) }), NOW), '2 days');
 });
 
 test('deriveWorkersPageStats counts active, offline, and the >24h subset', () => {
@@ -145,6 +183,93 @@ test('paginate clamps the page and slices', () => {
   assert.equal(paginate(items, 99, 10).page, 3); // clamp high
   assert.equal(paginate(items, 0, 10).page, 1); // clamp low
   assert.equal(paginate([], 1, 10).totalPages, 1); // never zero pages
+});
+
+test('isWorkerFilterActive is true only when a facet is set', () => {
+  assert.equal(isWorkerFilterActive(EMPTY_WORKER_FILTER), false);
+  assert.equal(isWorkerFilterActive({ ...EMPTY_WORKER_FILTER, status: ['online'] }), true);
+  assert.equal(isWorkerFilterActive({ ...EMPTY_WORKER_FILTER, mode: ['FPPS'] }), true);
+  assert.equal(isWorkerFilterActive({ ...EMPTY_WORKER_FILTER, rejection: 'lt1' }), true);
+});
+
+test('applyWorkerFilter: status multi-select is OR, no facet passes all', () => {
+  const roster = [
+    worker({ name: 'on', is_connected: true }),
+    worker({ name: 'off', is_connected: false, connected_at: hrsAgo(2) }),
+    worker({ name: 'off24', is_connected: false, connected_at: hrsAgo(30) }),
+  ];
+  assert.deepEqual(applyWorkerFilter(roster, EMPTY_WORKER_FILTER, NOW).map((w) => w.name), ['on', 'off', 'off24']);
+  assert.deepEqual(
+    applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, status: ['online'] }, NOW).map((w) => w.name),
+    ['on'],
+  );
+  // OR across two chosen status buckets
+  assert.deepEqual(
+    applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, status: ['online', 'offline_24h'] }, NOW).map((w) => w.name),
+    ['on', 'off24'],
+  );
+});
+
+test('applyWorkerFilter: mode multi-select', () => {
+  const roster = [worker({ name: 'p', is_fpps: false }), worker({ name: 'f', is_fpps: true })];
+  assert.deepEqual(applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, mode: ['PPLNS'] }, NOW).map((w) => w.name), ['p']);
+  assert.deepEqual(applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, mode: ['PPLNS', 'FPPS'] }, NOW).map((w) => w.name), ['p', 'f']);
+});
+
+test('applyWorkerFilter: rejection buckets, and no-shares never matches', () => {
+  const roster = [
+    worker({ name: 'lt1', total_shares: 1000, rejected_shares: 5, fpps_total_shares: 0, fpps_rejected_shares: 0 }), // 0.5%
+    worker({ name: 'mid', total_shares: 1000, rejected_shares: 20, fpps_total_shares: 0, fpps_rejected_shares: 0 }), // 2%
+    worker({ name: 'gt3', total_shares: 1000, rejected_shares: 50, fpps_total_shares: 0, fpps_rejected_shares: 0 }), // 5%
+    worker({ name: 'none', total_shares: 0, rejected_shares: 0, fpps_total_shares: 0, fpps_rejected_shares: 0 }), // no rate
+  ];
+  assert.deepEqual(applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, rejection: 'lt1' }, NOW).map((w) => w.name), ['lt1']);
+  assert.deepEqual(applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, rejection: '1to3' }, NOW).map((w) => w.name), ['mid']);
+  assert.deepEqual(applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, rejection: 'gt3' }, NOW).map((w) => w.name), ['gt3']);
+});
+
+test('applyWorkerFilter: boundaries 1% -> 1to3, 3% -> 1to3', () => {
+  const at1 = worker({ name: 'one', total_shares: 100, rejected_shares: 1, fpps_total_shares: 0, fpps_rejected_shares: 0 }); // exactly 1%
+  const at3 = worker({ name: 'three', total_shares: 100, rejected_shares: 3, fpps_total_shares: 0, fpps_rejected_shares: 0 }); // exactly 3%
+  assert.deepEqual(applyWorkerFilter([at1], { ...EMPTY_WORKER_FILTER, rejection: 'lt1' }, NOW).map((w) => w.name), []);
+  assert.deepEqual(applyWorkerFilter([at1], { ...EMPTY_WORKER_FILTER, rejection: '1to3' }, NOW).map((w) => w.name), ['one']);
+  assert.deepEqual(applyWorkerFilter([at3], { ...EMPTY_WORKER_FILTER, rejection: '1to3' }, NOW).map((w) => w.name), ['three']);
+  assert.deepEqual(applyWorkerFilter([at3], { ...EMPTY_WORKER_FILTER, rejection: 'gt3' }, NOW).map((w) => w.name), []);
+});
+
+test('applyWorkerFilter: facets combine with AND', () => {
+  const roster = [
+    worker({ name: 'onp', is_connected: true, is_fpps: false }),
+    worker({ name: 'onf', is_connected: true, is_fpps: true }),
+    worker({ name: 'offp', is_connected: false, connected_at: hrsAgo(2), is_fpps: false }),
+  ];
+  assert.deepEqual(
+    applyWorkerFilter(roster, { ...EMPTY_WORKER_FILTER, status: ['online'], mode: ['PPLNS'] }, NOW).map((w) => w.name),
+    ['onp'],
+  );
+});
+
+test('filterWorkersByRange keeps workers last connected inside the window', () => {
+  const startSec = Math.floor((NOW - 7 * 24 * 3600 * 1000) / 1000); // 7 days ago
+  const endSec = Math.floor(NOW / 1000);
+  const roster = [
+    worker({ name: 'online', is_connected: true }), // last seen = now -> inside
+    worker({ name: 'recent', is_connected: false, connected_at: hrsAgo(2) }),
+    worker({ name: 'old', is_connected: false, connected_at: hrsAgo(24 * 30) }), // 30 days -> outside
+    worker({ name: 'unknown', is_connected: false, connected_at: null }), // no timestamp -> excluded
+  ];
+  assert.deepEqual(
+    filterWorkersByRange(roster, startSec, endSec, NOW).map((w) => w.name),
+    ['online', 'recent'],
+  );
+});
+
+test('filterWorkersByRange bounds are inclusive on both ends', () => {
+  const at = hrsAgo(48); // a worker last seen exactly 48h ago (unix seconds)
+  const w = worker({ name: 'edge', is_connected: false, connected_at: at });
+  assert.equal(filterWorkersByRange([w], at, at, NOW).length, 1); // start == end == its time
+  assert.equal(filterWorkersByRange([w], at + 1, at + 100, NOW).length, 0); // just after
+  assert.equal(filterWorkersByRange([w], at - 100, at - 1, NOW).length, 0); // just before
 });
 
 test('workersToCsv emits the production raw-schema header even when empty', () => {

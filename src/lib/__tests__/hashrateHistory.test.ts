@@ -10,7 +10,8 @@ test('rangeToWindow ends at now and starts the range earlier (RFC3339)', () => {
   const { from, to } = rangeToWindow('1H', NOW);
   assert.equal(to, '2026-06-30T12:00:00.000Z');
   assert.equal(from, '2026-06-30T11:00:00.000Z');
-  assert.equal(rangeToWindow('1D', NOW).from, '2026-06-29T12:00:00.000Z');
+  assert.equal(rangeToWindow('6H', NOW).from, '2026-06-30T06:00:00.000Z');
+  assert.equal(rangeToWindow('24H', NOW).from, '2026-06-29T12:00:00.000Z');
   assert.equal(rangeToWindow('7D', NOW).from, '2026-06-23T12:00:00.000Z');
 });
 

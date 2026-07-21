@@ -1,12 +1,13 @@
+import { useState } from 'react';
 import { LiAltArrowRight } from 'solar-icon-react/li';
 import { MiningIcon } from '@/components/dashboard/icons/MiningIcon';
 import { ConnectionDetails } from './ConnectionDetails';
-
-// Empty until the setup tutorial URL is available; the link renders only when set.
-const SETUP_TUTORIAL_URL = '';
+import { ConnectWorkersDrawer } from './ConnectWorkersDrawer';
 
 /** New-user state: no workers yet, so show the connection details to get started. */
 export function WorkersEmptyState() {
+  const [guideOpen, setGuideOpen] = useState(false);
+
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="flex flex-col items-center px-4 py-8 text-center text-placeholder">
@@ -22,18 +23,17 @@ export function WorkersEmptyState() {
         <ConnectionDetails />
       </div>
 
-      {SETUP_TUTORIAL_URL ? (
-        <div className="mt-4 flex justify-center">
-          <a
-            href={SETUP_TUTORIAL_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-sm font-medium text-body-alt transition-colors hover:text-foreground"
-          >
-            See setup tutorial <LiAltArrowRight className="h-3.5 w-3.5" />
-          </a>
-        </div>
-      ) : null}
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setGuideOpen(true)}
+          className="inline-flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm font-medium text-body-alt transition-colors hover:text-foreground"
+        >
+          See setup guide <LiAltArrowRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {guideOpen && <ConnectWorkersDrawer onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }

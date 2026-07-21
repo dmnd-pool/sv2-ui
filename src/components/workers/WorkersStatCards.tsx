@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LiInfoCircle } from 'solar-icon-react/li';
+import { InfoHint } from '@/components/ui/InfoHint';
 import { cn } from '@/lib/utils';
 import type { WorkersPageStats } from '@/lib/workersTable';
 
@@ -8,7 +8,7 @@ function Card({ title, hint, children }: { title: string; hint?: string; childre
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-1.5">
         <span className="text-sm text-body-alt">{title}</span>
-        {hint && <LiInfoCircle className="h-3.5 w-3.5 text-placeholder" aria-label={hint} />}
+        {hint && <InfoHint text={hint} />}
       </div>
       {children}
     </div>
@@ -34,12 +34,12 @@ export function WorkersStatCards({ stats }: { stats: WorkersPageStats }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card title="Total workers" hint="Every worker registered to this account.">
+      <Card title="Total workers" hint="The total number of workers on this account.">
         <p className="mt-2 font-mono text-2xl font-semibold text-heading">{stats.total}</p>
         <p className="mt-1 text-xs text-body-alt">Workers on this account</p>
       </Card>
 
-      <Card title="Active workers" hint="Workers currently connected and submitting shares.">
+      <Card title="Active workers" hint="Workers currently connected and submitting shares to the pool.">
         <p className="mt-2 font-mono text-2xl font-semibold text-heading">{stats.active}</p>
         <div className="mt-2.5 flex items-center gap-2">
           <ActivityBar active={stats.active} total={stats.total} />
@@ -56,7 +56,7 @@ export function WorkersStatCards({ stats }: { stats: WorkersPageStats }) {
         </p>
       </Card>
 
-      <Card title="Rejection rate" hint="Share of submitted shares the pool rejected, across PPLNS and FPPS.">
+      <Card title="Rejection rate" hint="The percentage of shares that were rejected and did not count toward Payouts.">
         <p className="mt-2 font-mono text-2xl font-semibold text-heading">
           {rejection}
           {stats.rejectionRate !== null && <span className="ml-1 text-base font-normal text-body-alt">%</span>}

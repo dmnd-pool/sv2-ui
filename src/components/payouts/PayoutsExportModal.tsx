@@ -30,14 +30,17 @@ function Radio({ label, checked, onClick }: { label: string; checked: boolean; o
 }
 
 /**
- * The "Export payouts data" popover: pick a date range (a preset or a custom
- * calendar range), then export. Anchored under the Export CSV button; closes on
- * outside click or Escape. Reports the chosen range so the page builds the CSV.
+ * The export popover: pick a date range (a preset or a custom calendar range), then
+ * export. Anchored under the Export CSV button; closes on outside click or Escape.
+ * Reports the chosen range so the page builds the CSV. `title` names the data being
+ * exported, so the workers page reuses this with its own heading.
  */
 export function PayoutsExportModal({
+  title = 'Export payouts data',
   onCancel,
   onExport,
 }: {
+  title?: string;
   onCancel: () => void;
   onExport: (range: DateRange) => void;
 }) {
@@ -79,10 +82,10 @@ export function PayoutsExportModal({
     <div
       ref={ref}
       role="dialog"
-      aria-label="Export payouts data"
+      aria-label={title}
       className="absolute right-0 top-full z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-3xl border border-border bg-popover p-5 shadow-xl"
     >
-      <p className="text-sm font-semibold text-heading">Export payouts data</p>
+      <p className="text-sm font-semibold text-heading">{title}</p>
       <p className="mt-0.5 text-xs text-body-alt">Choose a date range for the report.</p>
 
       <div className="mt-3 flex flex-col" role="radiogroup" aria-label="Export date range">

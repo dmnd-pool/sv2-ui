@@ -109,3 +109,14 @@ export function getBitcoinAddressError(addr: string, network: 'mainnet' | 'testn
   const otherNetwork = network === 'mainnet' ? 'testnet4' : 'mainnet';
   return isValidBitcoinAddress(addr, otherNetwork) ? 'Wrong network' : 'Invalid Bitcoin address';
 }
+
+/**
+ * The DOM node to portal overlays (drawers, slide-overs) into. The DMND design
+ * tokens are scoped to `.dmnd-app` rather than `:root`, so an overlay portalled to
+ * `document.body` would lose them (e.g. a transparent button). Targeting the shell
+ * keeps the tokens in scope while still escaping any page-level layout wrapper, such
+ * as the `space-y-6` container whose child margin was offsetting fixed overlays.
+ */
+export function overlayContainer(): HTMLElement {
+  return document.querySelector<HTMLElement>('.dmnd-app') ?? document.body;
+}

@@ -3,17 +3,31 @@ import { formatHashrate } from '@/lib/utils';
 import { MiningIcon } from '@/components/dashboard/icons/MiningIcon';
 import { CardEmptyState } from './CardEmptyState';
 
+/** "Last updated" from the snapshot's observed_at, rounded to whole minutes. */
+function lastUpdatedLabel(observedAt: string | undefined, now: number): string | null {
+  if (!observedAt) return null;
+  const ms = Date.parse(observedAt);
+  if (Number.isNaN(ms)) return null;
+  const mins = Math.max(0, Math.round((now - ms) / 60000));
+  if (mins === 0) return 'Last updated just now';
+  return `Last updated ${mins} minute${mins === 1 ? '' : 's'} ago`;
+}
+
 /** The account's live total hashrate, with a PPLNS / FPPS breakdown when mining. */
 export function LiveHashrateCard() {
   const { data, isLoading } = useAccountHashrate();
   const total = data?.total_hashrate ?? 0;
+  const lastUpdated = lastUpdatedLabel(data?.observed_at, Date.now());
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-success" />
-        Live hashrate
-      </span>
+      <div className="flex items-start justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+          Live hashrate
+        </span>
+        {total > 0 && lastUpdated && <span className="text-xs text-body-alt">{lastUpdated}</span>}
+      </div>
       {isLoading ? (
         <div className="mt-5 h-24 animate-pulse rounded-lg bg-muted" />
       ) : total > 0 ? (
