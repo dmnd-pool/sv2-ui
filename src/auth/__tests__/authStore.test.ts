@@ -92,3 +92,33 @@ test('a store that never connected is not cleared by another tab claiming the sa
   // The unconnected store ignored the claim and kept its session.
   assert.equal(ghost.getSnapshot().session?.accountId, '1');
 });
+
+test('setViewingAccount scopes to a subaccount and back to the master account', () => {
+  const store = createAuthStore({ tabId: 'A', storage: memoryStorage(), channel: null });
+  store.signIn(createSession({ accountId: 'master', email: 'm@x.io' }));
+
+  store.setViewingAccount('sub-1');
+  assert.equal(store.getSnapshot().viewingAccountId, 'sub-1');
+
+  store.setViewingAccount(null);
+  assert.equal(store.getSnapshot().viewingAccountId, null);
+});
+
+test('an idle bump keeps the viewed subaccount, but signing in or out resets it', () => {
+  const store = createAuthStore({ tabId: 'A', storage: memoryStorage(), channel: null });
+  store.signIn(createSession({ accountId: 'master', email: 'm@x.io' }));
+  store.setViewingAccount('sub-1');
+
+  // An activity refresh must not kick the miner back to the master account.
+  store.bumpActivity();
+  assert.equal(store.getSnapshot().viewingAccountId, 'sub-1');
+
+  // Signing out clears the view scope.
+  store.signOut();
+  assert.equal(store.getSnapshot().viewingAccountId, null);
+
+  // A fresh sign-in starts on the master account, never a stale subaccount.
+  store.setViewingAccount('sub-2');
+  store.signIn(createSession({ accountId: 'master', email: 'm@x.io' }));
+  assert.equal(store.getSnapshot().viewingAccountId, null);
+});

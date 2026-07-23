@@ -1,22 +1,31 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { LiCalendarMinimalistic, LiTuning } from 'solar-icon-react/li';
+import { Check } from 'lucide-react';
+import { LiCalendarMinimalistic, LiTuning, LiLayersMinimalistic } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
 import { BitcoinCircleIcon } from '@/components/dashboard/icons/BitcoinCircleIcon';
 import type { PayoutMode, PayoutDatePreset, AmountSort } from '@/lib/payoutsTable';
+import { toggleAllCheckedSelection, isAllCheckedSelected } from '@/lib/multiSelect';
 
-type Category = 'date' | 'mode' | 'amount';
+type Category = 'date' | 'mode' | 'amount' | 'account';
 
 /** The Filter popover's draft selection (UI state; the page maps the date preset to a cutoff). */
 export interface PayoutFilterDraft {
   datePreset: PayoutDatePreset | null;
   mode: PayoutMode | null;
   amountSort: AmountSort | null;
+  // Account names to keep, used only in aggregated mode; empty means every account.
+  accounts: string[];
 }
 
-export const EMPTY_PAYOUT_FILTER_DRAFT: PayoutFilterDraft = { datePreset: null, mode: null, amountSort: null };
+export const EMPTY_PAYOUT_FILTER_DRAFT: PayoutFilterDraft = {
+  datePreset: null,
+  mode: null,
+  amountSort: null,
+  accounts: [],
+};
 
 export function isPayoutDraftActive(d: PayoutFilterDraft): boolean {
-  return d.datePreset !== null || d.mode !== null || d.amountSort !== null;
+  return d.datePreset !== null || d.mode !== null || d.amountSort !== null || d.accounts.length > 0;
 }
 
 const DATE_OPTIONS: { value: PayoutDatePreset; label: string }[] = [
@@ -37,7 +46,31 @@ const CATEGORIES: { key: Category; label: string; Icon: ComponentType<{ classNam
   { key: 'date', label: 'Date', Icon: LiCalendarMinimalistic },
   { key: 'mode', label: 'Mode', Icon: LiTuning },
   { key: 'amount', label: 'Amount', Icon: BitcoinCircleIcon },
+  { key: 'account', label: 'Account', Icon: LiLayersMinimalistic },
 ];
+
+/** A multi-select option (square checkbox) for the Account facet. */
+function CheckOption({ label, checked, onClick }: { label: string; checked: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onClick}
+      className="flex items-center gap-2 text-left text-sm text-body-alt transition-colors hover:text-foreground"
+    >
+      <span
+        className={cn(
+          'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+          checked ? 'border-transparent bg-[hsl(var(--btn))]' : 'border-placeholder',
+        )}
+      >
+        {checked && <Check className="h-3 w-3 text-[hsl(var(--btn-foreground))]" strokeWidth={3} />}
+      </span>
+      <span className={cn('whitespace-nowrap', checked && 'text-foreground')}>{label}</span>
+    </button>
+  );
+}
 
 function Option({ label, checked, onClick }: { label: string; checked: boolean; onClick: () => void }) {
   return (
@@ -73,11 +106,14 @@ export function PayoutsFilter({
   onApply,
   onReset,
   onClose,
+  accounts = [],
 }: {
   applied: PayoutFilterDraft;
   onApply: (f: PayoutFilterDraft) => void;
   onReset: () => void;
   onClose: () => void;
+  /** Account names offered by the Account facet; empty hides the facet entirely. */
+  accounts?: string[];
 }) {
   const [draft, setDraft] = useState<PayoutFilterDraft>(applied);
   const [category, setCategory] = useState<Category>('date');
@@ -101,6 +137,11 @@ export function PayoutsFilter({
   const pick = <K extends keyof PayoutFilterDraft>(key: K, value: NonNullable<PayoutFilterDraft[K]>) =>
     setDraft((d) => ({ ...d, [key]: d[key] === value ? null : value }));
 
+  // The facet renders every account checked by default (empty accounts = keep all, matching
+  // the design); toggleAccountSelection handles seeding the full list and collapsing back.
+  const toggleAccount = (name: string) =>
+    setDraft((d) => ({ ...d, accounts: toggleAllCheckedSelection(d.accounts, name, accounts) }));
+
   return (
     <div
       ref={ref}
@@ -111,7 +152,11 @@ export function PayoutsFilter({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-heading">Filter payouts</p>
-          <p className="mt-0.5 text-xs text-body-alt">Find payouts by date, mode, or amount.</p>
+          <p className="mt-0.5 text-xs text-body-alt">
+            {accounts.length > 0
+              ? 'Find payouts by date, mode, subaccounts or amount.'
+              : 'Find payouts by date, mode, or amount.'}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -139,7 +184,7 @@ export function PayoutsFilter({
 
       <div className="mt-4 flex gap-4 border-t border-border pt-4 sm:gap-6">
         <div className="flex w-28 shrink-0 flex-col gap-4">
-          {CATEGORIES.map(({ key, label, Icon }) => (
+          {CATEGORIES.filter((c) => c.key !== 'account' || accounts.length > 0).map(({ key, label, Icon }) => (
             <button
               key={key}
               type="button"
@@ -159,7 +204,11 @@ export function PayoutsFilter({
 
         <Divider />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3" role="radiogroup" aria-label={category}>
+        <div
+          className="flex min-w-0 flex-1 flex-col gap-3"
+          role={category === 'account' ? 'group' : 'radiogroup'}
+          aria-label={category}
+        >
           {category === 'date' &&
             DATE_OPTIONS.map((o) => (
               <Option
@@ -180,6 +229,15 @@ export function PayoutsFilter({
                 label={o.label}
                 checked={draft.amountSort === o.value}
                 onClick={() => pick('amountSort', o.value)}
+              />
+            ))}
+          {category === 'account' &&
+            accounts.map((a) => (
+              <CheckOption
+                key={a}
+                label={a}
+                checked={isAllCheckedSelected(draft.accounts, a)}
+                onClick={() => toggleAccount(a)}
               />
             ))}
         </div>

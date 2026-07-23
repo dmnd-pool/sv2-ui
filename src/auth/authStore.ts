@@ -13,6 +13,10 @@ export type SignOutReason = 'user' | 'expired' | 'duplicate_tab';
 export interface AuthState {
   session: Session | null;
   signOutReason: SignOutReason | null;
+  // The subaccount currently being viewed via the account switcher, or null for the
+  // master account. Kept in memory only (never written to storage) so a reload always
+  // returns to the master account rather than silently staying scoped to a subaccount.
+  viewingAccountId: string | null;
 }
 
 export interface AuthStore {
@@ -22,6 +26,8 @@ export interface AuthStore {
   connect: () => void;
   signIn: (session: Session) => void;
   signOut: (reason?: SignOutReason) => void;
+  /** Scope the dashboard to a subaccount (id) or back to the master account (null). */
+  setViewingAccount: (accountId: string | null) => void;
   bumpActivity: (now?: number) => void;
   checkExpiry: (now?: number) => void;
   tabId: string;
@@ -78,6 +84,9 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
   let state: AuthState = {
     session: readSession(storage),
     signOutReason: null,
+    // A restored session always starts on the master account: the view scope is never
+    // persisted, so a reload cannot land the miner inside a subaccount.
+    viewingAccountId: null,
   };
   // Keep the cloud client's X-Account-ID in lockstep with the session, set
   // synchronously here (not in a React effect) so a restored session has it
@@ -88,9 +97,14 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     for (const l of listeners) l();
   };
 
+  // The account the cloud client scopes calls to: the viewed subaccount when the
+  // switcher is active, otherwise the master session's account.
+  const effectiveAccountId = (s: AuthState): string | null =>
+    s.viewingAccountId ?? s.session?.accountId ?? null;
+
   const setState = (next: AuthState) => {
     state = next;
-    setDmndAccountId(next.session?.accountId ?? null);
+    setDmndAccountId(effectiveAccountId(next));
     emit();
   };
 
@@ -104,7 +118,7 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     if (!state.session) return;
     if (m.accountId !== state.session.accountId) return;
     clearSession(storage);
-    setState({ session: null, signOutReason: 'duplicate_tab' });
+    setState({ session: null, signOutReason: 'duplicate_tab', viewingAccountId: null });
   };
 
   // Best-effort cross-tab claim. The channel can be closed (e.g. a StrictMode
@@ -142,25 +156,35 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
       return state;
     },
     signIn(session) {
+      // A fresh sign-in always starts on the master account, clearing any stale view
+      // scope from a previous session.
       writeSession(session, storage);
-      setState({ session, signOutReason: null });
+      setState({ session, signOutReason: null, viewingAccountId: null });
       postClaim(session.accountId);
     },
     signOut(reason: SignOutReason = 'user') {
       clearSession(storage);
-      setState({ session: null, signOutReason: reason });
+      setState({ session: null, signOutReason: reason, viewingAccountId: null });
+    },
+    setViewingAccount(accountId: string | null) {
+      if (!state.session) return;
+      // Only re-scope the view; the master session is untouched, so switching back is
+      // just clearing this to null.
+      setState({ ...state, viewingAccountId: accountId });
     },
     bumpActivity(now?: number) {
       if (!state.session) return;
+      // An idle refresh preserves the viewed account: a mere activity tick must not
+      // yank the miner out of a subaccount they are viewing.
       const refreshed = refreshIdle(state.session, now);
       writeSession(refreshed, storage);
-      setState({ session: refreshed, signOutReason: state.signOutReason });
+      setState({ ...state, session: refreshed });
     },
     checkExpiry(now?: number) {
       if (!state.session) return;
       if (isExpired(state.session, now)) {
         clearSession(storage);
-        setState({ session: null, signOutReason: 'expired' });
+        setState({ session: null, signOutReason: 'expired', viewingAccountId: null });
       }
     },
     teardown() {

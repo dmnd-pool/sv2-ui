@@ -1,19 +1,54 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { Check } from 'lucide-react';
+import { LiCalendarMinimalistic, LiLayersMinimalistic } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/payouts/Calendar';
 import type { DateRange } from '@/lib/payoutsTable';
 import { sinceMsForPreset, type GbtcDatePreset, type GeneratedBtcFilter } from '@/lib/generatedBtcTable';
+import { toggleAllCheckedSelection, isAllCheckedSelected } from '@/lib/multiSelect';
+
+type Category = 'date' | 'account';
 
 /** The Filter popover's draft: a date preset, or a custom picked range (mutually exclusive). */
 export interface GbtcFilterDraft {
   datePreset: GbtcDatePreset | null;
   customRange: DateRange | null;
+  // Account names to keep, used only in aggregated mode; empty means every account.
+  accounts: string[];
 }
 
-export const EMPTY_GBTC_FILTER_DRAFT: GbtcFilterDraft = { datePreset: null, customRange: null };
+export const EMPTY_GBTC_FILTER_DRAFT: GbtcFilterDraft = { datePreset: null, customRange: null, accounts: [] };
 
 export function isGbtcDraftActive(d: GbtcFilterDraft): boolean {
-  return d.datePreset !== null || d.customRange !== null;
+  return d.datePreset !== null || d.customRange !== null || d.accounts.length > 0;
+}
+
+const CATEGORIES: { key: Category; label: string; Icon: ComponentType<{ className?: string }> }[] = [
+  { key: 'date', label: 'Date', Icon: LiCalendarMinimalistic },
+  { key: 'account', label: 'Account', Icon: LiLayersMinimalistic },
+];
+
+/** A multi-select option (square checkbox) for the Account facet. */
+function CheckOption({ label, checked, onClick }: { label: string; checked: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onClick}
+      className="flex items-center gap-2 text-left text-sm text-body-alt transition-colors hover:text-foreground"
+    >
+      <span
+        className={cn(
+          'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+          checked ? 'border-transparent bg-[hsl(var(--btn))]' : 'border-placeholder',
+        )}
+      >
+        {checked && <Check className="h-3 w-3 text-[hsl(var(--btn-foreground))]" strokeWidth={3} />}
+      </span>
+      <span className={cn('whitespace-nowrap', checked && 'text-foreground')}>{label}</span>
+    </button>
+  );
 }
 
 /** Map the popover draft to the day-aligned since/until bounds the table filter uses. */
@@ -62,15 +97,20 @@ export function GeneratedBtcFilter({
   onApply,
   onReset,
   onClose,
+  accounts = [],
 }: {
   applied: GbtcFilterDraft;
   onApply: (f: GbtcFilterDraft) => void;
   onReset: () => void;
   onClose: () => void;
+  /** Account names offered by the Account facet; empty hides the facet AND the rail. */
+  accounts?: string[];
 }) {
   const [draft, setDraft] = useState<GbtcFilterDraft>(applied);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [category, setCategory] = useState<Category>('date');
   const ref = useRef<HTMLDivElement>(null);
+  const hasAccounts = accounts.length > 0;
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -87,10 +127,19 @@ export function GeneratedBtcFilter({
     };
   }, [onClose]);
 
+  // Picking a date clears any custom range (mutually exclusive) but leaves the Account
+  // selection untouched — the two facets narrow independently.
   const pickPreset = (value: GbtcDatePreset) => {
     setShowCalendar(false);
-    setDraft((d) => (d.datePreset === value ? EMPTY_GBTC_FILTER_DRAFT : { datePreset: value, customRange: null }));
+    setDraft((d) => ({
+      ...d,
+      datePreset: d.datePreset === value ? null : value,
+      customRange: null,
+    }));
   };
+
+  const toggleAccount = (name: string) =>
+    setDraft((d) => ({ ...d, accounts: toggleAllCheckedSelection(d.accounts, name, accounts) }));
 
   return (
     <div
@@ -102,7 +151,9 @@ export function GeneratedBtcFilter({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-heading">Filter generated BTC</p>
-          <p className="mt-0.5 text-xs text-body-alt">Find generated BTC by date.</p>
+          <p className="mt-0.5 text-xs text-body-alt">
+            {hasAccounts ? 'Find generated BTC by date or subaccount.' : 'Find generated BTC by date.'}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -129,12 +180,72 @@ export function GeneratedBtcFilter({
         </div>
       </div>
 
-      {showCalendar ? (
+      {hasAccounts ? (
+        <div className="mt-4 flex gap-4 border-t border-border pt-4 sm:gap-6">
+          <div className="flex w-24 shrink-0 flex-col gap-4">
+            {CATEGORIES.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCategory(key)}
+                className={cn(
+                  'flex items-center gap-2 text-left text-sm transition-colors',
+                  category === key
+                    ? 'font-medium text-foreground underline underline-offset-4'
+                    : 'text-body-alt hover:text-foreground',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="whitespace-nowrap">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px shrink-0 self-stretch bg-border" aria-hidden />
+
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            {category === 'date' &&
+              (showCalendar ? (
+                <Calendar
+                  onCancel={() => setShowCalendar(false)}
+                  onDone={(range) => {
+                    setDraft((d) => ({ ...d, datePreset: null, customRange: range }));
+                    setShowCalendar(false);
+                  }}
+                />
+              ) : (
+                <div role="radiogroup" aria-label="Date" className="flex flex-col gap-3">
+                  {DATE_OPTIONS.map((o) => (
+                    <Option
+                      key={o.value}
+                      label={o.label}
+                      checked={draft.datePreset === o.value}
+                      onClick={() => pickPreset(o.value)}
+                    />
+                  ))}
+                  <Option label="Custom" checked={draft.customRange !== null} onClick={() => setShowCalendar(true)} />
+                </div>
+              ))}
+            {category === 'account' && (
+              <div role="group" aria-label="Account" className="flex flex-col gap-3">
+                {accounts.map((a) => (
+                  <CheckOption
+                    key={a}
+                    label={a}
+                    checked={isAllCheckedSelected(draft.accounts, a)}
+                    onClick={() => toggleAccount(a)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : showCalendar ? (
         <div className="mt-4 border-t border-border pt-4">
           <Calendar
             onCancel={() => setShowCalendar(false)}
             onDone={(range) => {
-              setDraft({ datePreset: null, customRange: range });
+              setDraft((d) => ({ ...d, datePreset: null, customRange: range }));
               setShowCalendar(false);
             }}
           />

@@ -1,8 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
+import { AggregatedModeProvider, useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useHasSubaccounts } from '@/hooks/useSubaccounts';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { AggregatedBanner } from './AggregatedBanner';
 
 // Persist the desktop sidebar's collapsed state so it survives reloads. Wrapped
 // because storage access can throw (private mode / disabled cookies).
@@ -29,9 +32,22 @@ function writeCollapsed(value: boolean): void {
  * the dashboard matches the auth screens without touching the local views.
  */
 export function DashboardShell({ children }: { children: ReactNode }) {
+  return (
+    <AggregatedModeProvider>
+      <DashboardShellInner>{children}</DashboardShellInner>
+    </AggregatedModeProvider>
+  );
+}
+
+function DashboardShellInner({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [location] = useLocation();
+  const { aggregated, setAggregated } = useAggregatedModeContext();
+  // The banner only shows when the mode is genuinely available: on it is stored, but
+  // a miner with no subaccounts (or one who has none anymore) should never see it.
+  const { hasSubaccounts } = useHasSubaccounts();
+  const showBanner = aggregated && hasSubaccounts;
 
   useEffect(() => writeCollapsed(collapsed), [collapsed]);
 
@@ -46,7 +62,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="dmnd-app flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="dmnd-app flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
+      {showBanner && <AggregatedBanner onExit={() => setAggregated(false)} />}
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
       <aside className="hidden lg:block">
         <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
       </aside>
@@ -73,6 +91,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">{children}</div>
         </main>
+      </div>
       </div>
     </div>
   );

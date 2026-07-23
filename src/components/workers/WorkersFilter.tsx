@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
-import { LiStar, LiTuning, LiMinusCircle } from 'solar-icon-react/li';
+import { LiStar, LiTuning, LiMinusCircle, LiLayersMinimalistic } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
+import { toggleAllCheckedSelection, isAllCheckedSelected } from '@/lib/multiSelect';
 import {
   EMPTY_WORKER_FILTER,
   STATUS_LABEL,
@@ -11,7 +12,7 @@ import {
   type WorkerRejectionFilter,
 } from '@/lib/workersTable';
 
-type Category = 'status' | 'mode' | 'rejection';
+type Category = 'status' | 'mode' | 'rejection' | 'account';
 
 const STATUS_OPTIONS: WorkerStatus[] = ['online', 'offline', 'offline_24h'];
 const MODE_OPTIONS: WorkerModeFilter[] = ['PPLNS', 'FPPS'];
@@ -21,11 +22,14 @@ const REJECTION_OPTIONS: { value: WorkerRejectionFilter; label: string }[] = [
   { value: 'gt3', label: 'Greater than 3%' },
 ];
 
-// Facet-rail icons, matching the design: Status=Star, Mode=Tuning, Rejection rate=Minus Circle.
+// Facet-rail icons, matching the design: Status=Star, Mode=Tuning, Rejection rate=Minus
+// Circle, Account=Layers Minimalistic. Account only appears in aggregated mode, where
+// rows span subaccounts and narrowing by owner is meaningful.
 const CATEGORIES: { key: Category; label: string; Icon: typeof LiStar }[] = [
   { key: 'status', label: 'Status', Icon: LiStar },
   { key: 'mode', label: 'Mode', Icon: LiTuning },
   { key: 'rejection', label: 'Rejection rate', Icon: LiMinusCircle },
+  { key: 'account', label: 'Account', Icon: LiLayersMinimalistic },
 ];
 
 /** A multi-select option: an 18px square checkbox + a 14px label (Status, Mode). */
@@ -87,8 +91,11 @@ export function WorkersFilter({
   onApply,
   onReset,
   onClose,
+  accounts = [],
 }: {
   applied: WorkerFilter;
+  /** Subaccount names offered by the Account facet; empty hides the facet entirely. */
+  accounts?: string[];
   onApply: (f: WorkerFilter) => void;
   onReset: () => void;
   onClose: () => void;
@@ -112,13 +119,18 @@ export function WorkersFilter({
     };
   }, [onClose]);
 
-  // Multi-select toggle: add the value if absent, remove it if present.
+  // Multi-select toggle for status/mode: add the value if absent, remove it if present.
   const toggle = <T,>(key: 'status' | 'mode', value: T) =>
     setDraft((d) => {
       const list = d[key] as T[];
       const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
       return { ...d, [key]: next };
     });
+
+  // The Account facet renders every subaccount checked by default (empty accounts = keep
+  // all); the shared toggle seeds the full list and collapses back, same as Payouts.
+  const toggleAccount = (name: string) =>
+    setDraft((d) => ({ ...d, accounts: toggleAllCheckedSelection(d.accounts, name, accounts) }));
 
   // Single-select toggle: clicking the chosen option again clears it.
   const pickRejection = (value: WorkerRejectionFilter) =>
@@ -135,7 +147,11 @@ export function WorkersFilter({
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-heading">Filter workers</p>
-            <p className="mt-0.5 text-xs text-body-alt">Filter by status, mode, or rejection rate.</p>
+            <p className="mt-0.5 text-xs text-body-alt">
+              {accounts.length > 0
+                ? 'Filter by status, mode, rejection rate, or subaccount.'
+                : 'Filter by status, mode, or rejection rate.'}
+            </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -165,7 +181,7 @@ export function WorkersFilter({
 
       <div className="mt-4 flex gap-4 overflow-x-auto sm:gap-6">
         <div className="flex w-[120px] shrink-0 flex-col gap-4">
-          {CATEGORIES.map(({ key, label, Icon }) => (
+          {CATEGORIES.filter((c) => c.key !== 'account' || accounts.length > 0).map(({ key, label, Icon }) => (
             <button
               key={key}
               type="button"
@@ -202,6 +218,19 @@ export function WorkersFilter({
           <div className="flex shrink-0 flex-col gap-3" role="group" aria-label="Mode">
             {MODE_OPTIONS.map((m) => (
               <CheckOption key={m} label={m} checked={draft.mode.includes(m)} onClick={() => toggle('mode', m)} />
+            ))}
+          </div>
+        )}
+
+        {category === 'account' && (
+          <div className="flex shrink-0 flex-col gap-3" role="group" aria-label="Account">
+            {accounts.map((a) => (
+              <CheckOption
+                key={a}
+                label={a}
+                checked={isAllCheckedSelected(draft.accounts, a)}
+                onClick={() => toggleAccount(a)}
+              />
             ))}
           </div>
         )}

@@ -15,6 +15,44 @@ export interface Payout {
   mode: PayoutMode;
   toAddress: string;
   fromAddress: string;
+  // Which account was paid, shown only in aggregated mode where rows span accounts.
+  account?: string;
+}
+
+/** An account and the receiving addresses it owns, for attributing a payout. */
+export interface PayoutAccount {
+  name: string;
+  addresses: Set<string>;
+}
+
+// The label for the main (parent) account in aggregated mode. Shared by the row tag,
+// the Filter's Account facet, and the filter itself so all three match exactly.
+export const MAIN_ACCOUNT_LABEL = 'Main account';
+
+/**
+ * The account that owns a paid-to address. Accounts can legitimately share one
+ * receiving address (verified on a live account whose subaccounts all reuse the
+ * main address), which makes attribution ambiguous; the first matching owner wins,
+ * so callers list the main account first rather than inventing a split. Returns null
+ * when no account owns the address.
+ *
+ * Same limit applies one level up: buildPayouts sums every output a tx pays to ANY
+ * of the caller's addresses into one row, so a tx that pays two different owners'
+ * addresses is credited whole to whichever owner this function picks first, same as
+ * the shared-address case above. On-chain attribution can't split a single tx
+ * further than that without guessing.
+ */
+export function accountForAddress(address: string, owners: PayoutAccount[]): string | null {
+  for (const owner of owners) {
+    if (owner.addresses.has(address)) return owner.name;
+  }
+  return null;
+}
+
+/** Keep payouts belonging to the chosen accounts; an empty list keeps them all. */
+export function filterPayoutsByAccount(payouts: Payout[], accounts: string[]): Payout[] {
+  if (accounts.length === 0) return payouts;
+  return payouts.filter((p) => p.account != null && accounts.includes(p.account));
 }
 
 export interface PayoutFilter {

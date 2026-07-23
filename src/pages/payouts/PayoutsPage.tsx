@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react';
 import { LiUploadMinimalistic } from 'solar-icon-react/li';
-import { usePayouts } from '@/hooks/usePayouts';
+import { usePayouts, useAggregatedPayouts } from '@/hooks/usePayouts';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useSubaccountList } from '@/hooks/useSubaccounts';
 import {
   searchPayouts,
   filterPayouts,
+  filterPayoutsByAccount,
   payoutsToCsv,
   sinceForPreset,
   sortPayoutsByAmount,
   payoutsInRange,
+  MAIN_ACCOUNT_LABEL,
   type DateRange,
 } from '@/lib/payoutsTable';
+import { subaccountName } from '@/lib/subaccountsTable';
 import { paginate } from '@/lib/workersTable';
 import { useToastControls } from '@/components/ui/toast';
 import { PayoutsToolbar } from '@/components/payouts/PayoutsToolbar';
@@ -35,8 +40,22 @@ function downloadCsv(content: string): void {
 
 /** The Payouts page: on-chain payout history with search, filter, pagination, and CSV export. */
 export function PayoutsPage() {
-  const { data, isLoading, isError, refetch } = usePayouts();
+  const { aggregated } = useAggregatedModeContext();
+  const single = usePayouts();
+  // Aggregated mode reads payouts across every account, tagged with their owner; the
+  // two queries have separate cache entries so toggling never serves the wrong set.
+  const agg = useAggregatedPayouts(aggregated);
+  const { data, isLoading, isError, refetch } = aggregated ? agg : single;
   const payouts = useMemo(() => data ?? [], [data]);
+
+  // The Account facet (aggregated mode only) offers the main account plus every
+  // subaccount; an empty selection keeps them all. These names must match the row
+  // tags from useAggregatedPayouts exactly, so both derive from the same shared list.
+  const { data: subs } = useSubaccountList();
+  const accountNames = useMemo(
+    () => (aggregated ? [MAIN_ACCOUNT_LABEL, ...(subs ?? []).map(subaccountName)] : undefined),
+    [aggregated, subs],
+  );
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<PayoutFilterDraft>(EMPTY_PAYOUT_FILTER_DRAFT);
@@ -51,7 +70,8 @@ export function PayoutsPage() {
   const visible = useMemo(() => {
     const sinceSec = filter.datePreset ? sinceForPreset(filter.datePreset, now) : null;
     const rows = filterPayouts(searchPayouts(payouts, query), { mode: filter.mode, sinceSec });
-    return filter.amountSort ? sortPayoutsByAmount(rows, filter.amountSort) : rows;
+    const scoped = filterPayoutsByAccount(rows, filter.accounts);
+    return filter.amountSort ? sortPayoutsByAmount(scoped, filter.amountSort) : scoped;
   }, [payouts, query, filter, now]);
   const pageData = paginate(visible, page, PAGE_SIZE);
 
@@ -152,8 +172,9 @@ export function PayoutsPage() {
             filter={filter}
             onApplyFilter={applyFilter}
             onResetFilter={resetFilter}
+            accounts={accountNames}
           />
-          <PayoutsTable payouts={pageData.items} empty={tableEmpty} />
+          <PayoutsTable payouts={pageData.items} empty={tableEmpty} showAccount={aggregated} />
           {visible.length > 0 && (
             <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
           )}

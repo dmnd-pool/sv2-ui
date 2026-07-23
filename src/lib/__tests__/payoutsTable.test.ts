@@ -21,6 +21,8 @@ import {
   fullDayRange,
   EMPTY_PAYOUT_FILTER,
   type Payout,
+  accountForAddress,
+  filterPayoutsByAccount,
 } from '@/lib/payoutsTable';
 
 const USER = new Set(['bc1quser', 'bc1qalt']);
@@ -181,4 +183,35 @@ test('payoutsToCsv emits the production schema header, uppercase kind, and guard
   assert.equal(lines[0], 'timestamp,kind,amount_btc,txid,from,to');
   assert.match(lines[1], /,PPLNS,0\.00241,a4c91d,/); // uppercase kind + trimmed btc
   assert.match(lines[1], /'=EVIL/); // formula-injection guard on the from address
+});
+
+test('accountForAddress attributes a payout to the account that owns the paid address', () => {
+  const owners = [
+    { name: 'Main account', addresses: new Set(['addrMain']) },
+    { name: 'Client Alpha', addresses: new Set(['addrAlpha']) },
+  ];
+  assert.equal(accountForAddress('addrMain', owners), 'Main account');
+  assert.equal(accountForAddress('addrAlpha', owners), 'Client Alpha');
+  // An address nobody owns cannot be attributed.
+  assert.equal(accountForAddress('addrUnknown', owners), null);
+});
+
+test('accountForAddress prefers the first owner when accounts share one address', () => {
+  // Real accounts can reuse a receiving address across subaccounts, so attribution is
+  // ambiguous; the main account is listed first and wins rather than guessing a split.
+  const shared = new Set(['addrShared']);
+  const owners = [
+    { name: 'Main account', addresses: shared },
+    { name: 'Test Farm A', addresses: shared },
+  ];
+  assert.equal(accountForAddress('addrShared', owners), 'Main account');
+});
+
+test('filterPayoutsByAccount keeps only the chosen accounts; empty keeps all', () => {
+  const rows = [
+    { date: 3, txid: 'a', amountSats: 1, mode: 'pplns' as const, toAddress: 'x', fromAddress: 'w', account: 'Main account' },
+    { date: 2, txid: 'b', amountSats: 1, mode: 'pplns' as const, toAddress: 'y', fromAddress: 'w', account: 'Client Alpha' },
+  ];
+  assert.equal(filterPayoutsByAccount(rows, []).length, 2);
+  assert.deepEqual(filterPayoutsByAccount(rows, ['Client Alpha']).map((p) => p.txid), ['b']);
 });

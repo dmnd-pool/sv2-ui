@@ -100,3 +100,40 @@ export function generatedBtcToCsv(entries: GeneratedBtcEntry[]): string {
   const rows = entries.map((e) => [e.entry_day, String(e.hashrate), String(e.btc_generated)].map(csvCell));
   return [CSV_HEADER, ...rows.map((r) => r.join(','))].join('\n');
 }
+
+/**
+ * Collapse rows that share the same (entry_day, account) to the first occurrence. Each
+ * owner (main account or a subaccount) is fetched from its own endpoint and tagged with
+ * that owner's name client-side, so this only fires if a single owner's own fetch ever
+ * repeats a day (a defensive guard against a duplicate from the server), not because two
+ * different owners are compared against each other.
+ */
+export function dedupeGeneratedBtc(entries: GeneratedBtcEntry[]): GeneratedBtcEntry[] {
+  const seen = new Set<string>();
+  const out: GeneratedBtcEntry[] = [];
+  for (const e of entries) {
+    const key = `${e.entry_day} ${e.account ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+/** Keep entries belonging to the chosen accounts; an empty list keeps them all. */
+export function filterGeneratedBtcByAccount(entries: GeneratedBtcEntry[], accounts: string[]): GeneratedBtcEntry[] {
+  if (accounts.length === 0) return entries;
+  return entries.filter((e) => e.account != null && accounts.includes(e.account));
+}
+
+/**
+ * Case-insensitive substring match on the owning account's name; a blank query passes
+ * all. Rows carry no worker field (a generated-BTC entry is a per-day, per-account
+ * total, not per-worker), so unlike the Workers/Payouts search this cannot also match a
+ * worker name — only the account dimension is backed.
+ */
+export function searchGeneratedBtc(entries: GeneratedBtcEntry[], query: string): GeneratedBtcEntry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return entries;
+  return entries.filter((e) => e.account?.toLowerCase().includes(q));
+}

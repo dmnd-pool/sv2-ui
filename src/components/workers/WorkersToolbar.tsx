@@ -20,6 +20,7 @@ export function WorkersToolbar({
   filter,
   onApplyFilter,
   onResetFilter,
+  accounts,
 }: {
   tab: WorkersTab;
   onTab: (tab: WorkersTab) => void;
@@ -28,6 +29,8 @@ export function WorkersToolbar({
   onQuery: (q: string) => void;
   filter: WorkerFilter;
   onApplyFilter: (f: WorkerFilter) => void;
+  /** Subaccount names for the Account facet (aggregated mode only). */
+  accounts?: string[];
   onResetFilter: () => void;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
@@ -88,6 +91,7 @@ export function WorkersToolbar({
               onApply={onApplyFilter}
               onReset={onResetFilter}
               onClose={() => setFilterOpen(false)}
+              accounts={accounts}
             />
           )}
         </div>
