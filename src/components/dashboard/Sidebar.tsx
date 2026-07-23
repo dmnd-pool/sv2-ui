@@ -1,9 +1,13 @@
 import { Link, useLocation } from 'wouter';
-import { LiLogout3, LiAltArrowDown, LiSidebarMinimalistic } from 'solar-icon-react/li';
+import { LiLogout3, LiSidebarMinimalistic } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth';
 import { DmndLogo } from '@/components/auth/Logo';
+import { Switch } from '@/components/ui/switch';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useHasSubaccounts } from '@/hooks/useSubaccounts';
 import { NAV_GROUPS, SETTINGS_ITEM, type NavItem } from './nav';
+import { AccountSwitcher } from './AccountSwitcher';
 import { accountInitials } from './accountInitials';
 
 function NavRow({
@@ -54,7 +58,12 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const [location] = useLocation();
-  const { session, signOut } = useAuth();
+  const { session, signOut, viewingAccountId } = useAuth();
+  const { hasSubaccounts } = useHasSubaccounts();
+  const { aggregated, setAggregated } = useAggregatedModeContext();
+  // Aggregating only makes sense while viewing the main account; a subaccount has no
+  // subaccounts of its own to combine.
+  const showToggle = hasSubaccounts && viewingAccountId === null;
 
   return (
     <div
@@ -78,24 +87,42 @@ export function Sidebar({
         )}
       </div>
 
-      <button
-        type="button"
-        title={collapsed ? (session?.email ?? 'Account') : undefined}
-        className={cn(
-          'mx-3 mb-3 flex items-center rounded-lg text-left transition-colors hover:bg-muted',
-          collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-2.5 py-2',
-        )}
-      >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2b7fff] text-[11px] font-semibold text-white">
-          {accountInitials(session?.email)}
-        </span>
-        {!collapsed && (
-          <>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{session?.email ?? 'Account'}</span>
-            <LiAltArrowDown className="h-4 w-4 shrink-0 text-placeholder" />
-          </>
-        )}
-      </button>
+      {/* With subaccounts the account block becomes the switcher; without them there is
+          nothing to switch to, so it stays a plain identity row. */}
+      {hasSubaccounts ? (
+        <AccountSwitcher collapsed={collapsed} />
+      ) : (
+        <div
+          title={collapsed ? (session?.email ?? 'Account') : undefined}
+          className={cn(
+            'mx-3 mb-3 flex items-center rounded-lg text-left',
+            collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-2.5 py-2',
+          )}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2b7fff] text-[11px] font-semibold text-white">
+            {accountInitials(session?.email)}
+          </span>
+          {!collapsed && (
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+              {session?.email ?? 'Account'}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* The design puts the aggregated toggle in the drawer on mobile; the top bar
+          carries it on desktop, where there is room for the label. */}
+      {showToggle && !collapsed && (
+        <div className="mx-3 mb-3 flex items-center justify-between gap-2 px-2.5 lg:hidden">
+          <span className="text-sm text-foreground">Aggregated dashboard</span>
+          <Switch
+            checked={aggregated}
+            onCheckedChange={setAggregated}
+            aria-label="Aggregated dashboard"
+            className="data-[state=checked]:bg-success"
+          />
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto px-3 pb-2">
         {NAV_GROUPS.map((group) => (

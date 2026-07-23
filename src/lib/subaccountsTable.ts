@@ -31,7 +31,15 @@ export interface EnrichedSubaccount {
   offline: number;
   offline24h: number;
   rejection: number | null;
+  // Raw accepted/rejected share counts kept alongside the derived rejection rate so an
+  // aggregate across subaccounts can recompute a correct combined rate (summing rates
+  // would misweight subaccounts with very different share volumes).
+  accepted: number;
+  rejected: number;
   todayEarnings: number;
+  // The roster itself, kept so the aggregated workers table can list every account's
+  // workers rather than only their counts.
+  workers: Worker[];
 }
 
 /** Combine a subaccount row with its summary (rejection + earnings) and worker roster (counts). */
@@ -50,7 +58,10 @@ export function enrichSubaccount(
     offline: stats.offline,
     offline24h: stats.offline24h,
     rejection: rejectionFromStats(summary?.share_stats),
+    accepted: summary?.share_stats?.accepted ?? 0,
+    rejected: summary?.share_stats?.rejected ?? 0,
     todayEarnings: summary?.today_generated_btc ?? 0,
+    workers,
   };
 }
 

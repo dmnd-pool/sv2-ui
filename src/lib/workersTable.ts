@@ -162,13 +162,18 @@ export interface WorkerFilter {
   status: WorkerStatus[];
   mode: WorkerModeFilter[];
   rejection: WorkerRejectionFilter | null;
+  // Subaccount names to keep, used only in aggregated mode where rows span accounts.
+  // Empty means every account, matching how the other multi-select facets behave.
+  accounts: string[];
 }
 
-export const EMPTY_WORKER_FILTER: WorkerFilter = { status: [], mode: [], rejection: null };
+export const EMPTY_WORKER_FILTER: WorkerFilter = { status: [], mode: [], rejection: null, accounts: [] };
 
 /** True when any facet is set (drives the Filter button's active dot). */
 export function isWorkerFilterActive(filter: WorkerFilter): boolean {
-  return filter.status.length > 0 || filter.mode.length > 0 || filter.rejection !== null;
+  return (
+    filter.status.length > 0 || filter.mode.length > 0 || filter.rejection !== null || filter.accounts.length > 0
+  );
 }
 
 /** Which rejection bucket a worker falls in; null when it has no shares yet (no rate). */
@@ -191,6 +196,10 @@ export function applyWorkerFilter(workers: Worker[], filter: WorkerFilter, now: 
     if (filter.status.length > 0 && !filter.status.includes(classifyWorker(w, now))) return false;
     if (filter.mode.length > 0 && !filter.mode.includes(workerMode(w))) return false;
     if (filter.rejection !== null && rejectionBucket(w) !== filter.rejection) return false;
+    if (filter.accounts.length > 0) {
+      const sub = (w as TaggedWorker).subaccount;
+      if (!sub || !filter.accounts.includes(sub)) return false;
+    }
     return true;
   });
 }
@@ -277,7 +286,7 @@ export function paginate<T>(items: T[], page: number, pageSize: number): Page<T>
  * Restrict the roster to workers whose last connection falls inside an inclusive
  * [startSec, endSec] window, for the CSV export's date range. `/api/workers/all` takes
  * no date parameter (verified live and in the spec: it returns every worker ever
- * connected), so the range is applied here over `connected_at` — i.e. "workers that
+ * connected), so the range is applied here over `connected_at`, i.e. "workers that
  * were connected during this period". A worker with no timestamp cannot be placed in
  * time and is excluded from a ranged export rather than silently included.
  */
@@ -323,4 +332,41 @@ export function workersToCsv(workers: Worker[]): string {
     ].map(csvCell),
   );
   return [CSV_HEADER.map(csvCell).join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
+/** A worker paired with the subaccount it belongs to, for the aggregated workers table. */
+export interface TaggedWorker extends Worker {
+  subaccount: string;
+  /**
+   * The owning subaccount's id. Row identity keys off this, not the display name:
+   * subaccount names are user-chosen and not guaranteed unique, so two subaccounts
+   * named the same would otherwise collide into one row and one selection state.
+   */
+  subaccountId: string;
+}
+
+/**
+ * Flatten per-subaccount worker rosters into one list, tagging each worker with
+ * the subaccount it came from. Group order is preserved, then worker order within
+ * each group; a group with no workers contributes nothing. Workers are not deduped,
+ * so two subaccounts can each contribute a worker of the same name.
+ */
+export function tagWorkersBySubaccount(
+  perSub: { sub: string; subaccountId: string; workers: Worker[] }[],
+): TaggedWorker[] {
+  return perSub.flatMap((group) =>
+    group.workers.map((w) => ({ ...w, subaccount: group.sub, subaccountId: group.subaccountId })),
+  );
+}
+
+/**
+ * A stable identity for a worker row. Worker names are only unique within one account,
+ * so an aggregated table (which spans subaccounts) qualifies the name with the owning
+ * subaccount's id (not its display name, which can collide across subaccounts);
+ * without this two accounts' same-named rigs would collide as one row and select
+ * together.
+ */
+export function workerRowId(worker: Worker): string {
+  const id = (worker as TaggedWorker).subaccountId;
+  return id ? `${id}/${worker.name}` : worker.name;
 }

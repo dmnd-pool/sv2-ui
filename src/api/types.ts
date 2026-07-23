@@ -126,6 +126,9 @@ export interface GeneratedBtcEntry {
   entry_day: string;
   hashrate: number;
   btc_generated: number;
+  // Which account this day's entry belongs to, set only in aggregated mode where rows
+  // span the main account and every subaccount.
+  account?: string;
 }
 
 /**
@@ -269,6 +272,8 @@ export interface DmndClient {
   getSubaccountSummary(id: string, token: string, req?: RequestOptions): Promise<SubaccountSummary>;
   /** Per-subaccount worker roster; active/offline counts derive from this. */
   getSubaccountWorkers(id: string, token: string, req?: RequestOptions): Promise<WorkersResponse>;
+  /** The subaccount's daily generated-BTC entries; a bare array, empty when none. */
+  getSubaccountGeneratedBtc(id: string, token: string, req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
   /** Capability flags gating the Create button and the page itself. */
   getPermissions(req?: RequestOptions): Promise<AccountPermissions>;
   /** The account's watcher links (GET /api/api-tokens); a bare array, empty when none. */

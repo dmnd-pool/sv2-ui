@@ -32,7 +32,7 @@ function row(over: Partial<Subaccount> = {}): Subaccount {
   };
 }
 function enriched(over: Partial<EnrichedSubaccount> = {}): EnrichedSubaccount {
-  return { id: '1', name: 'X', hashrate: 0, active: 0, offline: 0, offline24h: 0, rejection: null, todayEarnings: 0, ...over };
+  return { id: '1', name: 'X', hashrate: 0, active: 0, offline: 0, offline24h: 0, rejection: null, accepted: 0, rejected: 0, todayEarnings: 0, workers: [], ...over };
 }
 function worker(over: Partial<Worker> = {}): Worker {
   return { name: 'w', hashrate: 1, total_shares: 0, rejected_shares: 0, is_connected: true, ...over };
@@ -89,6 +89,15 @@ test('enrichSubaccount combines the row with workers and the summary (rejection 
     { id: e.id, name: e.name, hashrate: e.hashrate, active: e.active, offline: e.offline, offline24h: e.offline24h, rejection: e.rejection, todayEarnings: e.todayEarnings },
     { id: '7', name: 'Farm', hashrate: 50, active: 1, offline: 1, offline24h: 1, rejection: 1 / 100, todayEarnings: 0.002 },
   );
+  // Raw share counts are carried through for correct cross-subaccount rejection.
+  assert.equal(e.accepted, 99);
+  assert.equal(e.rejected, 1);
+});
+
+test('enrichSubaccount defaults raw share counts to 0 without a summary', () => {
+  const e = enrichSubaccount(row({ id: '8', sub_account: 'NoStats', hashrate: '0' }), null, [], Date.UTC(2026, 5, 29, 12));
+  assert.equal(e.accepted, 0);
+  assert.equal(e.rejected, 0);
 });
 
 test('enrichSubaccount defaults rejection to null and earnings to 0 when the summary is missing', () => {

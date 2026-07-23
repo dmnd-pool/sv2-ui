@@ -3,6 +3,7 @@ import { InfoHint } from '@/components/ui/InfoHint';
 import { useAccountAllWorkers, useTodayEarnings } from '@/hooks/useAccountData';
 import { deriveWorkerStats } from '@/lib/workerStats';
 import { classifyWorker } from '@/lib/workersTable';
+import type { AggregatedStats } from '@/lib/aggregatedStats';
 
 function StatCard({
   title,
@@ -41,19 +42,32 @@ function formatBtc(btc: number): string {
  * fails it shows "--" (unknown) rather than a misleading 0; a genuine zero shows
  * "0 BTC".
  */
-export function WorkerStatCards() {
+export function WorkerStatCards({ aggregated }: { aggregated?: AggregatedStats }) {
   const { data: workers } = useAccountAllWorkers();
   const { data: earnings } = useTodayEarnings();
   const roster = workers ?? [];
-  const stats = deriveWorkerStats(roster);
-  const hasWorkers = stats.totalCount > 0;
+  const single = deriveWorkerStats(roster);
   // Offline for over 24h reuses the workers-page classifier (last-seen from
   // connected_at), so the home matches how that page counts stale workers.
   const now = Date.now();
-  const offline24h = roster.filter((w) => classifyWorker(w, now) === 'offline_24h').length;
+  // In aggregated mode every figure is the roll-up across subaccounts, so the cards
+  // can never show one account's numbers while the rest of the page shows the total.
+  const stats = aggregated
+    ? {
+        activeCount: aggregated.activeWorkers,
+        totalCount: aggregated.totalWorkers,
+        offlineCount: aggregated.offlineWorkers,
+        rejectionRate: aggregated.rejectionRate,
+      }
+    : single;
+  const offline24h = aggregated
+    ? aggregated.offline24h
+    : roster.filter((w) => classifyWorker(w, now) === 'offline_24h').length;
+  const todayEarnings = aggregated ? aggregated.todayEarnings : earnings;
+  const hasWorkers = stats.totalCount > 0;
   const hasMined = stats.rejectionRate !== null;
   const rejection = stats.rejectionRate === null ? '--' : `${(stats.rejectionRate * 100).toFixed(2)}%`;
-  const earningsLabel = earnings === undefined ? '--' : formatBtc(earnings);
+  const earningsLabel = todayEarnings === undefined ? '--' : formatBtc(todayEarnings);
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -92,10 +106,17 @@ export function WorkerStatCards() {
         tour="stats-earnings"
         title="Today's earnings"
         value={earningsLabel}
+        // Aggregated mode sums each subaccount's today_generated_btc (accrued, not yet
+        // paid out), a different figure than single mode's on-chain-paid total, so the
+        // caption can't claim "paid out" for both.
         caption={
-          earnings !== undefined && earnings > 0
-            ? 'Paid out on-chain today.'
-            : 'Earnings paid out on-chain today will appear here.'
+          aggregated
+            ? todayEarnings !== undefined && todayEarnings > 0
+              ? 'Generated today across subaccounts.'
+              : 'Earnings generated today across subaccounts will appear here.'
+            : todayEarnings !== undefined && todayEarnings > 0
+              ? 'Paid out on-chain today.'
+              : 'Earnings paid out on-chain today will appear here.'
         }
         hint="Payouts are based on your contribution to recently submitted shares. Earnings can vary, but may be higher over time."
       />

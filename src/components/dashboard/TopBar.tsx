@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { LiHamburgerMenu, LiQuestionCircle, LiBell, LiAltArrowDown, LiSettingsMinimalistic, LiLogout3 } from 'solar-icon-react/li';
 import { ThemeToggle } from '@/components/auth/ThemeToggle';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/auth';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useHasSubaccounts } from '@/hooks/useSubaccounts';
 import { titleForPath } from './nav';
 import { accountInitials } from './accountInitials';
 
@@ -14,8 +17,14 @@ import { accountInitials } from './accountInitials';
  */
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const [location] = useLocation();
-  const { session, signOut } = useAuth();
+  const { session, signOut, viewingAccountId } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { aggregated, setAggregated } = useAggregatedModeContext();
+  // The aggregated toggle only makes sense with more than one account to combine, so
+  // it appears once the miner has subaccounts, and hides while viewing a single
+  // switched-in subaccount (a subaccount has no subaccounts of its own to aggregate).
+  const { hasSubaccounts } = useHasSubaccounts();
+  const showToggle = hasSubaccounts && viewingAccountId === null;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md lg:px-6">
@@ -31,6 +40,23 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       <h1 className="text-base font-semibold text-heading">{titleForPath(location)}</h1>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Desktop places the toggle in the top bar; on mobile it lives in the sidebar
+            drawer (below the account block), where the design puts it since the mobile
+            top bar has no room. */}
+        {showToggle && (
+          <div className="mr-1 hidden items-center gap-1.5 lg:flex">
+            <span className="flex items-center gap-1 text-xs text-body-alt">
+              Aggregated Dashboard
+              <LiQuestionCircle className="h-4 w-4 text-placeholder" aria-hidden />
+            </span>
+            <Switch
+              checked={aggregated}
+              onCheckedChange={setAggregated}
+              aria-label="Aggregated dashboard"
+              className="data-[state=checked]:bg-success"
+            />
+          </div>
+        )}
         <Link
           href="/help"
           aria-label="Help"

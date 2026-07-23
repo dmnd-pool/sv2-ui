@@ -313,6 +313,26 @@ test('revokeWatcherLink DELETEs the link by id', async () => {
   assert.ok(calls[0].url.endsWith('/api/api-tokens/531'));
 });
 
+test('getSubaccountGeneratedBtc GETs the per-subaccount generated-BTC list with a token', async () => {
+  const rows = [{ entry_day: '2026-07-08', hashrate: 98, btc_generated: 0.00001274 }];
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.getSubaccountGeneratedBtc('-77', 'sub-tok');
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.includes('/api/user/sub_account/-77/generated_btc'));
+  assert.ok(calls[0].url.includes('token=sub-tok'));
+  assert.deepEqual(result, rows);
+});
+
+test('getSubaccountGeneratedBtc collapses a non-array response to an empty list', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
+  const client = createDmndClient({ fetchImpl, backoffMs: 0 });
+
+  assert.deepEqual(await client.getSubaccountGeneratedBtc('-77', 'sub-tok'), []);
+});
+
 test('a 4xx with a server message surfaces it as an unknown error', async () => {
   const { fetchImpl } = fakeFetch(
     () =>

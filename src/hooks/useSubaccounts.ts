@@ -15,7 +15,7 @@ const CLOUD_POLL_MS = 5 * 60 * 1000;
  * shows its error state, rather than silently reporting 0 workers or 0 earnings for
  * a row whose data could not be read (a misleading figure on money data).
  */
-export function useSubaccounts() {
+export function useSubaccounts(enabled = true) {
   const { session } = useAuth();
   return useQuery({
     queryKey: ['account', 'subaccounts'],
@@ -34,7 +34,7 @@ export function useSubaccounts() {
         }),
       );
     },
-    enabled: !!session,
+    enabled: !!session && enabled,
     refetchInterval: CLOUD_POLL_MS,
     staleTime: CLOUD_POLL_MS,
     refetchOnWindowFocus: false,
@@ -58,6 +58,17 @@ export function useSubaccountList() {
     refetchOnWindowFocus: false,
     retry: false,
   });
+}
+
+/**
+ * Whether the account has any subaccounts, from the list endpoint alone, sharing
+ * useSubaccountList's cache (no separate query). Kept separate from useSubaccounts so
+ * gating UI (the aggregated-mode toggle) never triggers the heavy per-sub fan-out on
+ * a page that only needs the count.
+ */
+export function useHasSubaccounts() {
+  const query = useSubaccountList();
+  return { hasSubaccounts: (query.data?.length ?? 0) > 0, isLoading: query.isLoading };
 }
 
 /**

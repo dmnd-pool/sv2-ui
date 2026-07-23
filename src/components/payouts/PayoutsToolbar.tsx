@@ -10,12 +10,15 @@ export function PayoutsToolbar({
   filter,
   onApplyFilter,
   onResetFilter,
+  accounts = [],
 }: {
   query: string;
   onQuery: (q: string) => void;
   filter: PayoutFilterDraft;
   onApplyFilter: (f: PayoutFilterDraft) => void;
   onResetFilter: () => void;
+  /** Account names offered by the Filter's Account facet; empty hides that facet. */
+  accounts?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const active = isPayoutDraftActive(filter);
@@ -57,7 +60,13 @@ export function PayoutsToolbar({
             )}
           </button>
           {open && (
-            <PayoutsFilter applied={filter} onApply={onApplyFilter} onReset={onResetFilter} onClose={() => setOpen(false)} />
+            <PayoutsFilter
+              applied={filter}
+              accounts={accounts}
+              onApply={onApplyFilter}
+              onReset={onResetFilter}
+              onClose={() => setOpen(false)}
+            />
           )}
         </div>
       </div>

@@ -7,6 +7,10 @@ import { WorkerStatCards } from '@/components/home/WorkerStatCards';
 import { MiningPerformanceChart } from '@/components/home/MiningPerformanceChart';
 import { GettingStartedCard } from '@/components/home/GettingStartedCard';
 import { CustomizeDashboardPanel } from '@/components/home/CustomizeDashboardPanel';
+import { CombinedHashrateCard } from '@/components/home/CombinedHashrateCard';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useAggregatedData } from '@/hooks/useAggregatedData';
+import type { AggregatedStats } from '@/lib/aggregatedStats';
 import { ProductTour } from '@/components/home/ProductTour';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import { visibleInOrder, type WidgetId } from '@/lib/dashboardLayout';
@@ -86,14 +90,19 @@ function HashrateConnectRow({ customizing, drag }: { customizing: boolean; drag:
 }
 
 /** One widget rendered full-width (used when it isn't part of the hashrate/connect pair). */
-function widgetBlock(id: WidgetId, customizing: boolean, drag: DragState): ReactNode {
+function widgetBlock(
+  id: WidgetId,
+  customizing: boolean,
+  drag: DragState,
+  aggregatedStats?: AggregatedStats,
+): ReactNode {
   const inner =
     id === 'hashrate' ? (
       <LiveHashrateCard />
     ) : id === 'connect' ? (
       <ConnectWorkersCard />
     ) : id === 'stats' ? (
-      <WorkerStatCards />
+      <WorkerStatCards aggregated={aggregatedStats} />
     ) : (
       <MiningPerformanceChart />
     );
@@ -113,6 +122,9 @@ function widgetBlock(id: WidgetId, customizing: boolean, drag: DragState): React
  */
 export function DashboardHome() {
   const { layout, toggle, reorder, reset } = useDashboardLayout();
+  const { aggregated } = useAggregatedModeContext();
+  // Only fetches the per-subaccount roll-up while aggregated mode is on.
+  const { stats: aggStats, slices } = useAggregatedData(aggregated);
   const [customizing, setCustomizing] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
@@ -169,7 +181,14 @@ export function DashboardHome() {
       i += 1; // consume the paired widget
       continue;
     }
-    rendered.push(widgetBlock(id, customizing, drag));
+    rendered.push(widgetBlock(id, customizing, drag, aggregated ? aggStats : undefined));
+  }
+
+  // The combined-hashrate breakdown belongs to aggregated mode rather than the
+  // customizable widget set, and the design places it under the first row, above the
+  // stat cards.
+  if (aggregated && slices.length > 0) {
+    rendered.splice(1, 0, <CombinedHashrateCard key="combined-hashrate" slices={slices} total={aggStats.combinedHashrate} />);
   }
 
   return (

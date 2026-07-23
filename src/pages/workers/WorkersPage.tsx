@@ -2,8 +2,12 @@ import { useMemo, useState } from 'react';
 import { LiAddCircle, LiDownloadMinimalistic } from 'solar-icon-react/li';
 import type { Worker } from '@/api/types';
 import { useAccountAllWorkers } from '@/hooks/useAccountData';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useAggregatedData } from '@/hooks/useAggregatedData';
 import {
   deriveWorkersPageStats,
+  tagWorkersBySubaccount,
+  workerRowId,
   filterByTab,
   searchWorkers,
   sortWorkers,
@@ -47,7 +51,14 @@ export function WorkersPage() {
   // Full roster from /api/workers/all (no date range); tabs/search/sort/paginate
   // run client-side over it.
   const { data, isLoading, isError, refetch } = useAccountAllWorkers();
-  const workers = useMemo(() => data ?? [], [data]);
+  const { aggregated } = useAggregatedModeContext();
+  // In aggregated mode the table spans every subaccount, so the rows come from each
+  // account's roster tagged with its owner rather than this account's own workers.
+  const agg = useAggregatedData(aggregated);
+  const workers = useMemo(() => {
+    if (!aggregated) return data ?? [];
+    return tagWorkersBySubaccount(agg.subaccounts.map((s) => ({ sub: s.name, subaccountId: s.id, workers: s.workers })));
+  }, [aggregated, data, agg.subaccounts]);
 
   const [tab, setTab] = useState<WorkersTab>('all');
   const [query, setQuery] = useState('');
@@ -78,13 +89,13 @@ export function WorkersPage() {
   // Selection spans the whole filtered set (not just the visible page), so export and
   // the header select-all reason over every matching worker. Stale names left over from
   // a since-changed filter simply don't intersect `sorted`, so they're ignored.
-  const allSelected = sorted.length > 0 && sorted.every((w) => selected.has(w.name));
-  const someSelected = sorted.some((w) => selected.has(w.name));
+  const allSelected = sorted.length > 0 && sorted.every((w) => selected.has(workerRowId(w)));
+  const someSelected = sorted.some((w) => selected.has(workerRowId(w)));
   const toggleAll = () => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (sorted.every((w) => next.has(w.name))) sorted.forEach((w) => next.delete(w.name));
-      else sorted.forEach((w) => next.add(w.name));
+      if (sorted.every((w) => next.has(workerRowId(w)))) sorted.forEach((w) => next.delete(workerRowId(w)));
+      else sorted.forEach((w) => next.add(workerRowId(w)));
       return next;
     });
   };
@@ -97,7 +108,7 @@ export function WorkersPage() {
     });
   };
   // Export the checked subset when any rows are selected, otherwise the full filtered set.
-  const exportRows = someSelected ? sorted.filter((w) => selected.has(w.name)) : sorted;
+  const exportRows = someSelected ? sorted.filter((w) => selected.has(workerRowId(w))) : sorted;
 
   /**
    * Export the chosen date range as CSV. `/api/workers/all` has no date parameter, so
@@ -144,9 +155,15 @@ export function WorkersPage() {
     setPage(1);
   };
 
+  // In aggregated mode the roll-up query owns the page's loading and error states, so a
+  // failed subaccount fetch is reported rather than rendering a partial roster.
+  const loading = aggregated ? agg.isLoading : isLoading;
+  const failed = aggregated ? agg.isError : isError;
+  const retry = aggregated ? agg.refetch : refetch;
+
   // A failed fetch must not masquerade as "no workers" (the empty state invites
   // miners to connect hardware they may already have running).
-  const canExport = !isLoading && !isError && workers.length > 0;
+  const canExport = !loading && !failed && workers.length > 0;
 
   return (
     <div className="space-y-6">
@@ -185,7 +202,7 @@ export function WorkersPage() {
         </div>
       </header>
 
-      {isLoading ? (
+      {loading ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
@@ -194,13 +211,13 @@ export function WorkersPage() {
           </div>
           <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />
         </div>
-      ) : isError ? (
+      ) : failed ? (
         <div className="rounded-xl border border-border bg-card p-10 text-center">
           <p className="text-base font-semibold text-foreground">Couldn't load workers</p>
           <p className="mt-1 text-sm text-body-alt">Something went wrong fetching your worker roster.</p>
           <button
             type="button"
-            onClick={() => void refetch()}
+            onClick={() => void retry()}
             className="mt-4 inline-flex items-center rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Try again
@@ -221,6 +238,7 @@ export function WorkersPage() {
               filter={filter}
               onApplyFilter={applyFilter}
               onResetFilter={resetFilter}
+              accounts={aggregated ? agg.subaccounts.map((s) => s.name) : undefined}
             />
             {sorted.length === 0 ? (
               // Workers exist but the active search or filter matches none. Show the
@@ -236,6 +254,7 @@ export function WorkersPage() {
             ) : (
               <>
                 <WorkersTable
+                  showAccount={aggregated}
                   workers={pageData.items}
                   sort={sort}
                   onSort={changeSort}

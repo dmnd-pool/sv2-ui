@@ -18,8 +18,11 @@ export interface AuthContextValue {
   session: Session | null;
   signOutReason: SignOutReason | null;
   status: AuthStatus;
+  /** The subaccount being viewed via the switcher, or null for the master account. */
+  viewingAccountId: string | null;
   signIn: (session: Session) => void;
   signOut: (reason?: SignOutReason) => void;
+  setViewingAccount: (accountId: string | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -105,8 +108,10 @@ export function AuthProvider({ children, store: injectedStore }: AuthProviderPro
       session: state.session,
       signOutReason: state.signOutReason,
       status: state.session ? 'authenticated' : 'anonymous',
+      viewingAccountId: state.viewingAccountId,
       signIn: store.signIn,
       signOut: store.signOut,
+      setViewingAccount: store.setViewingAccount,
     }),
     [state, store],
   );

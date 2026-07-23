@@ -371,6 +371,17 @@ export function createDmndClient(options: DmndClientOptions = {}): DmndClient {
         req,
       );
     },
+    async getSubaccountGeneratedBtc(id, token, req) {
+      // Bare array like the main /api/generated_btc; the same non-array collapse guards
+      // against an error body ever reaching the page as if it were data.
+      const q = new URLSearchParams({ token }).toString();
+      const result = await request<unknown>(
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc?${q}` },
+        opts,
+        req,
+      );
+      return Array.isArray(result) ? (result as GeneratedBtcEntry[]) : [];
+    },
     getPermissions(req) {
       return request<AccountPermissions>({ method: 'GET', path: '/api/user/permissions' }, opts, req);
     },

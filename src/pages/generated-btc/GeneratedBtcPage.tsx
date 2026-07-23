@@ -1,10 +1,17 @@
 import { useMemo, useState } from 'react';
 import { LiUploadMinimalistic } from 'solar-icon-react/li';
-import { useGeneratedBtc } from '@/hooks/useGeneratedBtc';
+import { useGeneratedBtc, useAggregatedGeneratedBtc } from '@/hooks/useGeneratedBtc';
 import { useAccountAllWorkers } from '@/hooks/useAccountData';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
+import { useAggregatedData } from '@/hooks/useAggregatedData';
+import { useSubaccountList } from '@/hooks/useSubaccounts';
+import { subaccountName } from '@/lib/subaccountsTable';
+import { MAIN_ACCOUNT_LABEL } from '@/lib/payoutsTable';
 import {
   sortGeneratedByDateDesc,
   filterGeneratedBtc,
+  filterGeneratedBtcByAccount,
+  searchGeneratedBtc,
   sumGenerated,
   averageWorkerHashrate,
   workersWithSharesCount,
@@ -44,18 +51,51 @@ function downloadCsv(content: string): void {
  * and the worker-name search have no backing endpoint and are not shown.
  */
 export function GeneratedBtcPage() {
-  const { data, isLoading, isError, refetch } = useGeneratedBtc();
-  const { data: allWorkers } = useAccountAllWorkers();
+  const { aggregated } = useAggregatedModeContext();
+  const single = useGeneratedBtc();
+  // Aggregated mode reads generated-BTC entries across every account, tagged with
+  // their owner; the two queries have separate cache entries so toggling never serves
+  // the wrong set (same pattern as Payouts/Workers).
+  const agg = useAggregatedGeneratedBtc(aggregated);
+  const { data, isLoading, isError, refetch } = aggregated ? agg : single;
   const entries = useMemo(() => data ?? [], [data]);
-  const workers = useMemo(() => allWorkers ?? [], [allWorkers]);
 
+  // The Average-hashrate/Active-workers cards keep their SINGLE-account definitions
+  // (mean hashrate over connected workers; count of workers with any submitted share —
+  // see averageWorkerHashrate/workersWithSharesCount), just fed a wider roster in
+  // aggregated mode. That roster is SUBACCOUNTS ONLY, matching the aggregated Workers
+  // table and the Home donut (the main account's own workers are shown separately
+  // there too) — it deliberately does NOT reuse Home's "active = connected" figure,
+  // which is a different definition of "active" than this page's "submitted a share".
+  const { data: allWorkers } = useAccountAllWorkers();
+  const aggData = useAggregatedData(aggregated);
+  const workers = useMemo(
+    () => (aggregated ? aggData.subaccounts.flatMap((s) => s.workers) : (allWorkers ?? [])),
+    [aggregated, aggData.subaccounts, allWorkers],
+  );
+
+  // The Account facet (aggregated mode only) offers the main account plus every
+  // subaccount; an empty selection keeps them all. These names must match the row tags
+  // from useAggregatedGeneratedBtc exactly, so both derive from the same shared list.
+  const { data: subs } = useSubaccountList();
+  const accountNames = useMemo(
+    () => (aggregated ? [MAIN_ACCOUNT_LABEL, ...(subs ?? []).map(subaccountName)] : undefined),
+    [aggregated, subs],
+  );
+
+  const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<GbtcFilterDraft>(EMPTY_GBTC_FILTER_DRAFT);
   const [page, setPage] = useState(1);
 
   const sorted = useMemo(() => sortGeneratedByDateDesc(entries), [entries]);
-  // Apply the date filter (preset cutoff or a custom range); the list is already
-  // newest-first. `now` is read at apply time, so no per-render churn.
-  const visible = useMemo(() => filterGeneratedBtc(sorted, gbtcDraftToFilter(filter, Date.now())), [sorted, filter]);
+  // Apply the date filter (preset cutoff or a custom range), the Account facet, and the
+  // search box; the list is already newest-first. `now` is read at apply time, so no
+  // per-render churn.
+  const visible = useMemo(() => {
+    const dateFiltered = filterGeneratedBtc(sorted, gbtcDraftToFilter(filter, Date.now()));
+    const accountFiltered = filterGeneratedBtcByAccount(dateFiltered, filter.accounts);
+    return searchGeneratedBtc(accountFiltered, query);
+  }, [sorted, filter, query]);
   const pageData = paginate(visible, page, PAGE_SIZE);
 
   const totals = useMemo(
@@ -67,6 +107,10 @@ export function GeneratedBtcPage() {
     [entries, workers],
   );
 
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    setPage(1);
+  };
   const applyFilter = (next: GbtcFilterDraft) => {
     setFilter(next);
     setPage(1);
@@ -78,15 +122,25 @@ export function GeneratedBtcPage() {
 
   const hasData = !isLoading && !isError && entries.length > 0;
   const filterActive = isGbtcDraftActive(filter);
+  const hasQuery = query.trim().length > 0;
   const tableEmpty =
-    visible.length > 0 || !filterActive
+    visible.length > 0
       ? undefined
-      : {
-          title: 'No generated BTC in this range',
-          hint: 'Adjust or clear the date filter.',
-          clearLabel: 'Clear filter',
-          onClear: resetFilter,
-        };
+      : filterActive
+        ? {
+            title: 'No generated BTC matches this filter',
+            hint: 'Adjust or clear your filters.',
+            clearLabel: 'Clear filters',
+            onClear: resetFilter,
+          }
+        : hasQuery
+          ? {
+              title: 'No generated BTC found',
+              hint: 'Try a different subaccount name or clear your search.',
+              clearLabel: 'Clear search',
+              onClear: () => changeQuery(''),
+            }
+          : undefined;
 
   return (
     <div className="space-y-6">
@@ -132,8 +186,15 @@ export function GeneratedBtcPage() {
             activeWorkers={totals.activeWorkers}
           />
           <div className="rounded-xl border border-border bg-card">
-            <GeneratedBtcToolbar filter={filter} onApplyFilter={applyFilter} onResetFilter={resetFilter} />
-            <GeneratedBtcTable entries={pageData.items} empty={tableEmpty} />
+            <GeneratedBtcToolbar
+              filter={filter}
+              onApplyFilter={applyFilter}
+              onResetFilter={resetFilter}
+              query={query}
+              onQuery={changeQuery}
+              accounts={accountNames}
+            />
+            <GeneratedBtcTable entries={pageData.items} empty={tableEmpty} showAccount={aggregated} />
             {visible.length > 0 && (
               <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
             )}

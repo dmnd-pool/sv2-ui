@@ -20,6 +20,8 @@ import {
   isWorkerFilterActive,
   applyWorkerFilter,
   filterWorkersByRange,
+  tagWorkersBySubaccount,
+  workerRowId,
 } from '@/lib/workersTable';
 
 const NOW = Date.parse('2026-06-22T12:00:00Z'); // ms, passed as the `now` argument
@@ -294,4 +296,80 @@ test('workersToCsv quotes a comma in the name and neutralizes formula injection'
   const lines = csv.split('\n');
   assert.ok(lines[1]?.startsWith('"rig, two",')); // comma in name forces quoting
   assert.equal(lines[2]?.split(',')[0], "'=SUM(A1:A9)"); // leading quote so Excel treats it as text
+});
+
+test('tagWorkersBySubaccount flattens groups in order, tagging each worker with its sub', () => {
+  const tagged = tagWorkersBySubaccount([
+    { sub: 'alpha', subaccountId: 'id-alpha', workers: [worker({ name: 'a1' }), worker({ name: 'a2' })] },
+    { sub: 'bravo', subaccountId: 'id-bravo', workers: [worker({ name: 'b1' })] },
+  ]);
+  assert.equal(tagged.length, 3);
+  assert.deepEqual(tagged.map((w) => w.name), ['a1', 'a2', 'b1']); // group order, then worker order within a group
+  assert.deepEqual(tagged.map((w) => w.subaccount), ['alpha', 'alpha', 'bravo']);
+});
+
+test('tagWorkersBySubaccount: an empty group contributes no rows', () => {
+  const tagged = tagWorkersBySubaccount([
+    { sub: 'alpha', subaccountId: 'id-alpha', workers: [worker({ name: 'a1' })] },
+    { sub: 'empty', subaccountId: 'id-empty', workers: [] },
+    { sub: 'bravo', subaccountId: 'id-bravo', workers: [worker({ name: 'b1' })] },
+  ]);
+  assert.equal(tagged.length, 2);
+  assert.deepEqual(tagged.map((w) => w.subaccount), ['alpha', 'bravo']);
+});
+
+test('tagWorkersBySubaccount keeps same-named workers from different subs, tagged separately', () => {
+  const tagged = tagWorkersBySubaccount([
+    { sub: 'alpha', subaccountId: 'id-alpha', workers: [worker({ name: 'dup' })] },
+    { sub: 'bravo', subaccountId: 'id-bravo', workers: [worker({ name: 'dup' })] },
+  ]);
+  assert.equal(tagged.length, 2); // not deduped
+  assert.deepEqual(tagged.map((w) => w.name), ['dup', 'dup']);
+  assert.deepEqual(tagged.map((w) => w.subaccount), ['alpha', 'bravo']);
+});
+
+test('workerRowId qualifies the name with its subaccount so namesakes stay distinct', () => {
+  const plain = { name: 'rig-1', hashrate: null, total_shares: null, rejected_shares: null, is_connected: true };
+  assert.equal(workerRowId(plain), 'rig-1');
+
+  const tagged = tagWorkersBySubaccount([
+    { sub: 'Main Farm', subaccountId: 'sub-1', workers: [plain] },
+    { sub: 'Client Alpha', subaccountId: 'sub-2', workers: [plain] },
+  ]);
+  const ids = tagged.map(workerRowId);
+  assert.deepEqual(ids, ['sub-1/rig-1', 'sub-2/rig-1']);
+  assert.equal(new Set(ids).size, 2);
+});
+
+test('workerRowId disambiguates by subaccount id, not by name, so two identically-named subaccounts stay distinct', () => {
+  const plain = { name: 'rig-1', hashrate: null, total_shares: null, rejected_shares: null, is_connected: true };
+  const tagged = tagWorkersBySubaccount([
+    { sub: 'Test Farm A', subaccountId: 'sub-1', workers: [plain] },
+    { sub: 'Test Farm A', subaccountId: 'sub-2', workers: [plain] },
+  ]);
+  const ids = tagged.map(workerRowId);
+  assert.equal(new Set(ids).size, 2);
+});
+
+test('applyWorkerFilter narrows by account, and an empty accounts list means all accounts', () => {
+  const rows = tagWorkersBySubaccount([
+    { sub: 'Main Farm', subaccountId: 'id-main-farm', workers: [{ name: 'a', hashrate: null, total_shares: null, rejected_shares: null, is_connected: true }] },
+    { sub: 'Client Alpha', subaccountId: 'id-client-alpha', workers: [{ name: 'b', hashrate: null, total_shares: null, rejected_shares: null, is_connected: true }] },
+    { sub: 'Warehouse 01', subaccountId: 'id-warehouse-01', workers: [{ name: 'c', hashrate: null, total_shares: null, rejected_shares: null, is_connected: true }] },
+  ]);
+  const at = Date.now();
+
+  // No accounts selected = no narrowing, consistent with the other multi-select facets.
+  assert.equal(applyWorkerFilter(rows, EMPTY_WORKER_FILTER, at).length, 3);
+
+  const onlyAlpha = applyWorkerFilter(rows, { ...EMPTY_WORKER_FILTER, accounts: ['Client Alpha'] }, at);
+  assert.deepEqual(onlyAlpha.map((w) => w.name), ['b']);
+
+  const two = applyWorkerFilter(rows, { ...EMPTY_WORKER_FILTER, accounts: ['Main Farm', 'Warehouse 01'] }, at);
+  assert.deepEqual(two.map((w) => w.name), ['a', 'c']);
+});
+
+test('isWorkerFilterActive counts a chosen account as an active facet', () => {
+  assert.equal(isWorkerFilterActive(EMPTY_WORKER_FILTER), false);
+  assert.equal(isWorkerFilterActive({ ...EMPTY_WORKER_FILTER, accounts: ['Main Farm'] }), true);
 });
