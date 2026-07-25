@@ -17,12 +17,12 @@ const CLOUD_POLL_MS = 5 * 60 * 1000;
  * and Active-workers stat cards come from the shared workers roster
  * (`useAccountAllWorkers`), not from this query.
  */
-export function useGeneratedBtc() {
+export function useGeneratedBtc(enabled = true) {
   const { session } = useAuth();
   return useQuery({
     queryKey: ['account', 'generated-btc'],
     queryFn: ({ signal }): Promise<GeneratedBtcEntry[]> => getDmndClient().getGeneratedBtc({ signal }),
-    enabled: !!session,
+    enabled: !!session && enabled,
     refetchInterval: CLOUD_POLL_MS,
     staleTime: CLOUD_POLL_MS,
     refetchOnWindowFocus: false,

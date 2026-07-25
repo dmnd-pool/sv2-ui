@@ -28,6 +28,18 @@ export function sumGenerated(entries: GeneratedBtcEntry[]): number {
   return entries.reduce((total, e) => total + (e.btc_generated || 0), 0);
 }
 
+/**
+ * The BTC generated on the UTC day containing `nowMs`, which is the account-level
+ * counterpart of a subaccount's `summary.today_generated_btc`. Entries are keyed by a
+ * `YYYY-MM-DD` UTC day, so the comparison is made on that same UTC day rather than the
+ * viewer's local one. Returns 0 when today has no entry yet.
+ */
+export function todayGeneratedBtc(entries: GeneratedBtcEntry[], nowMs: number): number {
+  const today = new Date(nowMs).toISOString().slice(0, 10);
+  const entry = entries.find((e) => e.entry_day === today);
+  return entry?.btc_generated ?? 0;
+}
+
 /** Mean hashrate over connected workers that report a reading; 0 when none qualify. */
 export function averageWorkerHashrate(workers: Worker[]): number {
   const readings = workers.filter((w) => w.is_connected && w.hashrate != null).map((w) => w.hashrate as number);
@@ -81,8 +93,13 @@ export function filterGeneratedBtc(entries: GeneratedBtcEntry[], filter: Generat
   });
 }
 
-/** BTC for display: clamps to 8 dp and trims float noise + trailing zeros. */
-export function formatBtc(n: number): string {
+/**
+ * BTC for display: clamps to 8 dp and trims float noise + trailing zeros. A missing
+ * amount reads as "--", not "0" — the API returns null for a day it has no figure for,
+ * and on a money page an unknown amount must never be shown as a confident zero.
+ */
+export function formatBtc(n: number | null | undefined): string {
+  if (n == null) return '--';
   return Number(n.toFixed(8)).toString();
 }
 
@@ -95,9 +112,14 @@ function csvCell(value: string): string {
   return /[",\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
+/** A numeric export cell; a missing value is an empty cell, never the text "null". */
+function numCell(value: number | null | undefined): string {
+  return value == null ? '' : String(value);
+}
+
 /** CSV with the production schema `entry_day,hashrate,btc_generated`; raw values, cells guarded. */
 export function generatedBtcToCsv(entries: GeneratedBtcEntry[]): string {
-  const rows = entries.map((e) => [e.entry_day, String(e.hashrate), String(e.btc_generated)].map(csvCell));
+  const rows = entries.map((e) => [e.entry_day, numCell(e.hashrate), numCell(e.btc_generated)].map(csvCell));
   return [CSV_HEADER, ...rows.map((r) => r.join(','))].join('\n');
 }
 

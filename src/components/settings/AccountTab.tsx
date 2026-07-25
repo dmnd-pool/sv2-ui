@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LiCopy, LiCheckCircle, LiClockCircle } from 'solar-icon-react/li';
 import { useAccountProfile, userBitcoinAddresses } from '@/hooks/useAccountData';
+import { useAccountScope } from '@/hooks/useAccountScope';
 import { truncateMiddle } from '@/lib/payoutsTable';
 import { ChangeBitcoinAddressModal } from './ChangeBitcoinAddressModal';
 
@@ -56,6 +57,10 @@ export function AccountTab() {
   const { data: profile, isLoading, isError } = useAccountProfile();
   const queryClient = useQueryClient();
   const [changing, setChanging] = useState(false);
+  // The payout address of a subaccount is the master's to set; the pool reports this as
+  // `edit_btc_address: false` on the subaccount's own permissions, so the control stays
+  // visible (it is part of the design) but cannot be used.
+  const { canEditBitcoinAddress } = useAccountScope();
 
   const addresses = profile ? [...userBitcoinAddresses(profile)] : [];
 
@@ -97,7 +102,8 @@ export function AccountTab() {
           <button
             type="button"
             onClick={() => setChanging(true)}
-            className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+            disabled={!canEditBitcoinAddress}
+            className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Add address
           </button>
@@ -115,7 +121,8 @@ export function AccountTab() {
             <button
               type="button"
               onClick={() => setChanging(true)}
-              className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              disabled={!canEditBitcoinAddress}
+              className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
             >
               Change
             </button>

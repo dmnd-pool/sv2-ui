@@ -11,14 +11,15 @@ export interface AggregatedStats {
 }
 
 /**
- * Roll per-subaccount figures into one account-wide set of stat-card numbers.
+ * Roll every account (the main account and each subaccount) into one account-wide set
+ * of stat-card numbers.
  * The combined rejection rate is recomputed from the summed raw accepted/rejected
  * counts rather than by averaging each sub's rate, so subaccounts with very
  * different share volumes are weighted correctly. The rate is null when there are
  * no shares at all (a 0/0 denominator), and an empty list yields all zeros with a
  * null rate.
  */
-export function sumSubaccountStats(subs: EnrichedSubaccount[]): AggregatedStats {
+export function sumAccountStats(subs: EnrichedSubaccount[]): AggregatedStats {
   let activeWorkers = 0;
   let offlineWorkers = 0;
   let offline24h = 0;

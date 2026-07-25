@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { LiLockPassword, LiShieldCheck, LiShieldKeyhole } from 'solar-icon-react/li';
 import { useAuth } from '@/auth';
 import { useAccountProfile } from '@/hooks/useAccountData';
+import { useAccountScope } from '@/hooks/useAccountScope';
 import { Enable2faModal } from './Enable2faModal';
 import { Manage2faModal } from './Manage2faModal';
 
@@ -32,6 +33,9 @@ export function SecurityTab() {
   const { data: profile, isLoading } = useAccountProfile();
   const [enabling, setEnabling] = useState(false);
   const [managing, setManaging] = useState(false);
+  // Two-factor protects the master login that owns every subaccount, so it is managed
+  // from the master only; a drilled-in subaccount sees the control but cannot use it.
+  const { viewingSubaccount } = useAccountScope();
 
   const twoFaEnabled = !!profile && profile.two_factor_secret == null;
   const refreshProfile = () => void queryClient.invalidateQueries({ queryKey: ['account', 'profile'] });
@@ -88,7 +92,8 @@ export function SecurityTab() {
             <button
               type="button"
               onClick={() => setManaging(true)}
-              className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              disabled={viewingSubaccount}
+              className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
             >
               Manage
             </button>
@@ -102,7 +107,8 @@ export function SecurityTab() {
             <button
               type="button"
               onClick={() => setEnabling(true)}
-              className="shrink-0 rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              disabled={viewingSubaccount}
+              className="shrink-0 rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Enable
             </button>

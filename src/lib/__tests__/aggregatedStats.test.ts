@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { EnrichedSubaccount } from '@/lib/subaccountsTable';
-import { sumSubaccountStats, donutSlices } from '@/lib/aggregatedStats';
+import { sumAccountStats, donutSlices } from '@/lib/aggregatedStats';
 
 function sub(over: Partial<EnrichedSubaccount> = {}): EnrichedSubaccount {
   return {
@@ -20,13 +20,13 @@ function sub(over: Partial<EnrichedSubaccount> = {}): EnrichedSubaccount {
   };
 }
 
-test('sumSubaccountStats sums workers/hashrate/earnings and combines rejection from raw shares', () => {
+test('sumAccountStats sums workers/hashrate/earnings and combines rejection from raw shares', () => {
   const subs = [
     sub({ id: 'a', active: 3, offline: 1, offline24h: 1, hashrate: 10, todayEarnings: 0.5, accepted: 1000, rejected: 10 }),
     sub({ id: 'b', active: 2, offline: 0, offline24h: 0, hashrate: 20, todayEarnings: 0.25, accepted: 500, rejected: 5 }),
     sub({ id: 'c', active: 0, offline: 2, offline24h: 2, hashrate: 5, todayEarnings: 0.125, accepted: 2000, rejected: 40 }),
   ];
-  const agg = sumSubaccountStats(subs);
+  const agg = sumAccountStats(subs);
   assert.equal(agg.totalWorkers, 8); // (3+1)+(2+0)+(0+2)
   assert.equal(agg.activeWorkers, 5);
   assert.equal(agg.offlineWorkers, 3);
@@ -38,8 +38,8 @@ test('sumSubaccountStats sums workers/hashrate/earnings and combines rejection f
   assert.ok(agg.rejectionRate !== null && Math.abs(agg.rejectionRate - expected) < 1e-9);
 });
 
-test('sumSubaccountStats on an empty list is all zeros with a null rate', () => {
-  const agg = sumSubaccountStats([]);
+test('sumAccountStats on an empty list is all zeros with a null rate', () => {
+  const agg = sumAccountStats([]);
   assert.equal(agg.totalWorkers, 0);
   assert.equal(agg.activeWorkers, 0);
   assert.equal(agg.offlineWorkers, 0);
@@ -49,12 +49,12 @@ test('sumSubaccountStats on an empty list is all zeros with a null rate', () => 
   assert.equal(agg.rejectionRate, null);
 });
 
-test('sumSubaccountStats returns a null rate when no sub has any shares', () => {
+test('sumAccountStats returns a null rate when no sub has any shares', () => {
   const subs = [
     sub({ id: 'a', active: 2, hashrate: 10, accepted: 0, rejected: 0 }),
     sub({ id: 'b', active: 1, hashrate: 5, accepted: 0, rejected: 0 }),
   ];
-  const agg = sumSubaccountStats(subs);
+  const agg = sumAccountStats(subs);
   assert.equal(agg.rejectionRate, null); // null, not 0 and not NaN, from a 0/0 denominator
   assert.equal(agg.totalWorkers, 3);
 });

@@ -42,6 +42,19 @@ export const SETTINGS_ITEM: NavItem = {
   href: '/account',
 };
 
+/**
+ * Routes a subaccount has no access to. A subaccount owns no subaccounts of its own
+ * (`/api/user/permissions` returns `view_sub_accounts: false` for one), so the route is
+ * both hidden from its sidebar and redirected away from when an account switch lands on
+ * it. Kept here so the nav filter and the switch redirect can never disagree.
+ */
+export const SUBACCOUNT_RESTRICTED_ROUTES = ['/subaccounts'];
+
+/** Whether the given route is off-limits while viewing a subaccount. */
+export function isSubaccountRestrictedRoute(path: string): boolean {
+  return SUBACCOUNT_RESTRICTED_ROUTES.includes(path);
+}
+
 const ALL_ITEMS = [...NAV_GROUPS.flatMap((group) => group.items), SETTINGS_ITEM];
 
 // Routes reachable outside the sidebar (top-bar actions) still need a title.

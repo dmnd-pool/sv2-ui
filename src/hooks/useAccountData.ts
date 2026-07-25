@@ -3,6 +3,8 @@ import { getDmndClient } from '@/api';
 import { useAuth } from '@/auth';
 import type { DmndSession, HashrateRange } from '@/api/types';
 import { downsampleHashrate, rangeToWindow } from '@/lib/hashrateHistory';
+import { subaccountSeriesToPoints, sumHashrateSeries } from '@/lib/aggregatedHashrate';
+import { useSubaccountList } from './useSubaccounts';
 import { fetchConfirmedTxsSince, startOfUtcDaySec, sumOutputsTo } from '@/lib/blockstream';
 
 // The DMND API server data refreshes every 5 minutes (spec cadence), unlike the
@@ -90,6 +92,66 @@ export function useAccountWorkers(from: string, to: string) {
 }
 
 /** The full worker roster (every page) for the home's Active / Offline counts. */
+/**
+ * The combined hashrate series across the main account and every subaccount, for the
+ * chart in aggregated mode. Each account is fetched over the same window and the
+ * readings sharing a timestamp are added; the per-subaccount endpoint reports each
+ * figure with a unit while the account-level one returns bare H/s, so subaccount points
+ * are normalised before being summed. A failed account rejects the query so the chart
+ * shows its error state rather than a line that silently omits an account's hashrate.
+ */
+export function useAggregatedHashrateHistory(
+  range: HashrateRange,
+  custom?: { from: string; to: string } | null,
+  enabled = true,
+) {
+  const { session } = useAuth();
+  const { data: subs } = useSubaccountList();
+  const key = custom ? `custom:${custom.from}:${custom.to}` : range;
+  return useQuery({
+    queryKey: ['account', 'hashrate-history', 'aggregated', key],
+    queryFn: async ({ signal }) => {
+      const client = getDmndClient();
+      const owners = subs ?? [];
+      const window = custom ?? rangeToWindow(range, Date.now());
+      const [mainPoints, subSeries] = await Promise.all([
+        client.getHashrateHistory(window.from, window.to, { signal }),
+        Promise.all(
+          owners.map((s) =>
+            client
+              .getSubaccountHashrateHistory(s.id, s.token, window.from, window.to, { signal })
+              .then(subaccountSeriesToPoints),
+          ),
+        ),
+      ]);
+      return downsampleHashrate(sumHashrateSeries([mainPoints, ...subSeries]), MAX_CHART_POINTS);
+    },
+    enabled: !!session && enabled && subs !== undefined,
+    refetchInterval: custom ? false : CLOUD_POLL_MS,
+    staleTime: CLOUD_POLL_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+/**
+ * The account's own 24h share counts. Only fetched for the aggregated roll-up, which
+ * needs the main account's accepted/rejected on the same basis as each subaccount's
+ * `summary.share_stats` so the combined rejection rate covers one consistent window.
+ */
+export function useAccountShareStats(enabled = true) {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ['account', 'share-stats'],
+    queryFn: ({ signal }) => getDmndClient().getShareStats({ signal }),
+    enabled: !!session && enabled,
+    refetchInterval: CLOUD_POLL_MS,
+    staleTime: CLOUD_POLL_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
 export function useAccountAllWorkers() {
   const { session } = useAuth();
   return useQuery({

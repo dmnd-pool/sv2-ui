@@ -57,8 +57,10 @@ export function WorkersPage() {
   const agg = useAggregatedData(aggregated);
   const workers = useMemo(() => {
     if (!aggregated) return data ?? [];
-    return tagWorkersBySubaccount(agg.subaccounts.map((s) => ({ sub: s.name, subaccountId: s.id, workers: s.workers })));
-  }, [aggregated, data, agg.subaccounts]);
+    // Every account, main included: its own workers are part of the combined roster,
+    // not a separate thing shown elsewhere.
+    return tagWorkersBySubaccount(agg.accounts.map((a) => ({ sub: a.name, subaccountId: a.id, workers: a.workers })));
+  }, [aggregated, data, agg.accounts]);
 
   const [tab, setTab] = useState<WorkersTab>('all');
   const [query, setQuery] = useState('');
@@ -238,7 +240,7 @@ export function WorkersPage() {
               filter={filter}
               onApplyFilter={applyFilter}
               onResetFilter={resetFilter}
-              accounts={aggregated ? agg.subaccounts.map((s) => s.name) : undefined}
+              accounts={aggregated ? agg.accounts.map((a) => a.name) : undefined}
             />
             {sorted.length === 0 ? (
               // Workers exist but the active search or filter matches none. Show the

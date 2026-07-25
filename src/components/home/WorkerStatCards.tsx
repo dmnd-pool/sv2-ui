@@ -112,8 +112,8 @@ export function WorkerStatCards({ aggregated }: { aggregated?: AggregatedStats }
         caption={
           aggregated
             ? todayEarnings !== undefined && todayEarnings > 0
-              ? 'Generated today across subaccounts.'
-              : 'Earnings generated today across subaccounts will appear here.'
+              ? 'Generated today across all accounts.'
+              : 'Earnings generated today across all accounts will appear here.'
             : todayEarnings !== undefined && todayEarnings > 0
               ? 'Paid out on-chain today.'
               : 'Earnings paid out on-chain today will appear here.'

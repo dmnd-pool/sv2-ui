@@ -70,8 +70,8 @@ export function GeneratedBtcPage() {
   const { data: allWorkers } = useAccountAllWorkers();
   const aggData = useAggregatedData(aggregated);
   const workers = useMemo(
-    () => (aggregated ? aggData.subaccounts.flatMap((s) => s.workers) : (allWorkers ?? [])),
-    [aggregated, aggData.subaccounts, allWorkers],
+    () => (aggregated ? aggData.accounts.flatMap((a) => a.workers) : (allWorkers ?? [])),
+    [aggregated, aggData.accounts, allWorkers],
   );
 
   // The Account facet (aggregated mode only) offers the main account plus every

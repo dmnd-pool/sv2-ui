@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { useAuth } from '@/auth';
 import { useAggregatedMode } from './useAggregatedMode';
+import { useHasSubaccounts } from './useSubaccounts';
 
 interface AggregatedModeValue {
   aggregated: boolean;
@@ -24,13 +25,28 @@ const AggregatedModeContext = createContext<AggregatedModeValue | null>(null);
  * so `getSubaccounts()` under a subaccount session returns an empty list (verified
  * live) and every aggregated-mode consumer would render as if the account had none --
  * including the account switcher itself, which would then have no way back to main.
+ *
+ * There is nothing to aggregate without subaccounts either, and because the banner that
+ * carries the only exit control is itself shown only when subaccounts exist, a stored
+ * `true` on an account with none would leave the mode on with no way to turn it off.
+ * That combination is cleared at the source below rather than merely hidden, so the
+ * stored preference can never strand the dashboard in a mode it cannot leave.
  */
 export function AggregatedModeProvider({ children }: { children: ReactNode }) {
   const { viewingAccountId } = useAuth();
   const { aggregated, setAggregated } = useAggregatedMode();
+  const { hasSubaccounts, isLoading: subaccountsLoading } = useHasSubaccounts();
+
+  // Only act once the list has actually loaded: mid-load the count reads as zero, and
+  // clearing on that would wipe a legitimate preference on every refresh.
+  const noSubaccounts = !subaccountsLoading && !hasSubaccounts;
+  useEffect(() => {
+    if (aggregated && noSubaccounts) setAggregated(false);
+  }, [aggregated, noSubaccounts, setAggregated]);
+
   const value = useMemo(
-    () => ({ aggregated: aggregated && viewingAccountId === null, setAggregated }),
-    [aggregated, viewingAccountId, setAggregated],
+    () => ({ aggregated: aggregated && viewingAccountId === null && !noSubaccounts, setAggregated }),
+    [aggregated, viewingAccountId, noSubaccounts, setAggregated],
   );
   return <AggregatedModeContext.Provider value={value}>{children}</AggregatedModeContext.Provider>;
 }

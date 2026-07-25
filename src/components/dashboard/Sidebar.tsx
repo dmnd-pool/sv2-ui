@@ -6,7 +6,8 @@ import { DmndLogo } from '@/components/auth/Logo';
 import { Switch } from '@/components/ui/switch';
 import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useHasSubaccounts } from '@/hooks/useSubaccounts';
-import { NAV_GROUPS, SETTINGS_ITEM, type NavItem } from './nav';
+import { useAccountScope } from '@/hooks/useAccountScope';
+import { NAV_GROUPS, SETTINGS_ITEM, isSubaccountRestrictedRoute, type NavItem } from './nav';
 import { AccountSwitcher } from './AccountSwitcher';
 import { accountInitials } from './accountInitials';
 
@@ -64,6 +65,9 @@ export function Sidebar({
   // Aggregating only makes sense while viewing the main account; a subaccount has no
   // subaccounts of its own to combine.
   const showToggle = hasSubaccounts && viewingAccountId === null;
+  // A subaccount cannot reach the subaccounts page, so its nav entry is dropped rather
+  // than left to lead somewhere it has no permission for.
+  const { canViewSubaccounts } = useAccountScope();
 
   return (
     <div
@@ -125,26 +129,33 @@ export function Sidebar({
       )}
 
       <nav className="flex-1 overflow-y-auto px-3 pb-2">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="mb-5">
-            {!collapsed && (
-              <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-placeholder">
-                {group.label}
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <NavRow
-                  key={item.href}
-                  item={item}
-                  active={location === item.href}
-                  collapsed={collapsed}
-                  onNavigate={onNavigate}
-                />
-              ))}
+        {NAV_GROUPS.map((group) => {
+          const items = canViewSubaccounts
+            ? group.items
+            : group.items.filter((item) => !isSubaccountRestrictedRoute(item.href));
+          // A group whose every entry is restricted would otherwise leave a bare heading.
+          if (items.length === 0) return null;
+          return (
+            <div key={group.label} className="mb-5">
+              {!collapsed && (
+                <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-placeholder">
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {items.map((item) => (
+                  <NavRow
+                    key={item.href}
+                    item={item}
+                    active={location === item.href}
+                    collapsed={collapsed}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="space-y-0.5 border-t border-border px-3 py-3">

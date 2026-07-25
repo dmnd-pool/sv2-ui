@@ -15,6 +15,19 @@ function InfoHint({ label }: { label: string }) {
   return <LiInfoCircle className="ml-1 inline h-3.5 w-3.5 align-middle text-placeholder" aria-label={label} />;
 }
 
+/**
+ * A day's generated amount. A known amount carries the BTC unit; an amount the API
+ * did not report reads as a bare "--", since "-- BTC" would imply a measured zero.
+ */
+function BtcAmount({ amount, unitClass }: { amount: number | null | undefined; unitClass: string }) {
+  if (amount == null) return <>--</>;
+  return (
+    <>
+      {formatBtc(amount)} <span className={unitClass}>BTC</span>
+    </>
+  );
+}
+
 /** The empty-state block, shared by the desktop table body and the mobile card list. */
 function EmptyRow({ empty }: { empty: GeneratedBtcEmpty }) {
   return (
@@ -59,7 +72,7 @@ function GeneratedBtcCard({ entry, showAccount }: { entry: GeneratedBtcEntry; sh
       <div className="flex flex-col">
         <p className="text-xs text-body-alt">Generated BTC</p>
         <p className="font-mono text-sm text-foreground">
-          {formatBtc(entry.btc_generated)} <span className="text-xs text-body-alt">BTC</span>
+          <BtcAmount amount={entry.btc_generated} unitClass="text-xs text-body-alt" />
         </p>
       </div>
     </div>
@@ -113,7 +126,7 @@ export function GeneratedBtcTable({
                 {showAccount && <td className="px-6 py-3.5 text-body-alt">{e.account ?? '--'}</td>}
                 <td className="px-6 py-3.5 font-mono text-foreground">{formatHashrate(e.hashrate)}</td>
                 <td className="px-6 py-3.5 font-mono text-foreground">
-                  {formatBtc(e.btc_generated)} <span className="text-body-alt">BTC</span>
+                  <BtcAmount amount={e.btc_generated} unitClass="text-body-alt" />
                 </td>
               </tr>
             ))}

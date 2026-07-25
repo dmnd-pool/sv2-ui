@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'wouter';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { getDmndClient } from '@/api';
 import { useAuth } from '@/auth';
+import { isSubaccountRestrictedRoute } from '@/components/dashboard/nav';
 import { useAccountProfile } from './useAccountData';
 
 // The subaccount list belongs to the master account, not to whichever account is
@@ -31,8 +33,16 @@ export function useAccountSwitcher() {
   // tracks the account id and expiry).
   const { data: profile } = useAccountProfile();
   const queryClient = useQueryClient();
+  const [location, navigate] = useLocation();
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The page being viewed belongs to the account that was active when it opened, so a
+  // switch that lands on a page the new scope cannot use returns to the dashboard home
+  // instead of leaving a permission-denied screen on screen.
+  const leaveRestrictedRoute = useCallback(() => {
+    if (isSubaccountRestrictedRoute(location)) navigate('/home');
+  }, [location, navigate]);
 
   // Remember the master account's token while it is the one on screen. Switching
   // re-reads the profile as the subaccount, so without this the next switch would
@@ -60,6 +70,9 @@ export function useAccountSwitcher() {
         await getDmndClient().logSubaccount(ownerToken, subaccount.token);
         setViewingAccount(subaccount.id);
         queryClient.removeQueries({ predicate: (q) => !isSubaccountListKey(q.queryKey) });
+        // Only ever narrows access, so this is the direction that can strand the miner
+        // on a page the subaccount is not allowed to open.
+        leaveRestrictedRoute();
       } catch {
         // Stay on the current account rather than showing an empty or mismatched
         // dashboard when the subaccount session could not be issued.
@@ -68,7 +81,7 @@ export function useAccountSwitcher() {
         setSwitching(false);
       }
     },
-    [session, switching, setViewingAccount, queryClient],
+    [session, switching, setViewingAccount, queryClient, leaveRestrictedRoute],
   );
 
   const switchToMain = useCallback(() => {

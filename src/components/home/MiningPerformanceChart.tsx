@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { LiGraphUp } from 'solar-icon-react/li';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useAccountHashrateHistory } from '@/hooks/useAccountData';
+import { useAccountHashrateHistory, useAggregatedHashrateHistory } from '@/hooks/useAccountData';
+import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { cn, formatHashrate } from '@/lib/utils';
 import type { HashratePoint, HashrateRange } from '@/api/types';
 import { Calendar } from '@/components/payouts/Calendar';
@@ -35,7 +36,13 @@ export function MiningPerformanceChart() {
   const customWindow = custom
     ? { from: new Date(custom.startSec * 1000).toISOString(), to: new Date(custom.endSec * 1000).toISOString() }
     : null;
-  const { data, isLoading } = useAccountHashrateHistory(range, customWindow);
+  // In aggregated mode the line is every account's hashrate combined, so the chart reads
+  // from the aggregated series; the two queries are cached separately so toggling never
+  // shows one account's history under the combined heading.
+  const { aggregated } = useAggregatedModeContext();
+  const single = useAccountHashrateHistory(range, customWindow);
+  const combined = useAggregatedHashrateHistory(range, customWindow, aggregated);
+  const { data, isLoading } = aggregated ? combined : single;
   const points: HashratePoint[] = data ?? [];
   const isCustom = custom !== null;
 

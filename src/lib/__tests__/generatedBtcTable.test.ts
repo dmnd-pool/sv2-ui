@@ -14,6 +14,7 @@ import {
   isGeneratedBtcFilterActive,
   EMPTY_GENERATED_BTC_FILTER,
   formatBtc,
+  todayGeneratedBtc,
   generatedBtcToCsv,
   dedupeGeneratedBtc,
   filterGeneratedBtcByAccount,
@@ -106,6 +107,26 @@ test('isGeneratedBtcFilterActive is true only when a bound is set', () => {
   assert.equal(isGeneratedBtcFilterActive(EMPTY_GENERATED_BTC_FILTER), false);
   assert.equal(isGeneratedBtcFilterActive({ sinceMs: 1, untilMs: null }), true);
   assert.equal(isGeneratedBtcFilterActive({ sinceMs: null, untilMs: 1 }), true);
+});
+
+test('todayGeneratedBtc picks the entry for the current UTC day', () => {
+  const now = Date.parse('2026-07-24T09:30:00Z');
+  const entries = [entry({ entry_day: '2026-07-24', btc_generated: 0.5 }), entry({ entry_day: '2026-07-23', btc_generated: 0.25 })];
+  assert.equal(todayGeneratedBtc(entries, now), 0.5);
+  // Late in the UTC day the answer must not slide onto the neighbouring day.
+  assert.equal(todayGeneratedBtc(entries, Date.parse('2026-07-24T23:59:59Z')), 0.5);
+  // No entry for today yet, and a null amount, both read as nothing generated.
+  assert.equal(todayGeneratedBtc([entry({ entry_day: '2026-07-20', btc_generated: 9 })], now), 0);
+  assert.equal(todayGeneratedBtc([entry({ entry_day: '2026-07-24', btc_generated: null })], now), 0);
+});
+
+test('formatBtc renders a missing amount as "--" rather than crashing or implying zero', () => {
+  // The API can return a null amount on a real row; a money figure that is unknown
+  // must read as unknown, never as a confident 0 (and must never throw).
+  assert.equal(formatBtc(null), '--');
+  assert.equal(formatBtc(undefined), '--');
+  // A genuine zero is still a real, known value.
+  assert.equal(formatBtc(0), '0');
 });
 
 test('formatBtc trims float noise and trailing zeros', () => {

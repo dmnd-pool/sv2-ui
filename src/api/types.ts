@@ -88,6 +88,25 @@ export interface HashratePoint {
   account_id?: number;
 }
 
+/** A hashrate figure as the per-subaccount endpoints report it: a value plus its unit. */
+export interface HashrateMeasure {
+  value: number;
+  unit: string;
+}
+
+/**
+ * One point of a subaccount's historical series. The account-level endpoint returns
+ * bare numbers in H/s; this one wraps each figure with its unit (observed live as
+ * "TH/s"), so the two are only comparable once normalised to H/s.
+ */
+export interface SubaccountHashratePoint {
+  observed_at: string;
+  pplns_hashrate: HashrateMeasure | null;
+  fpps_hashrate: HashrateMeasure | null;
+  total_hashrate: HashrateMeasure | null;
+  account_id?: number;
+}
+
 /**
  * A single worker row (GET /api/workers and /api/workers/all). Per the spec the
  * numeric fields are nullable and `connected_at` is a unix timestamp.
@@ -124,8 +143,10 @@ export interface PayoutAddresses {
  */
 export interface GeneratedBtcEntry {
   entry_day: string;
-  hashrate: number;
-  btc_generated: number;
+  // Both figures are nullable on real rows: the API reports null for a day it has no
+  // reading for, so display and export must treat "missing" as unknown, not as zero.
+  hashrate: number | null;
+  btc_generated: number | null;
   // Which account this day's entry belongs to, set only in aggregated mode where rows
   // span the main account and every subaccount.
   account?: string;
@@ -258,6 +279,20 @@ export interface DmndClient {
    * downsample before charting; a non-array response still collapses to [].
    */
   getHashrateHistory(from: string, to: string, req?: RequestOptions): Promise<HashratePoint[]>;
+  /** The account's own 24h accepted/rejected counts (GET /api/user/share_stats). */
+  getShareStats(req?: RequestOptions): Promise<SubaccountShareStats | null>;
+  /**
+   * A subaccount's historical hashrate. Returns the same points as the account-level
+   * series but with each figure nested as `{value, unit}` rather than a bare number,
+   * so callers must normalise before combining the two.
+   */
+  getSubaccountHashrateHistory(
+    id: string,
+    token: string,
+    from: string,
+    to: string,
+    req?: RequestOptions,
+  ): Promise<SubaccountHashratePoint[]>;
   /** One page of workers for a date range (GET /api/workers); used by the workers page. */
   getWorkers(from: string, to: string, req?: RequestOptions): Promise<WorkersResponse>;
   /** The full worker roster (GET /api/workers/all, following every page); home counts. */
