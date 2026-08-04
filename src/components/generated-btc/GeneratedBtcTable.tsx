@@ -1,7 +1,9 @@
-import { LiInfoCircle } from 'solar-icon-react/li';
+import type { ReactNode } from 'react';
 import type { GeneratedBtcEntry } from '@/api/types';
+import { CellCheckbox } from '@/components/ui/CellCheckbox';
+import { InfoHint } from '@/components/ui/InfoHint';
 import { formatHashrate } from '@/lib/utils';
-import { formatGeneratedDate, formatBtc } from '@/lib/generatedBtcTable';
+import { formatGeneratedDate, formatBtc, generatedBtcRowId } from '@/lib/generatedBtcTable';
 
 /** The empty message shown in the table body when the date filter excludes every row. */
 export interface GeneratedBtcEmpty {
@@ -9,10 +11,6 @@ export interface GeneratedBtcEmpty {
   hint: string;
   clearLabel: string;
   onClear: () => void;
-}
-
-function InfoHint({ label }: { label: string }) {
-  return <LiInfoCircle className="ml-1 inline h-3.5 w-3.5 align-middle text-placeholder" aria-label={label} />;
 }
 
 /**
@@ -50,30 +48,27 @@ function EmptyRow({ empty }: { empty: GeneratedBtcEmpty }) {
  * line, Generated BTC below. Mode and Estimated payout are drawn on this frame too but
  * stay omitted here, same as the desktop table (both unbacked by the API).
  */
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col justify-center">
+      <p className="truncate text-xs leading-4 text-body-alt">{label}</p>
+      <p className="truncate text-sm leading-5 text-foreground">{children}</p>
+    </div>
+  );
+}
+
 function GeneratedBtcCard({ entry, showAccount }: { entry: GeneratedBtcEntry; showAccount: boolean }) {
   return (
-    <div className="flex flex-col border-b border-border px-3 py-2 last:border-0">
-      <div className="flex items-center gap-6">
-        <div className="flex flex-1 flex-col">
-          <p className="text-xs text-body-alt">Date</p>
-          <p className="text-sm text-foreground">{formatGeneratedDate(entry.entry_day)}</p>
-        </div>
-        {showAccount && (
-          <div className="flex flex-1 flex-col">
-            <p className="text-xs text-body-alt">Account</p>
-            <p className="text-sm text-foreground">{entry.account ?? '--'}</p>
-          </div>
-        )}
-        <div className="flex flex-1 flex-col">
-          <p className="text-xs text-body-alt">Avg. hashrate</p>
-          <p className="text-sm font-mono text-foreground">{formatHashrate(entry.hashrate)}</p>
-        </div>
+    <div className="flex flex-col border-x-[0.5px] border-b-[0.5px] border-border px-3 py-2">
+      <div className="flex min-h-[47px] items-center gap-6">
+        <Field label="Date">{formatGeneratedDate(entry.entry_day)}</Field>
+        {showAccount && <Field label="Account">{entry.account ?? '--'}</Field>}
+        <Field label="Avg. hashrate">{formatHashrate(entry.hashrate)}</Field>
       </div>
-      <div className="flex flex-col">
-        <p className="text-xs text-body-alt">Generated BTC</p>
-        <p className="font-mono text-sm text-foreground">
-          <BtcAmount amount={entry.btc_generated} unitClass="text-xs text-body-alt" />
-        </p>
+      <div className="flex min-h-[47px] items-center gap-6">
+        <Field label="Generated BTC">
+          <BtcAmount amount={entry.btc_generated} unitClass="text-xs leading-4 text-body-alt" />
+        </Field>
       </div>
     </div>
   );
@@ -88,45 +83,83 @@ export function GeneratedBtcTable({
   entries,
   empty,
   showAccount = false,
+  selected,
+  allSelected = false,
+  someSelected = false,
+  onToggleAll,
+  onToggleOne,
 }: {
   entries: GeneratedBtcEntry[];
   empty?: GeneratedBtcEmpty;
   /** Aggregated mode adds the owning account, since rows then span accounts. */
   showAccount?: boolean;
+  /**
+   * Row selection, which scopes the CSV export. Omitted by the read-only watcher view,
+   * which has no export and so must not show a control that does nothing.
+   */
+  selected?: Set<string>;
+  allSelected?: boolean;
+  someSelected?: boolean;
+  onToggleAll?: () => void;
+  onToggleOne?: (id: string) => void;
 }) {
+  const selectable = onToggleAll !== undefined && onToggleOne !== undefined;
   return (
     <>
       <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
-            <tr className="border-y border-border text-xs text-body-alt">
-              <th className="px-6 py-3.5 text-left font-medium">Date</th>
-              {showAccount && <th className="px-6 py-3.5 text-left font-medium">Account</th>}
-              <th className="px-6 py-3.5 text-left font-medium">
-                Average hashrate
-                <InfoHint label="The worker's average hashrate" />
+            <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
+              {selectable && (
+                <th className="w-14 px-0 py-4">
+                  <CellCheckbox
+                    checked={allSelected}
+                    indeterminate={someSelected && !allSelected}
+                    onChange={onToggleAll}
+                    label="Select all days"
+                  />
+                </th>
+              )}
+              <th className="px-6 py-4 text-left font-normal">Date</th>
+              {showAccount && <th className="px-6 py-4 text-left font-normal">Account</th>}
+              <th className="px-6 py-4 text-left font-normal">
+                <span className="inline-flex items-center gap-2">
+                  Average hashrate
+                  <InfoHint text="The worker's average hashrate" />
+                </span>
               </th>
-              <th className="px-6 py-3.5 text-left font-medium">
-                Generated BTC
-                <InfoHint label="The estimated amount of Bitcoin generated from accepted shares before payout adjustments." />
+              <th className="px-6 py-4 text-left font-normal">
+                <span className="inline-flex items-center gap-2">
+                  Generated BTC
+                  <InfoHint text="The estimated amount of Bitcoin generated from accepted shares before payout adjustments." />
+                </span>
               </th>
             </tr>
           </thead>
           <tbody>
             {entries.length === 0 && empty && (
               <tr>
-                <td colSpan={showAccount ? 4 : 3}>
+                <td colSpan={(showAccount ? 4 : 3) + (selectable ? 1 : 0)}>
                   <EmptyRow empty={empty} />
                 </td>
               </tr>
             )}
             {entries.map((e) => (
-              <tr key={`${e.entry_day}-${e.account ?? ''}`} className="border-b border-border last:border-0">
-                <td className="px-6 py-3.5 text-foreground">{formatGeneratedDate(e.entry_day)}</td>
-                {showAccount && <td className="px-6 py-3.5 text-body-alt">{e.account ?? '--'}</td>}
-                <td className="px-6 py-3.5 font-mono text-foreground">{formatHashrate(e.hashrate)}</td>
-                <td className="px-6 py-3.5 font-mono text-foreground">
-                  <BtcAmount amount={e.btc_generated} unitClass="text-body-alt" />
+              <tr key={generatedBtcRowId(e)} className="border-b-[0.5px] border-border last:border-0">
+                {selectable && (
+                  <td className="w-14 px-0 py-4">
+                    <CellCheckbox
+                      checked={selected?.has(generatedBtcRowId(e)) ?? false}
+                      onChange={() => onToggleOne(generatedBtcRowId(e))}
+                      label={`Select ${formatGeneratedDate(e.entry_day)}`}
+                    />
+                  </td>
+                )}
+                <td className="px-6 py-4 text-foreground">{formatGeneratedDate(e.entry_day)}</td>
+                {showAccount && <td className="px-6 py-4 text-foreground">{e.account ?? '--'}</td>}
+                <td className="px-6 py-4 text-foreground">{formatHashrate(e.hashrate)}</td>
+                <td className="px-6 py-4 text-foreground">
+                  <BtcAmount amount={e.btc_generated} unitClass="text-xs leading-4 text-body-alt" />
                 </td>
               </tr>
             ))}
@@ -136,7 +169,7 @@ export function GeneratedBtcTable({
       <div className="sm:hidden">
         {entries.length === 0 && empty && <EmptyRow empty={empty} />}
         {entries.map((e) => (
-          <GeneratedBtcCard key={`${e.entry_day}-${e.account ?? ''}`} entry={e} showAccount={showAccount} />
+          <GeneratedBtcCard key={generatedBtcRowId(e)} entry={e} showAccount={showAccount} />
         ))}
       </div>
     </>

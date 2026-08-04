@@ -101,7 +101,7 @@ export function WatcherLinksPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-heading">Watcher links</h2>
+          <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Watcher links</h2>
           <p className="mt-1 text-sm text-body-alt">
             Create and manage Watcher links to access your mining data from external applications.
           </p>
@@ -111,14 +111,14 @@ export function WatcherLinksPage() {
             <button
               type="button"
               onClick={() => setAggregateOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80"
             >
               Aggregate watcher links
             </button>
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
               <LiAddCircle className="h-3.5 w-3.5" /> Create watcher link
             </button>

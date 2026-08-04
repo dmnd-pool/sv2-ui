@@ -37,36 +37,44 @@ export function WorkersToolbar({
   const filterActive = isWorkerFilterActive(filter);
 
   return (
-    <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-      <h3 className="text-sm font-semibold text-heading">All workers</h3>
+    <div className="flex flex-col gap-3 rounded-t-3xl border-[0.5px] border-b-0 border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+      <h3 className="!font-body text-lg font-bold leading-7 text-foreground">Workers</h3>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="inline-flex rounded-lg border border-border p-0.5 text-xs">
+        <div className="flex items-center gap-3">
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => onTab(t.key)}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors',
-                tab === t.key ? 'bg-muted text-foreground' : 'text-body-alt hover:text-foreground',
+                'inline-flex items-center gap-1 rounded-sm border-[0.5px] border-border px-3 py-1 text-sm font-medium leading-5 transition-colors',
+                tab === t.key ? 'bg-[#262626] text-on-solid' : 'bg-card text-body-alt hover:text-foreground',
               )}
             >
               {t.label}
-              <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-body-alt">{counts[t.key]}</span>
+              <span
+                className={cn(
+                  'rounded-full border-[0.5px] border-border px-1 text-xs leading-4',
+                  tab === t.key ? 'bg-card text-foreground' : 'bg-btn-secondary text-foreground',
+                )}
+              >
+                {counts[t.key]}
+              </span>
             </button>
           ))}
         </div>
 
         <div className="relative">
-          <LiMagnifer className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-placeholder" />
+          <LiMagnifer className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground" />
+          <span aria-hidden className="pointer-events-none absolute left-[42px] top-1/2 h-6 w-px -translate-y-1/2 bg-border" />
           <input
             type="text"
             value={query}
             onChange={(e) => onQuery(e.target.value)}
-            placeholder="Search workers, comma separated..."
+            placeholder="Search workers"
             aria-label="Search workers"
-            className="w-full rounded-lg border border-border bg-muted py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring sm:w-56"
+            className="h-10 w-full rounded-xl bg-muted py-2 pl-[54px] pr-4 text-sm leading-5 text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring sm:w-[252px]"
           />
         </div>
 

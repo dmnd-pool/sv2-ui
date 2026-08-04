@@ -72,7 +72,7 @@ function DashboardShellInner({ children }: { children: ReactNode }) {
       {/* Mobile drawer: kept mounted so it can slide rather than pop. */}
       <div className={cn('fixed inset-0 z-50 lg:hidden', drawerOpen ? '' : 'pointer-events-none')}>
         <div
-          className={cn('absolute inset-0 bg-black/40 transition-opacity duration-200', drawerOpen ? 'opacity-100' : 'opacity-0')}
+          className={cn('absolute inset-0 bg-black/40 backdrop-blur-[8px] transition-opacity duration-200', drawerOpen ? 'opacity-100' : 'opacity-0')}
           onClick={() => setDrawerOpen(false)}
           aria-hidden
         />
@@ -82,7 +82,7 @@ function DashboardShellInner({ children }: { children: ReactNode }) {
             drawerOpen ? 'translate-x-0' : '-translate-x-full',
           )}
         >
-          <Sidebar onNavigate={() => setDrawerOpen(false)} />
+          <Sidebar drawer onNavigate={() => setDrawerOpen(false)} />
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import {
   averageWorkerHashrate,
   workersWithSharesCount,
   generatedBtcToCsv,
+  generatedBtcRowId,
 } from '@/lib/generatedBtcTable';
 import { paginate } from '@/lib/workersTable';
 import { GeneratedBtcStatCards } from '@/components/generated-btc/GeneratedBtcStatCards';
@@ -98,6 +99,20 @@ export function GeneratedBtcPage() {
   }, [sorted, filter, query]);
   const pageData = paginate(visible, page, PAGE_SIZE);
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const allSelected = visible.length > 0 && visible.every((e) => selected.has(generatedBtcRowId(e)));
+  const someSelected = visible.some((e) => selected.has(generatedBtcRowId(e)));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visible.map(generatedBtcRowId)));
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  // Checked rows are an explicit pick, so they scope the export; with none checked the
+  // whole filtered set is exported, matching the other tables.
+  const exportRows = someSelected ? visible.filter((e) => selected.has(generatedBtcRowId(e))) : visible;
+
   const totals = useMemo(
     () => ({
       generated: sumGenerated(entries),
@@ -146,13 +161,13 @@ export function GeneratedBtcPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-heading">Generated BTC</h2>
+          <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Generated BTC</h2>
           <p className="mt-1 text-sm text-body-alt">Track your mining rewards and earnings over time.</p>
         </div>
         {hasData && (
           <button
             type="button"
-            onClick={() => downloadCsv(generatedBtcToCsv(visible))}
+            onClick={() => downloadCsv(generatedBtcToCsv(exportRows))}
             className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
           >
             <LiUploadMinimalistic className="h-4 w-4" /> Export CSV
@@ -185,7 +200,7 @@ export function GeneratedBtcPage() {
             averageHashrate={totals.averageHashrate}
             activeWorkers={totals.activeWorkers}
           />
-          <div className="rounded-xl border border-border bg-card">
+          <div>
             <GeneratedBtcToolbar
               filter={filter}
               onApplyFilter={applyFilter}
@@ -194,7 +209,16 @@ export function GeneratedBtcPage() {
               onQuery={changeQuery}
               accounts={accountNames}
             />
-            <GeneratedBtcTable entries={pageData.items} empty={tableEmpty} showAccount={aggregated} />
+            <GeneratedBtcTable
+              entries={pageData.items}
+              empty={tableEmpty}
+              showAccount={aggregated}
+              selected={selected}
+              allSelected={allSelected}
+              someSelected={someSelected}
+              onToggleAll={toggleAll}
+              onToggleOne={toggleOne}
+            />
             {visible.length > 0 && (
               <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
             )}

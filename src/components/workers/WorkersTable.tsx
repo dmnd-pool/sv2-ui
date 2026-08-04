@@ -1,6 +1,6 @@
-import { Check, Minus } from 'lucide-react';
 import { LiInfoCircle, LiAltArrowDown, LiAltArrowUp } from 'solar-icon-react/li';
 import { cn, formatHashrate } from '@/lib/utils';
+import { CellCheckbox } from '@/components/ui/CellCheckbox';
 import type { Worker } from '@/api/types';
 import {
   classifyWorker,
@@ -20,40 +20,6 @@ interface SortState {
   dir: SortDir;
 }
 
-/** A square check control (row select + header select-all), mirroring the customize panel. */
-function CellCheckbox({
-  checked,
-  indeterminate = false,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  const active = checked || indeterminate;
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={indeterminate ? 'mixed' : checked}
-      aria-label={label}
-      onClick={onChange}
-      className={cn(
-        'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border transition-colors',
-        active ? 'border-transparent bg-[hsl(var(--btn))]' : 'border-border hover:border-foreground',
-      )}
-    >
-      {indeterminate ? (
-        <Minus className="h-3 w-3 text-[hsl(var(--btn-foreground))]" strokeWidth={3} />
-      ) : checked ? (
-        <Check className="h-3 w-3 text-[hsl(var(--btn-foreground))]" strokeWidth={3} />
-      ) : null}
-    </button>
-  );
-}
-
 function SortHeader({
   label,
   sortKey,
@@ -71,7 +37,7 @@ function SortHeader({
 }) {
   const active = sort.key === sortKey;
   return (
-    <th className={cn('px-4 py-3 font-medium', align === 'right' ? 'text-right' : 'text-left')}>
+    <th className={cn('px-6 py-4 font-normal', align === 'right' ? 'text-right' : 'text-left')}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}
@@ -158,10 +124,10 @@ export function WorkersTable({
   return (
     <>
       <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[820px] border-collapse text-sm">
+        <table className="w-full min-w-[820px] border-collapse text-sm leading-5">
           <thead>
-            <tr className="border-y border-border text-xs text-body-alt">
-              <th className="w-10 px-4 py-3">
+            <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
+              <th className="w-10 px-6 py-4">
                 <CellCheckbox
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
@@ -170,9 +136,9 @@ export function WorkersTable({
                 />
               </th>
               <SortHeader label="Worker" sortKey="name" sort={sort} onSort={onSort} />
-              {showAccount && <th className="px-4 py-3 text-left font-medium">Account</th>}
+              {showAccount && <th className="px-6 py-4 text-left font-normal">Account</th>}
               <SortHeader label="Hashrate" sortKey="hashrate" sort={sort} onSort={onSort} hint="Current hashrate reported by the worker." />
-              <th className="px-4 py-3 text-left font-medium">Mode</th>
+              <th className="px-6 py-4 text-left font-normal">Mode</th>
               <SortHeader
                 label="Rejection rate"
                 sortKey="rejection"
@@ -180,9 +146,9 @@ export function WorkersTable({
                 onSort={onSort}
                 hint="Rejected share rate for this worker."
               />
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Last seen</th>
-              <th className="px-4 py-3 text-left font-medium">Action</th>
+              <th className="px-6 py-4 text-left font-normal">Status</th>
+              <th className="px-6 py-4 text-left font-normal">Last seen</th>
+              <th className="px-6 py-4 text-left font-normal">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -199,31 +165,29 @@ export function WorkersTable({
               const rowId = workerRowId(w);
               return (
                 <tr key={rowId} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3.5">
+                  <td className="px-6 py-4">
                     <CellCheckbox
                       checked={selected.has(rowId)}
                       onChange={() => onToggleOne(rowId)}
                       label={`Select ${w.name}`}
                     />
                   </td>
-                  <td className="px-4 py-3.5 font-medium text-foreground">{w.name}</td>
+                  <td className="px-6 py-4 font-medium text-foreground">{w.name}</td>
                   {showAccount && (
-                    <td className="px-4 py-3.5 text-body-alt">{(w as TaggedWorker).subaccount ?? '--'}</td>
+                    <td className="px-6 py-4 text-body-alt">{(w as TaggedWorker).subaccount ?? '--'}</td>
                   )}
-                  <td className="px-4 py-3.5 font-mono text-foreground">{hr ? formatHashrate(hr) : '--'}</td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-6 py-4 font-mono text-foreground">{hr ? formatHashrate(hr) : '--'}</td>
+                  <td className="px-6 py-4">
                     <ModeBadge mode={workerMode(w)} />
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-foreground">
+                  <td className="px-6 py-4 font-mono text-foreground">
                     {rej === null ? '--' : `${(rej * 100).toFixed(1)}%`}
                   </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-6 py-4">
                     <StatusBadge status={classifyWorker(w, now)} />
                   </td>
-                  <td className="px-4 py-3.5 text-body-alt">
-                    {formatLastSeen(w, now)}
-                  </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-6 py-4 text-body-alt">{formatLastSeen(w, now)}</td>
+                  <td className="px-6 py-4">
                     <button
                       type="button"
                       onClick={() => onOpenDetails(w)}

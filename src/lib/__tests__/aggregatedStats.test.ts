@@ -15,6 +15,7 @@ function sub(over: Partial<EnrichedSubaccount> = {}): EnrichedSubaccount {
     accepted: 0,
     rejected: 0,
     todayEarnings: 0,
+    generatedBtc: null,
     workers: [],
     ...over,
   };

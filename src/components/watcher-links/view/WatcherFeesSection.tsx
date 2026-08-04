@@ -4,7 +4,7 @@ import { formatFeePercent } from '@/lib/watcherLinks';
 /** One fee card: label, the rate with a percent sign, and a caption naming who charges it. */
 function FeeCard({ label, rate, caption }: { label: string; rate: number; caption: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="border-[0.5px] border-border bg-card p-4 lg:p-8">
       <p className="text-sm text-body-alt">{label}</p>
       <p className="mt-2 text-heading">
         <span className="text-2xl font-bold">{formatFeePercent(rate)}</span>

@@ -20,6 +20,7 @@ import {
   filterGeneratedBtcByAccount,
   searchGeneratedBtc,
   type GeneratedBtcFilter,
+  generatedBtcRowId,
 } from '@/lib/generatedBtcTable';
 import { MAIN_ACCOUNT_LABEL } from '@/lib/payoutsTable';
 
@@ -191,3 +192,15 @@ test('searchGeneratedBtc matches the account name case-insensitively; a blank qu
 // The GeneratedBtcFilter type is exercised through the calls above.
 const _typecheck: GeneratedBtcFilter = EMPTY_GENERATED_BTC_FILTER;
 void _typecheck;
+
+test('generatedBtcRowId distinguishes the same day across accounts', () => {
+  // In aggregated mode one calendar day appears once per account, so the day alone
+  // cannot identify a row.
+  const a = { entry_day: '2026-08-01', hashrate: 1, btc_generated: 1 };
+  assert.equal(generatedBtcRowId(a), generatedBtcRowId({ ...a }));
+  assert.notEqual(
+    generatedBtcRowId({ ...a, account: 'Main account' }),
+    generatedBtcRowId({ ...a, account: 'Main Farm' }),
+  );
+  assert.notEqual(generatedBtcRowId(a), generatedBtcRowId({ ...a, account: 'Main Farm' }));
+});

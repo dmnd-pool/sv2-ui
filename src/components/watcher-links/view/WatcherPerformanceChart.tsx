@@ -47,7 +47,7 @@ export function WatcherPerformanceChart({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const data = downsampleHashrate(points, 300);
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="border-[0.5px] border-border bg-card p-4 lg:p-8">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-heading">Mining Performance</h3>
         <div className="flex gap-1 rounded-lg border border-border p-0.5">

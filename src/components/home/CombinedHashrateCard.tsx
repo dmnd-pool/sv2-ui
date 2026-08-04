@@ -27,7 +27,7 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
   const chartData = hasHashrate ? slices : slices.map((s) => ({ ...s, hashrate: 1 }));
 
   return (
-    <div className="flex flex-col items-start gap-6 rounded-xl border border-border bg-card p-5 sm:flex-row sm:gap-12">
+    <div className="flex flex-col items-start gap-6 border-[0.5px] border-border bg-card p-4 lg:p-8 sm:flex-row sm:gap-12">
       <div className="relative h-40 w-40 shrink-0 self-center sm:self-start">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -48,15 +48,15 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5">
-          <span className="text-3xl font-semibold text-foreground">{totalParts.amount}</span>
-          <span className="text-xs text-placeholder">{totalParts.unit}</span>
+          <span className="font-heading text-3xl font-semibold leading-10 text-foreground">{totalParts.amount}</span>
+          <span className="text-xs leading-4 text-secondary-label">{totalParts.unit}</span>
         </div>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4 self-stretch">
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-heading">Combined Hashrate</h3>
+            <h3 className="!font-body text-lg font-semibold leading-7 text-heading-alt">Combined Hashrate</h3>
             <InfoHint text="The total hashrate from all connected workers and subaccounts." />
           </span>
           <Link
@@ -81,11 +81,11 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: SLICE_COLORS[i % SLICE_COLORS.length] }}
                     />
-                    <span className="truncate text-sm text-body-alt">{s.name}</span>
+                    <span className="truncate text-sm leading-5 text-body-alt">{s.name}</span>
                   </span>
                   <span className="shrink-0 whitespace-nowrap">
-                    <span className="text-base text-foreground">{parts.amount} </span>
-                    <span className="text-xs text-body-alt">{parts.unit}</span>
+                    <span className="text-base font-medium leading-6 text-foreground">{parts.amount} </span>
+                    <span className="text-xs leading-4 text-body-alt">{parts.unit}</span>
                   </span>
                 </div>
               </li>

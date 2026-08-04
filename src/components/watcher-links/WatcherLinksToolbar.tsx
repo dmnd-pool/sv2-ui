@@ -26,19 +26,20 @@ export function WatcherLinksToolbar({
   const active = isWatcherDraftActive(filter);
 
   return (
-    <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-      <h3 className="text-base font-semibold text-heading">Watcher links</h3>
+    <div className="relative flex flex-col gap-3 rounded-t-3xl border-[0.5px] border-b-0 border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <h3 className="!font-body text-lg font-bold leading-7 text-foreground">Watcher links</h3>
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1 sm:flex-none">
-          <LiMagnifer className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-placeholder" />
+          <LiMagnifer className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-body-alt" />
+          <span aria-hidden className="pointer-events-none absolute left-[42px] top-1/2 h-6 w-px -translate-y-1/2 bg-border" />
           <input
             type="text"
             value={query}
             onChange={(e) => onQuery(e.target.value)}
             placeholder="Search watcher links"
             aria-label="Search watcher links"
-            className="w-full rounded-2xl border border-border bg-muted py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring sm:w-64"
+            className="h-10 w-full rounded-xl bg-muted py-2 pl-[54px] pr-4 text-sm leading-5 text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring sm:w-[252px]"
           />
         </div>
 

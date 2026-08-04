@@ -23,11 +23,14 @@ export default {
         },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
+          strong: 'hsl(var(--destructive-strong))',
           foreground: 'hsl(var(--destructive-foreground))',
+          text: 'hsl(var(--error-text))',
         },
         success: {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
+          text: 'hsl(var(--success-text))',
         },
         info: {
           DEFAULT: 'hsl(var(--info))',
@@ -36,6 +39,7 @@ export default {
         warning: {
           DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
+          text: 'hsl(var(--warning-text))',
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
@@ -78,8 +82,15 @@ export default {
         // DMND auth design-system tokens (flip light/dark via .dmnd-auth vars).
         canvas: 'hsl(var(--canvas))',
         heading: 'hsl(var(--heading))',
+        'heading-alt': 'hsl(var(--heading-alt))',
+        'btn-secondary': 'hsl(var(--btn-secondary))',
+        grid: 'hsl(var(--grid))',
+        tooltip: 'hsl(var(--tooltip))',
+        'on-solid': 'hsl(var(--on-solid))',
+        'on-solid-alt': 'hsl(var(--on-solid-alt))',
         'body-alt': 'hsl(var(--body-alt))',
         placeholder: 'hsl(var(--placeholder))',
+        'secondary-label': 'hsl(var(--secondary-label))',
         btn: {
           DEFAULT: 'hsl(var(--btn))',
           foreground: 'hsl(var(--btn-foreground))',
@@ -90,6 +101,7 @@ export default {
           success: 'hsl(var(--toast-success))',
           error: 'hsl(var(--toast-error))',
           warning: 'hsl(var(--toast-warning))',
+          info: 'hsl(var(--toast-info))',
           neutral: 'hsl(var(--toast-neutral))',
         },
       },
@@ -104,6 +116,12 @@ export default {
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        /* The design sets several card titles in the body face even though they are
+           semantic headings, which the .dmnd-app heading rule would otherwise override. */
+        body: ['Geist Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        /* Big numeric readouts are set in the heading face even though they are not
+           heading elements, so they need an explicit utility. */
+        heading: ['Radio Canada Big Variable', 'Geist Variable', 'sans-serif'],
       },
       letterSpacing: {
         heading: '-0.025em',

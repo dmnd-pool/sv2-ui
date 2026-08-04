@@ -155,9 +155,11 @@
   --canvas: 0 0% 90%; /* Background/Dark bg  #E5E5E5 */
   --background: 0 0% 98%; /* Background/Default  #FAFAFA */
   --foreground: 0 0% 15%; /* Text/Body default + Icons/Default  #262626 */
-  --heading: 221 39% 11%; /* Text/Header default  #111827 */
-  --body-alt: 0 0% 25%; /* Text/Body alt (subtitles)  #404040 */
+  --heading: 215 27.9% 16.9%; /* Text/Header default  #1F2937 */
+  --heading-alt: 216.9 19.1% 26.7%; /* Text/Header alt  #374151 (card titles) */
+  --body-alt: 0 0% 45%; /* Text/Body alt (subtitles)  #737373 */
   --placeholder: 0 0% 64%; /* Text/Placeholder  #A3A3A3 */
+  --secondary-label: 240 2.3% 56.7%; /* Text/Secondary  #8E8E93 */
   --card: 0 0% 98%;
   --card-foreground: 0 0% 15%;
   --popover: 0 0% 96%;
@@ -170,15 +172,24 @@
   --muted-foreground: 0 0% 25%; /* = body-alt, for subtitles/secondary text */
   --accent: 0 0% 90%;
   --accent-foreground: 0 0% 15%;
-  --destructive: 0 84% 60%; /* #EF4444 */
+  --destructive: 0 84% 60%; /* #EF4444 -- the warning glyph */
+  --destructive-strong: 0 74% 42%; /* #B91C1C -- the destructive button fill */
   --destructive-foreground: 0 0% 100%;
-  --success: 142 71% 45%; /* #22C55E */
+  --success: 142 71% 45%; /* Icons/Success  #22C55E */
+  --success-text: 142 76% 36%; /* Text/Success  #16A34A (darker, for text + meters) */
+  --warning-text: 43 96% 40%; /* Badge warning text  #CA8A04 */
+  --error-text: 0 72% 51%; /* Badge error text  #DC2626 (NOT the #EF4444 icon red) */
   --success-foreground: 0 0% 100%;
   --warning: 45 93% 47%; /* #EAB308 */
   --warning-foreground: 0 0% 9%;
   --info: 217 91% 60%; /* #3B82F6 */
   --info-foreground: 0 0% 100%;
   --border: 0 0% 83%; /* Border/Default  #D4D4D4 */
+  --btn-secondary: 220 14.3% 95.9%; /* Button/Secondary  #F3F4F6 */
+  --grid: 220 13% 91%; /* Border/Disabled  #E5E7EB (chart gridlines) */
+  --tooltip: 0 0% 4%; /* Background/Tooltip  #0A0A0A */
+  --on-solid: 0 0% 89.8%; /* Text/On-solid bg default  #E5E5E5 */
+  --on-solid-alt: 0 0% 83%; /* Text/On-solid bg alt  #D4D4D4 */
   --input: 0 0% 83%;
   --ring: 4 86% 86%; /* Border/Active  #FAC2BE */
   /* Primary button inverts vs the page: dark button in light mode. */
@@ -190,6 +201,7 @@
   --toast-success: 141 84% 93%; /* #DCFCE7 */
   --toast-error: 0 93% 94%; /* #FEE2E2 */
   --toast-warning: 54 83% 93%; /* #FCF9DF */
+  --toast-info: 214 95% 93%; /* Background/Info  #DBEAFE */
   --toast-neutral: 0 0% 15%; /* dark pill  #262626 */
 }
 
@@ -199,8 +211,10 @@
   --background: 0 0% 9%; /* #171717 */
   --foreground: 0 0% 83%; /* Text/Body default  #D4D4D4 */
   --heading: 220 14% 96%; /* Text/Header default  #F3F4F6 */
+  --heading-alt: 216 18% 84%; /* Text/Header alt  #D1D5DB */
   --body-alt: 0 0% 64%; /* Text/Body alt  #A3A3A3 */
   --placeholder: 0 0% 45%; /* Text/Placeholder  #737373 */
+  --secondary-label: 240 2.3% 56.7%; /* Text/Secondary  #8E8E93 */
   --card: 0 0% 9%;
   --card-foreground: 0 0% 83%;
   --popover: 0 0% 15%;
@@ -214,14 +228,23 @@
   --accent: 0 0% 15%;
   --accent-foreground: 0 0% 96%;
   --destructive: 0 84% 60%;
+  --destructive-strong: 0 74% 42%; /* #B91C1C */
   --destructive-foreground: 0 0% 100%;
   --success: 142 71% 45%;
+  --success-text: 142 76% 36%; /* Text/Success  #16A34A */
+  --warning-text: 43 96% 40%; /* Badge warning text  #CA8A04 */
+  --error-text: 0 72% 51%; /* Badge error text  #DC2626 */
   --success-foreground: 0 0% 100%;
   --warning: 45 93% 47%;
   --warning-foreground: 0 0% 9%;
   --info: 217 91% 60%;
   --info-foreground: 0 0% 100%;
   --border: 0 0% 25%; /* Border/Default  #404040 */
+  --btn-secondary: 0 0% 15%; /* Button/Secondary (dark counterpart unverified) */
+  --grid: 215 28% 17%; /* Border/Disabled  #1F2937 (chart gridlines) */
+  --tooltip: 0 0% 96%; /* Background/Tooltip  #F5F5F5 (the tooltip inverts per mode) */
+  --on-solid: 0 0% 15%; /* Text/On-solid bg default  #262626 */
+  --on-solid-alt: 0 0% 32%; /* Text/On-solid bg alt  #525252 */
   --input: 0 0% 25%;
   --ring: 4 86% 86%;
   --btn: 0 0% 96%; /* Button/Background  #F5F5F5 */
@@ -232,6 +255,7 @@
   --toast-error: 0 23% 14%; /* #2D1C1C */
   --toast-warning: 46 33% 13%; /* #2C2716 */
   --toast-neutral: 0 0% 25%; /* #404040 */
+  --toast-info: 217 33% 14%; /* Background/Info (dark counterpart unverified) */
 }
 
 .dmnd-auth :is(h1, h2, h3),

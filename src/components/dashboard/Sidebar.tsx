@@ -31,12 +31,14 @@ function NavRow({
         // When collapsed the label is hidden, so the title gives a hover tooltip.
         title={collapsed ? item.label : undefined}
         className={cn(
-          'flex items-center rounded-lg text-sm transition-colors',
-          collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-3 py-2',
-          active ? 'bg-muted font-medium text-foreground' : 'text-body-alt hover:bg-muted hover:text-foreground',
+          'flex items-center text-sm leading-5 transition-colors',
+          collapsed ? 'justify-center rounded-sm px-0 py-2' : 'gap-2 p-2',
+          active
+            ? 'rounded-[32px] bg-muted font-semibold text-foreground'
+            : 'rounded-sm text-body-alt hover:bg-muted hover:text-foreground',
         )}
       >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
+        <Icon className="h-4 w-4 shrink-0" />
         {!collapsed && <span className="flex-1">{item.label}</span>}
       </span>
     </Link>
@@ -51,10 +53,13 @@ function NavRow({
  */
 export function Sidebar({
   collapsed = false,
+  drawer = false,
   onToggleCollapse,
   onNavigate,
 }: {
   collapsed?: boolean;
+  /** The mobile drawer is wider than the docked rail and pads tighter. */
+  drawer?: boolean;
   onToggleCollapse?: () => void;
   onNavigate?: () => void;
 }) {
@@ -72,8 +77,8 @@ export function Sidebar({
   return (
     <div
       className={cn(
-        'flex h-full shrink-0 flex-col border-r border-border bg-background transition-[width] duration-200',
-        collapsed ? 'w-16' : 'w-60',
+        'flex h-full shrink-0 flex-col border-r-[0.5px] border-border bg-background transition-[width] duration-200',
+        drawer ? 'w-[300px]' : collapsed ? 'w-16' : 'w-[236px]',
       )}
     >
       <div className={cn('flex h-16 items-center', collapsed ? 'justify-center px-2' : 'justify-between px-5')}>

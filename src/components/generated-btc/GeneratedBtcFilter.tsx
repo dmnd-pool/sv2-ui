@@ -146,12 +146,12 @@ export function GeneratedBtcFilter({
       ref={ref}
       role="dialog"
       aria-label="Filter generated BTC"
-      className="absolute right-0 top-full z-20 mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-3xl border border-border bg-popover px-4 pb-5 pt-4 shadow-xl sm:px-6 sm:pb-6"
+      className="absolute right-0 top-full z-20 mt-4 w-[574px] max-w-[calc(100vw-2rem)] rounded-3xl border-[0.5px] border-border bg-card px-8 pb-8 pt-4 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-heading">Filter generated BTC</p>
-          <p className="mt-0.5 text-xs text-body-alt">
+          <p className="text-base font-bold leading-6 text-foreground">Filter generated BTC</p>
+          <p className="text-sm leading-5 text-body-alt">
             {hasAccounts ? 'Find generated BTC by date or subaccount.' : 'Find generated BTC by date.'}
           </p>
         </div>
@@ -163,7 +163,7 @@ export function GeneratedBtcFilter({
               setShowCalendar(false);
               onReset();
             }}
-            className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex h-9 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80"
           >
             Reset
           </button>
@@ -173,7 +173,7 @@ export function GeneratedBtcFilter({
               onApply(draft);
               onClose();
             }}
-            className="rounded-full bg-[hsl(var(--btn))] px-4 py-1.5 text-xs font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+            className="inline-flex h-9 items-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
           >
             Apply filter(s)
           </button>
@@ -181,7 +181,7 @@ export function GeneratedBtcFilter({
       </div>
 
       {hasAccounts ? (
-        <div className="mt-4 flex gap-4 border-t border-border pt-4 sm:gap-6">
+        <div className="mt-4 flex gap-6 border-t-[0.5px] border-border pt-4">
           <div className="flex w-24 shrink-0 flex-col gap-4">
             {CATEGORIES.map(({ key, label, Icon }) => (
               <button
@@ -189,19 +189,17 @@ export function GeneratedBtcFilter({
                 type="button"
                 onClick={() => setCategory(key)}
                 className={cn(
-                  'flex items-center gap-2 text-left text-sm transition-colors',
-                  category === key
-                    ? 'font-medium text-foreground underline underline-offset-4'
-                    : 'text-body-alt hover:text-foreground',
+                  'flex items-center gap-1 text-left text-sm leading-5 text-foreground transition-opacity',
+                  category === key ? 'underline underline-offset-4' : 'opacity-50 hover:opacity-80',
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 <span className="whitespace-nowrap">{label}</span>
               </button>
             ))}
           </div>
 
-          <div className="w-px shrink-0 self-stretch bg-border" aria-hidden />
+          <div className="w-[0.5px] shrink-0 self-stretch bg-border" aria-hidden />
 
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             {category === 'date' &&

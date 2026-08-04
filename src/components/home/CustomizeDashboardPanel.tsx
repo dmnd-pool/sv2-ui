@@ -1,8 +1,8 @@
 import { Fragment, useState } from 'react';
-import { LiAltArrowDown, LiRestart } from 'solar-icon-react/li';
+import { LiAltArrowDown, LiCloseCircle, LiInfoCircle, LiRestart } from 'solar-icon-react/li';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { widgetsForPanel, type DashboardLayout, type WidgetId } from '@/lib/dashboardLayout';
+import { isLockedWidget, widgetsForPanel, type DashboardLayout, type WidgetId } from '@/lib/dashboardLayout';
 
 /**
  * The Customize dashboard panel shown in customization mode. Each widget row has a
@@ -22,6 +22,9 @@ export function CustomizeDashboardPanel({
 }) {
   const rows = widgetsForPanel(layout);
   const [collapsed, setCollapsed] = useState(false);
+  // Explains the refusal when a miner clicks the one widget that cannot be hidden,
+  // rather than the click doing nothing with no feedback.
+  const [lockedNotice, setLockedNotice] = useState<string | null>(null);
 
   return (
     <div className="absolute right-0 top-full z-30 mt-2 flex w-[330px] max-w-[calc(100vw-2rem)] flex-col items-center gap-[15px] rounded-[24px] bg-secondary pt-6 shadow-[0_20px_30px_-5px_rgba(0,0,0,0.08),0_8px_20px_-6px_rgba(0,0,0,0.08)]">
@@ -55,11 +58,16 @@ export function CustomizeDashboardPanel({
                       type="button"
                       role="checkbox"
                       aria-checked={w.visible}
-                      aria-label={`${w.visible ? 'Hide' : 'Show'} ${w.label}`}
-                      onClick={() => onToggle(w.id)}
+                      aria-label={
+                        isLockedWidget(w.id) ? `${w.label} can't be hidden` : `${w.visible ? 'Hide' : 'Show'} ${w.label}`
+                      }
+                      onClick={() =>
+                        isLockedWidget(w.id) ? setLockedNotice(`${w.label} can't be hidden`) : onToggle(w.id)
+                      }
                       className={cn(
                         'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors',
                         w.visible ? 'border-[hsl(var(--btn))] bg-[hsl(var(--btn))]' : 'border-placeholder',
+                        isLockedWidget(w.id) && 'opacity-40',
                       )}
                     >
                       {w.visible && <Check className="h-3.5 w-3.5 text-[hsl(var(--btn-foreground))]" strokeWidth={3} />}
@@ -72,6 +80,29 @@ export function CustomizeDashboardPanel({
             </ul>
             <div aria-hidden className="h-px w-full bg-border" />
           </>
+        )}
+
+        {lockedNotice && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-2xl bg-toast-neutral p-3 text-on-solid"
+          >
+            <LiInfoCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold leading-5">{lockedNotice}</p>
+              <p className="text-sm leading-5 text-on-solid-alt">
+                You can readjust the widget placement but it can&apos;t be hidden.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLockedNotice(null)}
+              aria-label="Dismiss"
+              className="shrink-0 text-on-solid-alt transition-colors hover:text-on-solid"
+            >
+              <LiCloseCircle className="h-5 w-5" />
+            </button>
+          </div>
         )}
 
         <button

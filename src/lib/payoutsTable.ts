@@ -56,12 +56,15 @@ export function filterPayoutsByAccount(payouts: Payout[], accounts: string[]): P
 }
 
 export interface PayoutFilter {
-  mode: PayoutMode | null;
+  // Modes to keep. The design draws PPLNS and FPPS as checkboxes, both checked, so an
+  // empty list means "every mode" rather than "no modes" -- otherwise clearing the
+  // facet would blank the table instead of widening it.
+  modes: PayoutMode[];
   /** Only payouts at or after this unix-second cutoff; null means no date bound. */
   sinceSec: number | null;
 }
 
-export const EMPTY_PAYOUT_FILTER: PayoutFilter = { mode: null, sinceSec: null };
+export const EMPTY_PAYOUT_FILTER: PayoutFilter = { modes: [], sinceSec: null };
 
 /** The date presets shared by the Filter and the Export range picker. */
 export type PayoutDatePreset = '24h' | '7d' | '30d';
@@ -104,6 +107,19 @@ export function clampRange(aSec: number, bSec: number): DateRange {
 }
 
 /**
+ * Is this day one of the two ends of the picked range?
+ *
+ * The design paints the endpoints solid and the days between them tinted, so the two
+ * cases have to be distinguishable. Between the first and second click there is a
+ * single selected day and no span, which still reads as an endpoint.
+ */
+export function isRangeEndpoint(key: number, start: number | null, end: number | null): boolean {
+  if (start === null) return false;
+  if (end === null) return key === start;
+  return key === Math.min(start, end) || key === Math.max(start, end);
+}
+
+/**
  * Expand two picked calendar day-keys (each a UTC midnight) into an inclusive
  * full-day range: 00:00:00 of the earlier day through 23:59:59 of the later day.
  * The end must reach the last second of its day, otherwise an export ending on a
@@ -123,7 +139,7 @@ export function monthInfo(year: number, month0: number): { daysInMonth: number; 
 
 /** True when any facet is set (drives the Filter button's active dot + no-match copy). */
 export function isPayoutFilterActive(f: PayoutFilter): boolean {
-  return f.mode !== null || f.sinceSec !== null;
+  return f.modes.length > 0 || f.sinceSec !== null;
 }
 
 /**
@@ -158,6 +174,16 @@ export function buildPayouts(
   return rows;
 }
 
+/**
+ * A stable identity for one payout row, used as the React key and as the selection key
+ * so the two can never disagree. A single transaction can pay more than one of the
+ * user's addresses, and in aggregated mode the same transaction can appear under
+ * different accounts, so all three parts are needed to tell rows apart.
+ */
+export function payoutRowId(p: Payout): string {
+  return `${p.txid}-${p.toAddress}-${p.account ?? ''}`;
+}
+
 /** Newest payout first. */
 export function sortPayoutsByDateDesc(payouts: Payout[]): Payout[] {
   return [...payouts].sort((a, b) => b.date - a.date);
@@ -173,7 +199,9 @@ export function searchPayouts(payouts: Payout[], query: string): Payout[] {
 /** Filter by mode and/or a since-date cutoff (both optional; combined with AND). */
 export function filterPayouts(payouts: Payout[], filter: PayoutFilter): Payout[] {
   return payouts.filter(
-    (p) => (filter.mode === null || p.mode === filter.mode) && (filter.sinceSec === null || p.date >= filter.sinceSec),
+    (p) =>
+      (filter.modes.length === 0 || filter.modes.includes(p.mode)) &&
+      (filter.sinceSec === null || p.date >= filter.sinceSec),
   );
 }
 
@@ -194,6 +222,31 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function formatPayoutDate(sec: number): string {
   const d = new Date(sec * 1000);
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}, ${d.getUTCFullYear()}`;
+}
+
+const MONTHS_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/**
+ * Format a unix-second timestamp as "January 10, 2026" (UTC), which is how the
+ * calendar's two date inputs are written. Read in UTC because the picker's day keys
+ * are UTC midnights; a local read would slip a day for anyone west of Greenwich.
+ */
+export function formatCalendarDate(sec: number): string {
+  const d = new Date(sec * 1000);
+  return `${MONTHS_FULL[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 }
 
 /** Block-explorer URL for a transaction id. */

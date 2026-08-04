@@ -68,13 +68,13 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-label="Manage two-factor authentication"
-        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto border-b border-l border-border bg-popover shadow-xl"
+        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto bg-background shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
       >
-        <div className="flex items-start justify-between gap-4 p-6">
+        <div className="flex items-start justify-between gap-4 p-6 sm:p-8">
           <div>
             <h2 className="text-lg font-semibold text-heading">Manage 2FA</h2>
             <p className="mt-1 text-sm text-body-alt">
@@ -105,7 +105,7 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
                   type="button"
                   disabled={phase === 'loading'}
                   onClick={() => void startReset()}
-                  className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                  className="inline-flex h-9 shrink-0 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80 disabled:opacity-40"
                 >
                   {phase === 'loading' ? 'Loading...' : 'Reset 2FA'}
                 </button>
@@ -113,7 +113,7 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
               >
                 Close
               </button>
@@ -167,7 +167,7 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
                 type="button"
                 disabled={code.length !== 6 || submitting}
                 onClick={() => void submit()}
-                className="rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 {submitting ? 'Updating...' : 'Reset 2FA'}
               </button>

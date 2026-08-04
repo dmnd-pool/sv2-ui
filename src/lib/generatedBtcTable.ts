@@ -119,6 +119,15 @@ function numCell(value: number | null | undefined): string {
 }
 
 /** CSV with the production schema `entry_day,hashrate,btc_generated`; raw values, cells guarded. */
+/**
+ * A stable identity for one generated-BTC row, used as the React key and as the
+ * selection key so the two can never disagree. In aggregated mode the same calendar
+ * day appears once per account, so the day alone is not unique.
+ */
+export function generatedBtcRowId(e: { entry_day: string; account?: string }): string {
+  return `${e.entry_day}-${e.account ?? ''}`;
+}
+
 export function generatedBtcToCsv(entries: GeneratedBtcEntry[]): string {
   const rows = entries.map((e) => [e.entry_day, numCell(e.hashrate), numCell(e.btc_generated)].map(csvCell));
   return [CSV_HEADER, ...rows.map((r) => r.join(','))].join('\n');

@@ -68,13 +68,13 @@ export function Enable2faModal({ onClose, onEnabled }: { onClose: () => void; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-label="Enable two-factor authentication"
-        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto border-b border-l border-border bg-popover shadow-xl"
+        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto bg-background shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
       >
-        <div className="flex items-start justify-between gap-4 p-6">
+        <div className="flex items-start justify-between gap-4 p-6 sm:p-8">
           <div>
             <h2 className="text-lg font-semibold text-heading">Enable two-factor authentication</h2>
             <p className="mt-1 text-sm text-body-alt">
@@ -139,7 +139,7 @@ export function Enable2faModal({ onClose, onEnabled }: { onClose: () => void; on
                 type="button"
                 disabled={code.length !== 6 || submitting}
                 onClick={() => void submit()}
-                className="rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 {submitting ? 'Enabling...' : 'Enable 2FA'}
               </button>

@@ -10,7 +10,7 @@ export function WorkersNoResults({ mode, onClear }: { mode: 'search' | 'filter';
   const Icon = search ? BdRoundedMagnifer : BdSort;
 
   return (
-    <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
+    <div className="flex flex-col items-center gap-2 p-8 text-center">
       <Icon className="h-12 w-12 text-placeholder" />
       <p className="text-lg font-medium text-foreground">
         {search ? 'No workers found' : 'No workers match this filter'}
@@ -22,7 +22,7 @@ export function WorkersNoResults({ mode, onClear }: { mode: 'search' | 'filter';
         <button
           type="button"
           onClick={onClear}
-          className="mt-2 inline-flex items-center rounded-full border border-black/20 bg-muted px-5 py-2 text-sm text-foreground transition-colors hover:bg-border"
+          className="mt-2 inline-flex items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 py-2 text-sm leading-5 text-foreground transition-colors hover:opacity-80"
         >
           Clear filters
         </button>

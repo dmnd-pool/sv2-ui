@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LiLockPassword, LiShieldCheck, LiShieldKeyhole } from 'solar-icon-react/li';
+import { LiShieldKeyhole } from 'solar-icon-react/li';
+import { BdLockKeyholeMinimalistic, BdCheckCircle } from 'solar-icon-react/bd';
 import { useAuth } from '@/auth';
 import { useAccountProfile } from '@/hooks/useAccountData';
 import { useAccountScope } from '@/hooks/useAccountScope';
@@ -11,10 +12,10 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle: string }
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-heading">{title}</h2>
+        <h2 className="!font-body text-base font-semibold leading-6 text-heading">{title}</h2>
         <p className="mt-1 text-sm text-body-alt">{subtitle}</p>
       </div>
-      <div className="h-px w-full bg-border" />
+      <div className="h-[0.5px] w-full bg-border" />
     </div>
   );
 }
@@ -58,8 +59,8 @@ export function SecurityTab() {
       <div className="space-y-4">
         <SectionHeading title="Password" subtitle="Manage your password" />
         <div className="flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2 text-body-alt">
-            <LiLockPassword className="h-4 w-4" />
+          <span className="flex items-center gap-1.5 text-sm leading-5 text-body-alt">
+            <BdLockKeyholeMinimalistic className="h-5 w-5" />
             <span className="tracking-widest">........</span>
           </span>
           {/* Present per the design but disabled: the recovery flow must not be used
@@ -69,7 +70,7 @@ export function SecurityTab() {
             type="button"
             disabled
             title="Password reset is coming soon"
-            className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-9 shrink-0 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
             Change password
           </button>
@@ -85,22 +86,22 @@ export function SecurityTab() {
           <div className="h-10 animate-pulse rounded-lg bg-muted" />
         ) : twoFaEnabled ? (
           <div className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2">
-              <LiShieldCheck className="h-4 w-4 text-success" />
-              <span className="text-sm text-foreground">2FA is enabled</span>
+            <span className="flex items-center gap-1.5">
+              <BdCheckCircle className="h-5 w-5 text-success" />
+              <span className="text-sm leading-5 text-foreground">2FA is enabled</span>
             </span>
             <button
               type="button"
               onClick={() => setManaging(true)}
               disabled={viewingSubaccount}
-              className="shrink-0 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-9 shrink-0 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Manage
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2 text-body-alt">
+            <span className="flex items-center gap-1.5 text-sm leading-5 text-body-alt">
               <LiShieldKeyhole className="h-4 w-4" />
               <span className="text-sm">2FA is not enabled</span>
             </span>

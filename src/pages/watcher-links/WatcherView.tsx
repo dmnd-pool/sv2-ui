@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
-import { LiShieldWarning, LiHamburgerMenu, LiCloseCircle } from 'solar-icon-react/li';
+import { LiHamburgerMenu, LiCloseCircle } from 'solar-icon-react/li';
+import { BdEye } from 'solar-icon-react/bd';
 import type { HashrateRange } from '@/api/types';
 import { parseWatcherPath } from '@/lib/watcherLinks';
 import { useAppliedTheme } from '@/hooks/useTheme';
@@ -105,13 +106,16 @@ function WatcherViewInner({ token }: { token: string }) {
 
   return (
     <div className="dmnd-app flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
-      {/* The Info Prompt banner (warning variant), matching the design's top strip. */}
-      <div className="flex shrink-0 items-center justify-between gap-4 bg-warning/15 px-4 py-3 sm:px-8">
-        <div className="flex items-center gap-2">
-          <LiShieldWarning className="h-5 w-5 shrink-0 text-warning" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">Watcher View</p>
-            <p className="text-xs text-body-alt">
+      {/* The Info Prompt banner (warning variant), matching the design's top strip.
+          Mobile is a separate drawn variant: the copy drops a size and the Close
+          control moves below the text, indented to line up with it. */}
+      <div className="flex shrink-0 flex-col bg-toast-warning px-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-start gap-1">
+          {/* The icon sits 2px low so it lines up with the title's cap height. */}
+          <BdEye className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <div className="flex min-w-0 flex-col">
+            <p className="text-sm font-bold leading-5 text-foreground">Watcher View</p>
+            <p className="text-xs leading-4 text-foreground sm:text-sm sm:leading-5">
               {sections.length > 0 ? `Read-only access to ${joinNouns(sections)} data` : 'Read-only access'}
             </p>
           </div>
@@ -122,7 +126,7 @@ function WatcherViewInner({ token }: { token: string }) {
         <button
           type="button"
           onClick={() => window.close()}
-          className="text-sm font-medium text-body-alt transition-colors hover:text-foreground"
+          className="ml-6 mt-1 self-start text-xs font-semibold leading-5 text-foreground transition-opacity hover:opacity-70 sm:ml-0 sm:mt-0 sm:self-auto"
         >
           Close
         </button>

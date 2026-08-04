@@ -23,6 +23,18 @@ export const DEFAULT_WIDGETS: WidgetDef[] = [
 ];
 
 export const WIDGET_IDS: WidgetId[] = DEFAULT_WIDGETS.map((w) => w.id);
+
+/**
+ * Widgets a miner cannot hide. The live hashrate is the reason the page exists, and
+ * the design says so explicitly ("Live hashrate can't be hidden"), so hiding it is
+ * refused here rather than in the panel alone -- that way a stale stored layout or a
+ * second entry point cannot get the widget off the page either.
+ */
+const LOCKED_WIDGETS: WidgetId[] = ['hashrate'];
+
+export function isLockedWidget(id: WidgetId): boolean {
+  return LOCKED_WIDGETS.includes(id);
+}
 const LABELS: Record<WidgetId, string> = Object.fromEntries(DEFAULT_WIDGETS.map((w) => [w.id, w.label])) as Record<
   WidgetId,
   string
@@ -58,12 +70,13 @@ export function normalizeLayout(stored: unknown): DashboardLayout {
   for (const id of WIDGET_IDS) {
     if (!seen.has(id)) order.push(id);
   }
-  const hidden = Array.isArray(raw.hidden) ? raw.hidden.filter(isWidgetId) : [];
+  const hidden = Array.isArray(raw.hidden) ? raw.hidden.filter(isWidgetId).filter((id) => !isLockedWidget(id)) : [];
   return { order, hidden: [...new Set(hidden)] };
 }
 
 /** Show a hidden widget, or hide a shown one. Order is untouched. */
 export function toggleWidget(layout: DashboardLayout, id: WidgetId): DashboardLayout {
+  if (isLockedWidget(id)) return layout;
   const hidden = layout.hidden.includes(id)
     ? layout.hidden.filter((x) => x !== id)
     : [...layout.hidden, id];

@@ -1,4 +1,10 @@
-import type { Subaccount, SubaccountShareStats, SubaccountSummary, Worker } from '@/api/types';
+import type {
+  GeneratedBtcEntry,
+  Subaccount,
+  SubaccountShareStats,
+  SubaccountSummary,
+  Worker,
+} from '@/api/types';
 import { deriveWorkersPageStats } from '@/lib/workersTable';
 import { BTC_DISPLAY_DP } from '@/lib/utils';
 
@@ -38,6 +44,10 @@ export interface EnrichedSubaccount {
   accepted: number;
   rejected: number;
   todayEarnings: number;
+  // Lifetime generated BTC, summed from the account's daily entries. Null means
+  // unknown (no entries, or every reading null) and must not be shown as 0, since a
+  // zero would read as "earned nothing" on money data. Filled by withGeneratedBtc.
+  generatedBtc: number | null;
   // The roster itself, kept so the aggregated workers table can list every account's
   // workers rather than only their counts.
   workers: Worker[];
@@ -62,8 +72,46 @@ export function enrichSubaccount(
     accepted: summary?.share_stats?.accepted ?? 0,
     rejected: summary?.share_stats?.rejected ?? 0,
     todayEarnings: summary?.today_generated_btc ?? 0,
+    // Not on the summary; filled from the generated-BTC entries by withGeneratedBtc.
+    generatedBtc: null,
     workers,
   };
+}
+
+/**
+ * Fill each row's lifetime generated BTC by summing the account-tagged daily entries
+ * that already back the Generated BTC page, so the column costs no extra request per
+ * row. Matching is by the same display name the tagger writes.
+ *
+ * A day the API has no reading for reports null, so nulls are skipped rather than
+ * counted as zero; an account with no usable reading at all stays null (unknown), and
+ * only an account with at least one real reading gets a number.
+ */
+export function withGeneratedBtc(subs: EnrichedSubaccount[], entries: GeneratedBtcEntry[]): EnrichedSubaccount[] {
+  const byAccount = new Map<string, GeneratedBtcEntry[]>();
+  for (const e of entries) {
+    if (e.account === undefined) continue;
+    const list = byAccount.get(e.account);
+    if (list) list.push(e);
+    else byAccount.set(e.account, [e]);
+  }
+  return subs.map((s) => ({ ...s, generatedBtc: sumGeneratedBtc(byAccount.get(s.name) ?? []) }));
+}
+
+/**
+ * Total BTC across daily entries, or null when not one day carries a reading. Days the
+ * API reports null are skipped rather than counted as zero, so a partially-reported
+ * history still totals the days it does have.
+ */
+export function sumGeneratedBtc(entries: GeneratedBtcEntry[]): number | null {
+  let total = 0;
+  let seen = false;
+  for (const e of entries) {
+    if (e.btc_generated === null) continue;
+    total += e.btc_generated;
+    seen = true;
+  }
+  return seen ? total : null;
 }
 
 export interface SubaccountsPageStats {
@@ -187,12 +235,13 @@ export function formatBtc(n: number): string {
   return Number(n.toFixed(BTC_DISPLAY_DP)).toString();
 }
 
+// The columns the table shows, in the same order, so the export matches the screen.
 const CSV_HEADER = [
   'Name',
   'Active workers',
-  'Offline workers',
   'Hashrate (H/s)',
   'Rejection rate',
+  'Generated BTC',
   "Today's earnings (BTC)",
 ];
 
@@ -210,9 +259,9 @@ export function subaccountsToCsv(subs: EnrichedSubaccount[]): string {
     [
       s.name,
       String(s.active),
-      String(s.offline),
       String(s.hashrate),
       s.rejection == null ? '--' : `${(s.rejection * 100).toFixed(2)}%`,
+      s.generatedBtc === null ? '--' : formatBtc(s.generatedBtc),
       formatBtc(s.todayEarnings),
     ].map(csvCell),
   );

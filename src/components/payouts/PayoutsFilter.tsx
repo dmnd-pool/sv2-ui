@@ -11,7 +11,8 @@ type Category = 'date' | 'mode' | 'amount' | 'account';
 /** The Filter popover's draft selection (UI state; the page maps the date preset to a cutoff). */
 export interface PayoutFilterDraft {
   datePreset: PayoutDatePreset | null;
-  mode: PayoutMode | null;
+  // Modes are checkboxes in the design (both drawn checked); empty keeps every mode.
+  modes: PayoutMode[];
   amountSort: AmountSort | null;
   // Account names to keep, used only in aggregated mode; empty means every account.
   accounts: string[];
@@ -19,13 +20,13 @@ export interface PayoutFilterDraft {
 
 export const EMPTY_PAYOUT_FILTER_DRAFT: PayoutFilterDraft = {
   datePreset: null,
-  mode: null,
+  modes: [],
   amountSort: null,
   accounts: [],
 };
 
 export function isPayoutDraftActive(d: PayoutFilterDraft): boolean {
-  return d.datePreset !== null || d.mode !== null || d.amountSort !== null || d.accounts.length > 0;
+  return d.datePreset !== null || d.modes.length > 0 || d.amountSort !== null || d.accounts.length > 0;
 }
 
 const DATE_OPTIONS: { value: PayoutDatePreset; label: string }[] = [
@@ -37,6 +38,7 @@ const MODE_OPTIONS: { value: PayoutMode; label: string }[] = [
   { value: 'pplns', label: 'PPLNS' },
   { value: 'fpps', label: 'FPPS' },
 ];
+const ALL_MODES: PayoutMode[] = ['pplns', 'fpps'];
 const AMOUNT_OPTIONS: { value: AmountSort; label: string }[] = [
   { value: 'highest', label: 'Highest first' },
   { value: 'lowest', label: 'Lowest first' },
@@ -94,7 +96,7 @@ function Option({ label, checked, onClick }: { label: string; checked: boolean; 
   );
 }
 
-const Divider = () => <div className="w-px shrink-0 self-stretch bg-border" aria-hidden />;
+const Divider = () => <div className="w-[0.5px] shrink-0 self-stretch bg-border" aria-hidden />;
 
 /**
  * The payouts Filter popover with Date, Mode, and Amount categories. Draft-then-Apply:
@@ -142,30 +144,42 @@ export function PayoutsFilter({
   const toggleAccount = (name: string) =>
     setDraft((d) => ({ ...d, accounts: toggleAllCheckedSelection(d.accounts, name, accounts) }));
 
+  // Mode uses the same all-checked-by-default convention as the account facet, so an
+  // untouched popover filters nothing and unchecking one mode narrows to the other.
+  const toggleMode = (value: PayoutMode) =>
+    setDraft((d) => ({ ...d, modes: toggleAllCheckedSelection(d.modes, value, ALL_MODES) }));
+
   return (
     <div
       ref={ref}
       role="dialog"
       aria-label="Filter payouts"
-      className="absolute right-0 top-full z-20 mt-2 w-[420px] max-w-[calc(100vw-2rem)] rounded-3xl border border-border bg-popover px-4 pb-5 pt-4 shadow-xl sm:px-8 sm:pb-8"
+      className={cn(
+        'fixed inset-x-4 top-[300px] z-20 flex max-h-[calc(100dvh-316px)] flex-col gap-4 overflow-y-auto rounded-3xl border-[0.5px] border-border bg-card px-8 pb-8 pt-4',
+        'shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]',
+        'sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:grid sm:max-h-none sm:w-[574px] sm:max-w-[calc(100vw-2rem)] sm:overflow-visible',
+        'sm:grid-cols-[1fr_auto] sm:gap-x-4',
+      )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-heading">Filter payouts</p>
-          <p className="mt-0.5 text-xs text-body-alt">
-            {accounts.length > 0
-              ? 'Find payouts by date, mode, subaccounts or amount.'
-              : 'Find payouts by date, mode, or amount.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+      <div className="sm:col-start-1 sm:row-start-1">
+        <p className="text-base font-bold leading-6 text-foreground">Filter payouts</p>
+        <p className="text-sm leading-5 text-body-alt">
+          {accounts.length > 0
+            ? 'Find payouts by date, mode, subaccounts or amount.'
+            : 'Find payouts by date, mode, or amount.'}
+        </p>
+      </div>
+
+      {/* Mobile puts these in their own row at the foot of the panel, under a rule;
+          sm+ returns them to the header row. One render, moved by grid placement. */}
+      <div className="order-last flex shrink-0 items-center gap-2 border-t-[0.5px] border-border pt-4 sm:order-none sm:col-start-2 sm:row-start-1 sm:self-center sm:border-t-0 sm:pt-0">
           <button
             type="button"
             onClick={() => {
               setDraft(EMPTY_PAYOUT_FILTER_DRAFT);
               onReset();
             }}
-            className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex h-9 flex-1 items-center justify-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80 sm:flex-none"
           >
             Reset
           </button>
@@ -175,14 +189,13 @@ export function PayoutsFilter({
               onApply(draft);
               onClose();
             }}
-            className="rounded-full bg-[hsl(var(--btn))] px-4 py-1.5 text-xs font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+            className="inline-flex h-9 flex-1 items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 sm:flex-none"
           >
-            Apply filter(s)
-          </button>
-        </div>
+          Apply filter(s)
+        </button>
       </div>
 
-      <div className="mt-4 flex gap-4 border-t border-border pt-4 sm:gap-6">
+      <div className="flex gap-4 border-t-[0.5px] border-border pt-4 sm:col-span-2 sm:row-start-2 sm:gap-6">
         <div className="flex w-28 shrink-0 flex-col gap-4">
           {CATEGORIES.filter((c) => c.key !== 'account' || accounts.length > 0).map(({ key, label, Icon }) => (
             <button
@@ -190,10 +203,8 @@ export function PayoutsFilter({
               type="button"
               onClick={() => setCategory(key)}
               className={cn(
-                'flex items-center gap-2 text-left text-sm transition-colors',
-                category === key
-                  ? 'font-medium text-foreground underline underline-offset-4'
-                  : 'text-body-alt hover:text-foreground',
+                'flex items-center gap-1 text-left text-sm leading-5 text-foreground transition-opacity',
+                category === key ? 'underline underline-offset-4' : 'opacity-50 hover:opacity-80',
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -220,7 +231,12 @@ export function PayoutsFilter({
             ))}
           {category === 'mode' &&
             MODE_OPTIONS.map((o) => (
-              <Option key={o.value} label={o.label} checked={draft.mode === o.value} onClick={() => pick('mode', o.value)} />
+              <CheckOption
+                key={o.value}
+                label={o.label}
+                checked={draft.modes.length === 0 || draft.modes.includes(o.value)}
+                onClick={() => toggleMode(o.value)}
+              />
             ))}
           {category === 'amount' &&
             AMOUNT_OPTIONS.map((o) => (

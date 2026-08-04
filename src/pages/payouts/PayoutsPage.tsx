@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { LiUploadMinimalistic } from 'solar-icon-react/li';
+import { LiExport } from 'solar-icon-react/li';
 import { usePayouts, useAggregatedPayouts } from '@/hooks/usePayouts';
 import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useSubaccountList } from '@/hooks/useSubaccounts';
@@ -11,6 +11,7 @@ import {
   sinceForPreset,
   sortPayoutsByAmount,
   payoutsInRange,
+  payoutRowId,
   MAIN_ACCOUNT_LABEL,
   type DateRange,
 } from '@/lib/payoutsTable';
@@ -61,6 +62,7 @@ export function PayoutsPage() {
   const [filter, setFilter] = useState<PayoutFilterDraft>(EMPTY_PAYOUT_FILTER_DRAFT);
   const [page, setPage] = useState(1);
   const [exportOpen, setExportOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { toast, dismiss } = useToastControls();
 
   const now = Date.now();
@@ -69,11 +71,21 @@ export function PayoutsPage() {
   // re-sorts by size (otherwise the default newest-first order stands).
   const visible = useMemo(() => {
     const sinceSec = filter.datePreset ? sinceForPreset(filter.datePreset, now) : null;
-    const rows = filterPayouts(searchPayouts(payouts, query), { mode: filter.mode, sinceSec });
+    const rows = filterPayouts(searchPayouts(payouts, query), { modes: filter.modes, sinceSec });
     const scoped = filterPayoutsByAccount(rows, filter.accounts);
     return filter.amountSort ? sortPayoutsByAmount(scoped, filter.amountSort) : scoped;
   }, [payouts, query, filter, now]);
   const pageData = paginate(visible, page, PAGE_SIZE);
+
+  const allSelected = visible.length > 0 && visible.every((p) => selected.has(payoutRowId(p)));
+  const someSelected = visible.some((p) => selected.has(payoutRowId(p)));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visible.map(payoutRowId)));
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
 
   // Export the chosen date range (independent of the table's search/filter) as CSV.
   // The CSV build is synchronous, so yield a frame first, otherwise React batches the
@@ -83,7 +95,12 @@ export function PayoutsPage() {
     const pending = toast({ type: 'info', message: 'Preparing export...', description: 'Generating your CSV file.' });
     await new Promise((resolve) => setTimeout(resolve, 500));
     try {
-      downloadCsv(payoutsToCsv(payoutsInRange(payouts, range.startSec, range.endSec)));
+      // Checked rows are an explicit pick, so they win over the chosen range; an
+      // intersection of the two could silently produce an empty file.
+      const rows = someSelected
+        ? visible.filter((p) => selected.has(payoutRowId(p)))
+        : payoutsInRange(payouts, range.startSec, range.endSec);
+      downloadCsv(payoutsToCsv(rows));
       dismiss(pending);
       toast({ type: 'success', message: 'Export complete', description: 'Payouts data has been exported as CSV.' });
     } catch {
@@ -127,7 +144,7 @@ export function PayoutsPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-heading">Payouts</h2>
+          <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Payouts</h2>
           <p className="mt-1 text-sm text-body-alt">View your payout history and on-chain transactions.</p>
         </div>
         {hasData && (
@@ -137,9 +154,9 @@ export function PayoutsPage() {
               onClick={() => setExportOpen((o) => !o)}
               aria-expanded={exportOpen}
               aria-haspopup="dialog"
-              className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              className="inline-flex h-9 items-center gap-2 rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
-              <LiUploadMinimalistic className="h-4 w-4" /> Export CSV
+              <LiExport className="h-3.5 w-3.5" /> Export CSV
             </button>
             {exportOpen && <PayoutsExportModal onCancel={() => setExportOpen(false)} onExport={runExport} />}
           </div>
@@ -174,7 +191,16 @@ export function PayoutsPage() {
             onResetFilter={resetFilter}
             accounts={accountNames}
           />
-          <PayoutsTable payouts={pageData.items} empty={tableEmpty} showAccount={aggregated} />
+          <PayoutsTable
+            payouts={pageData.items}
+            empty={tableEmpty}
+            showAccount={aggregated}
+            selected={selected}
+            allSelected={allSelected}
+            someSelected={someSelected}
+            onToggleAll={toggleAll}
+            onToggleOne={toggleOne}
+          />
           {visible.length > 0 && (
             <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
           )}

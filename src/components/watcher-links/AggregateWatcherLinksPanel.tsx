@@ -93,17 +93,17 @@ export function AggregateWatcherLinksPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-label="Aggregate watcher links"
-        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto rounded-bl-xl border-b border-l border-border bg-popover shadow-xl"
+        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto bg-background shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
       >
         {createdUrl ? (
           <MultiwatcherCreated url={createdUrl} mode={mode} onClose={onClose} />
         ) : (
           <>
-            <div className="flex items-start justify-between gap-4 border-b border-border p-6">
+            <div className="flex items-start justify-between gap-4 border-b-[0.5px] border-border p-6 sm:p-8">
               <div>
                 <h2 className="text-lg font-semibold text-heading">Aggregate watcher links</h2>
                 <p className="mt-1 text-sm text-body-alt">
@@ -120,7 +120,7 @@ export function AggregateWatcherLinksPanel({
               </button>
             </div>
 
-            <div className="flex flex-col gap-5 p-6">
+            <div className="flex flex-col gap-6 p-6 sm:p-8">
               <div ref={modeRef} className="flex flex-col gap-1.5">
                 <label className="text-sm text-body-alt">
                   Permissions<span> *</span>
@@ -131,13 +131,13 @@ export function AggregateWatcherLinksPanel({
                     onClick={() => setModeOpen((o) => !o)}
                     aria-haspopup="listbox"
                     aria-expanded={modeOpen}
-                    className="flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-left text-sm text-foreground transition-colors hover:border-foreground/30"
+                    className="flex h-10 w-full items-center justify-between gap-3 rounded-[16px] bg-muted px-4 py-2 text-left text-sm leading-5 text-foreground transition-opacity hover:opacity-80"
                   >
                     {modeLabel(mode)}
                     <LiAltArrowDown className={cn('h-4 w-4 text-placeholder transition-transform', modeOpen && 'rotate-180')} />
                   </button>
                   {modeOpen && (
-                    <div role="listbox" className="absolute left-0 right-0 top-full z-10 mt-2 rounded-2xl border border-border bg-popover p-1.5 shadow-xl">
+                    <div role="listbox" className="absolute left-0 right-0 top-full z-10 mt-1 flex flex-col gap-1 rounded-xl border-[0.5px] border-border bg-background p-3 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
                       {MULTIWATCHER_MODES.map((m) => (
                         <button
                           key={m}
@@ -149,7 +149,7 @@ export function AggregateWatcherLinksPanel({
                             setModeOpen(false);
                           }}
                           className={cn(
-                            'flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted',
+                            'flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm leading-5 text-foreground transition-colors hover:bg-muted',
                             mode === m && 'bg-muted',
                           )}
                         >
@@ -178,7 +178,7 @@ export function AggregateWatcherLinksPanel({
                     onClick={() => setLinksOpen((o) => !o)}
                     aria-haspopup="listbox"
                     aria-expanded={linksOpen}
-                    className="flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
+                    className="flex h-10 w-full items-center justify-between gap-3 rounded-[16px] bg-muted px-4 py-2 text-left text-sm leading-5 transition-opacity hover:opacity-80"
                   >
                     <span className={cn('truncate', chosen.length === 0 && 'text-placeholder')}>
                       {chosen.length === 0 ? 'Select Watcher links' : `${chosen.length} selected`}
@@ -186,7 +186,7 @@ export function AggregateWatcherLinksPanel({
                     <LiAltArrowDown className={cn('h-4 w-4 shrink-0 text-placeholder transition-transform', linksOpen && 'rotate-180')} />
                   </button>
                   {linksOpen && (
-                    <div className="absolute left-0 right-0 top-full z-10 mt-2 rounded-2xl border border-border bg-popover p-1.5 shadow-xl">
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 flex flex-col gap-1 rounded-xl border-[0.5px] border-border bg-background p-3 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
                       <div className="relative px-1 pb-1.5">
                         <LiMagnifer className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-placeholder" />
                         <input
@@ -195,7 +195,7 @@ export function AggregateWatcherLinksPanel({
                           onChange={(e) => setQuery(e.target.value)}
                           placeholder="Search subaccount"
                           aria-label="Search accounts"
-                          className="w-full rounded-xl border border-border bg-muted py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring"
+                          className="h-10 w-full rounded-[16px] bg-muted py-2 pl-9 pr-4 text-sm leading-5 text-foreground placeholder:text-placeholder focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                       </div>
                       <div className="max-h-56 overflow-y-auto">
@@ -221,7 +221,7 @@ export function AggregateWatcherLinksPanel({
                                     return next;
                                   })
                                 }
-                                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted"
                               >
                                 <span className="text-sm text-foreground">{name}</span>
                                 <span
@@ -243,11 +243,11 @@ export function AggregateWatcherLinksPanel({
               </div>
             </div>
 
-            <div className="mt-auto flex items-center justify-end gap-3 border-t border-border p-6">
+            <div className="mt-auto flex items-center justify-end gap-3 border-t-[0.5px] border-border p-6 sm:p-8">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="inline-flex h-11 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-6 text-base leading-6 text-foreground transition-opacity hover:opacity-80"
               >
                 Cancel
               </button>
@@ -255,7 +255,7 @@ export function AggregateWatcherLinksPanel({
                 type="button"
                 disabled={!canGenerate}
                 onClick={generate}
-                className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 Generate link
               </button>

@@ -13,6 +13,7 @@ import {
   mempoolTxUrl,
   sinceForPreset,
   isPayoutFilterActive,
+  isRangeEndpoint,
   sortPayoutsByAmount,
   payoutsInRange,
   exportPresetRange,
@@ -23,6 +24,8 @@ import {
   type Payout,
   accountForAddress,
   filterPayoutsByAccount,
+  formatCalendarDate,
+  payoutRowId,
 } from '@/lib/payoutsTable';
 
 const USER = new Set(['bc1quser', 'bc1qalt']);
@@ -83,9 +86,9 @@ test('filterPayouts by mode and since-date, combined (AND)', () => {
     payout({ txid: 'f_new', mode: 'fpps', date: 300 }),
   ];
   assert.deepEqual(filterPayouts(rows, EMPTY_PAYOUT_FILTER).map((r) => r.txid), ['p_old', 'p_new', 'f_new']);
-  assert.deepEqual(filterPayouts(rows, { ...EMPTY_PAYOUT_FILTER, mode: 'pplns' }).map((r) => r.txid), ['p_old', 'p_new']);
+  assert.deepEqual(filterPayouts(rows, { ...EMPTY_PAYOUT_FILTER, modes: ['pplns'] }).map((r) => r.txid), ['p_old', 'p_new']);
   assert.deepEqual(filterPayouts(rows, { ...EMPTY_PAYOUT_FILTER, sinceSec: 250 }).map((r) => r.txid), ['p_new', 'f_new']);
-  assert.deepEqual(filterPayouts(rows, { mode: 'pplns', sinceSec: 250 }).map((r) => r.txid), ['p_new']);
+  assert.deepEqual(filterPayouts(rows, { modes: ['pplns'], sinceSec: 250 }).map((r) => r.txid), ['p_new']);
 });
 
 test('formatBtcFromSats converts and trims trailing zeros', () => {
@@ -113,8 +116,8 @@ test('sinceForPreset subtracts the right window from now', () => {
 
 test('isPayoutFilterActive is true only when a facet is set', () => {
   assert.equal(isPayoutFilterActive(EMPTY_PAYOUT_FILTER), false);
-  assert.equal(isPayoutFilterActive({ mode: 'fpps', sinceSec: null }), true);
-  assert.equal(isPayoutFilterActive({ mode: null, sinceSec: 123 }), true);
+  assert.equal(isPayoutFilterActive({ modes: ['fpps'], sinceSec: null }), true);
+  assert.equal(isPayoutFilterActive({ modes: [], sinceSec: 123 }), true);
 });
 
 test('formatPayoutDate renders the "21 Jun, 2026" style in UTC', () => {
@@ -214,4 +217,64 @@ test('filterPayoutsByAccount keeps only the chosen accounts; empty keeps all', (
   ];
   assert.equal(filterPayoutsByAccount(rows, []).length, 2);
   assert.deepEqual(filterPayoutsByAccount(rows, ['Client Alpha']).map((p) => p.txid), ['b']);
+});
+
+test('isRangeEndpoint marks only the two ends of a selection', () => {
+  // The design paints the endpoints solid and the days between them tinted, so the
+  // two cases have to be distinguishable rather than one "in range" flag.
+  const start = 1000, end = 5000;
+  assert.equal(isRangeEndpoint(1000, start, end), true);
+  assert.equal(isRangeEndpoint(5000, start, end), true);
+  assert.equal(isRangeEndpoint(3000, start, end), false);
+  assert.equal(isRangeEndpoint(9000, start, end), false);
+});
+
+test('isRangeEndpoint treats a single picked day as an endpoint', () => {
+  // Between the first and second click there is one selected day and no span.
+  assert.equal(isRangeEndpoint(1000, 1000, null), true);
+  assert.equal(isRangeEndpoint(2000, 1000, null), false);
+});
+
+test('isRangeEndpoint is false when nothing is selected', () => {
+  assert.equal(isRangeEndpoint(1000, null, null), false);
+});
+
+test('formatCalendarDate renders the calendar date inputs as the design draws them', () => {
+  // The design's filled inputs read "January 10, 2026" / "January 20, 2026".
+  assert.equal(formatCalendarDate(Math.floor(Date.UTC(2026, 0, 10) / 1000)), 'January 10, 2026');
+  assert.equal(formatCalendarDate(Math.floor(Date.UTC(2026, 0, 20) / 1000)), 'January 20, 2026');
+});
+
+test('formatCalendarDate reads the date in UTC and does not pad a single-digit day', () => {
+  // UTC matters: the picker's day keys are UTC midnights, so a local-time read would
+  // slip a day for anyone west of Greenwich.
+  assert.equal(formatCalendarDate(Math.floor(Date.UTC(2026, 11, 31, 23, 59) / 1000)), 'December 31, 2026');
+  assert.equal(formatCalendarDate(Math.floor(Date.UTC(2026, 6, 5) / 1000)), 'July 5, 2026');
+});
+
+test('filterPayouts keeps every mode when the modes list is empty', () => {
+  // The design draws PPLNS and FPPS both checked, so the default filters nothing.
+  const rows = [payout({ mode: 'pplns' }), payout({ mode: 'fpps' })];
+  assert.equal(filterPayouts(rows, { modes: [], sinceSec: null }).length, 2);
+});
+
+test('filterPayouts narrows to the checked modes', () => {
+  const rows = [payout({ mode: 'pplns' }), payout({ mode: 'fpps' })];
+  assert.deepEqual(filterPayouts(rows, { modes: ['fpps'], sinceSec: null }).map((p) => p.mode), ['fpps']);
+  assert.equal(filterPayouts(rows, { modes: ['pplns', 'fpps'], sinceSec: null }).length, 2);
+});
+
+test('filterPayouts applies the mode and date bounds together', () => {
+  const rows = [payout({ mode: 'pplns', date: 100 }), payout({ mode: 'pplns', date: 50 }), payout({ mode: 'fpps', date: 100 })];
+  assert.equal(filterPayouts(rows, { modes: ['pplns'], sinceSec: 100 }).length, 1);
+});
+
+test('payoutRowId distinguishes rows that share a txid', () => {
+  // One transaction can pay two addresses, and in aggregated mode the same row can be
+  // tagged to different accounts, so the id has to carry all three parts.
+  const a = payout({ txid: 'tx1', toAddress: 'bc1qA' });
+  const b = payout({ txid: 'tx1', toAddress: 'bc1qB' });
+  assert.notEqual(payoutRowId(a), payoutRowId(b));
+  assert.notEqual(payoutRowId({ ...a, account: 'Main account' }), payoutRowId({ ...a, account: 'Farm' }));
+  assert.equal(payoutRowId(a), payoutRowId({ ...a }));
 });

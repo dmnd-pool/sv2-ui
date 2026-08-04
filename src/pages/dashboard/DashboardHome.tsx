@@ -7,6 +7,7 @@ import { WorkerStatCards } from '@/components/home/WorkerStatCards';
 import { MiningPerformanceChart } from '@/components/home/MiningPerformanceChart';
 import { GettingStartedCard } from '@/components/home/GettingStartedCard';
 import { CustomizeDashboardPanel } from '@/components/home/CustomizeDashboardPanel';
+import { useToast } from '@/components/ui/toast';
 import { CombinedHashrateCard } from '@/components/home/CombinedHashrateCard';
 import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useAggregatedData } from '@/hooks/useAggregatedData';
@@ -45,7 +46,12 @@ function WidgetShell({
   return (
     <div
       data-tour={tour}
-      className={cn('relative rounded-xl transition-opacity', className, drag.dragId === id && 'opacity-50')}
+      className={cn(
+        'relative transition-transform',
+        className,
+        // A dragged widget keeps its fill and border; it lifts and tilts instead of fading.
+        drag.dragId === id && 'rotate-[1.54deg] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]',
+      )}
       draggable={customizing}
       onDragStart={() => drag.onDragStart(id)}
       onDragOver={(e) => {
@@ -63,13 +69,18 @@ function WidgetShell({
       {customizing && (
         <span
           aria-hidden
-          className="absolute -top-2 left-2 z-10 flex h-6 w-6 cursor-grab items-center justify-center rounded-md border border-border bg-popover text-placeholder shadow-sm active:cursor-grabbing"
+          className="absolute left-3 top-3 z-10 flex h-4 w-4 cursor-grab items-center justify-center text-[#525252] active:cursor-grabbing"
         >
-          <GripVertical className="h-3.5 w-3.5" />
+          <GripVertical className="h-4 w-4" />
         </span>
       )}
-      {/* A ring on the widget currently being dragged over, so the drop target is clear. */}
-      {isOver && <span className="pointer-events-none absolute inset-0 z-10 rounded-xl ring-2 ring-[hsl(var(--btn))]" aria-hidden />}
+      {/* The design marks the drop slot with an empty dashed placeholder over the widget. */}
+      {isOver && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 border-[0.5px] border-dashed border-[#737373] bg-secondary"
+        />
+      )}
       {children}
     </div>
   );
@@ -88,6 +99,13 @@ function HashrateConnectRow({ customizing, drag }: { customizing: boolean; drag:
     </div>
   );
 }
+
+/**
+ * The header's secondary buttons: hairline-bordered pill on the secondary fill, at
+ * regular weight. Shared so the two never drift apart.
+ */
+const HEADER_BUTTON =
+  'inline-flex items-center gap-2 rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 py-2 text-sm leading-5 text-foreground transition-colors hover:bg-muted';
 
 /** One widget rendered full-width (used when it isn't part of the hashrate/connect pair). */
 function widgetBlock(
@@ -128,6 +146,7 @@ export function DashboardHome() {
   const [customizing, setCustomizing] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const toast = useToast();
   const [dragId, setDragId] = useState<WidgetId | null>(null);
   const [overId, setOverId] = useState<WidgetId | null>(null);
   // Drop fires within the same interaction, before React commits the latest state,
@@ -152,7 +171,12 @@ export function DashboardHome() {
     onDrop: () => {
       const from = dragRef.current;
       const to = overRef.current;
-      if (from && to && from !== to) reorder(from, layout.order.indexOf(to));
+      // Only confirm when the drop actually moved something; dropping a widget back
+      // where it started is not a saved layout.
+      if (from && to && from !== to) {
+        reorder(from, layout.order.indexOf(to));
+        toast({ type: 'info', message: 'Layout saved' });
+      }
     },
     onDragEnd: () => {
       dragRef.current = null;
@@ -192,7 +216,7 @@ export function DashboardHome() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {customizing && (
         <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2">
           <button
@@ -210,18 +234,16 @@ export function DashboardHome() {
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-heading">Welcome back</h2>
-          <p className="mt-1 text-sm text-body-alt">Mining data and earnings overview.</p>
+          <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Welcome back</h2>
+          <p className="text-sm leading-5 text-body-alt">Mining data and earnings overview.</p>
         </div>
         <div className="relative flex shrink-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setTourOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            <LiRouting2 className="h-4 w-4" />
-            Take tour
-          </button>
+          {!aggregated && (
+            <button type="button" onClick={() => setTourOpen(true)} className={HEADER_BUTTON}>
+              <LiRouting2 className="h-3.5 w-3.5" />
+              Take tour
+            </button>
+          )}
           <button
             type="button"
             data-tour="customize"
@@ -230,16 +252,17 @@ export function DashboardHome() {
               setPanelOpen((o) => !o || !customizing);
             }}
             aria-expanded={panelOpen}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className={HEADER_BUTTON}
           >
-            <LiTuning4 className="h-4 w-4" />
+            <LiTuning4 className="h-3.5 w-3.5" />
             Customize dashboard
           </button>
           {panelOpen && <CustomizeDashboardPanel layout={layout} onToggle={toggle} onReset={reset} />}
         </div>
       </header>
 
-      {rendered}
+      {/* The design separates the header from the body by 16px and the body rows by 8px. */}
+      <div className="space-y-2">{rendered}</div>
 
       <GettingStartedCard />
       {tourOpen && <ProductTour onClose={() => setTourOpen(false)} />}

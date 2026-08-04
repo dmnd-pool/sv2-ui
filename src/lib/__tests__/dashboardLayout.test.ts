@@ -6,6 +6,7 @@ import {
   WIDGET_IDS,
   normalizeLayout,
   toggleWidget,
+  isLockedWidget,
   moveWidget,
   reorderWidget,
   visibleInOrder,
@@ -45,11 +46,11 @@ test('normalizeLayout of null/garbage returns the default (all visible, canonica
 
 test('toggleWidget flips visibility without touching order', () => {
   const base = normalizeLayout(null);
-  const hidden = toggleWidget(base, 'hashrate');
-  assert.ok(hidden.hidden.includes('hashrate'));
+  const hidden = toggleWidget(base, 'connect');
+  assert.ok(hidden.hidden.includes('connect'));
   assert.deepEqual(hidden.order, base.order);
-  const shownAgain = toggleWidget(hidden, 'hashrate');
-  assert.ok(!shownAgain.hidden.includes('hashrate'));
+  const shownAgain = toggleWidget(hidden, 'connect');
+  assert.ok(!shownAgain.hidden.includes('connect'));
 });
 
 test('reorderWidget moves a widget to a target index, shifting the rest', () => {
@@ -84,11 +85,36 @@ test('moveWidget reorders up and down and is a no-op at the edges', () => {
 
 test('visibleInOrder returns only shown widgets, in the layout order', () => {
   let layout = normalizeLayout(null);
-  layout = toggleWidget(layout, layout.order[0]); // hide the first
+  // order[0] is the live hashrate, which is locked, so hide the next one along.
+  const target = layout.order[1];
+  layout = toggleWidget(layout, target);
   const shown = visibleInOrder(layout);
-  assert.ok(!shown.some((w) => w.id === layout.order[0]));
+  assert.ok(!shown.some((w) => w.id === target));
   assert.deepEqual(
     shown.map((w) => w.id),
-    layout.order.slice(1),
+    layout.order.filter((id) => id !== target),
   );
+});
+
+test('the live hashrate widget cannot be hidden', () => {
+  // The design carries a "Live hashrate can't be hidden" notice, so the toggle is a
+  // no-op for that widget rather than a control that silently removes it.
+  const layout = normalizeLayout({});
+  assert.deepEqual(toggleWidget(layout, 'hashrate').hidden, []);
+  assert.equal(isLockedWidget('hashrate'), true);
+  assert.equal(isLockedWidget('connect'), false);
+});
+
+test('a stored layout that hides the live hashrate is repaired', () => {
+  // A layout persisted before the rule existed must not keep the widget hidden.
+  const repaired = normalizeLayout({ order: ['hashrate', 'connect', 'stats', 'performance'], hidden: ['hashrate', 'connect'] });
+  assert.deepEqual(repaired.hidden, ['connect']);
+});
+
+test('every other widget can still be hidden and shown', () => {
+  let layout = normalizeLayout({});
+  layout = toggleWidget(layout, 'connect');
+  assert.deepEqual(layout.hidden, ['connect']);
+  layout = toggleWidget(layout, 'connect');
+  assert.deepEqual(layout.hidden, []);
 });

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { LiCloseCircle, LiAltArrowDown } from 'solar-icon-react/li';
 import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, overlayContainer } from '@/lib/utils';
 import type { Subaccount, WatcherLink, WatcherScope } from '@/api/types';
 import {
   ALL_WATCHER_SCOPES,
@@ -61,7 +61,7 @@ function Field({
           <button
             type="button"
             aria-haspopup="listbox"
-            className="flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-left text-sm text-foreground transition-colors hover:border-foreground/30"
+            className="flex h-10 w-full items-center justify-between gap-3 rounded-[16px] bg-muted px-4 py-2 text-left text-sm leading-5 text-foreground transition-opacity hover:opacity-80"
           >
             <span className={cn('truncate', value === null && 'text-placeholder')}>{value ?? placeholder}</span>
             <LiAltArrowDown
@@ -69,7 +69,7 @@ function Field({
             />
           </button>
         </Popover.Trigger>
-        <Popover.Portal>
+        <Popover.Portal container={overlayContainer()}>
           <Popover.Content
             role="listbox"
             align="start"
@@ -78,7 +78,7 @@ function Field({
             onOpenAutoFocus={(e) => e.preventDefault()}
             // Match the field's width, and only scroll if the list genuinely cannot
             // fit the space Radix measured (a long account list, never the presets).
-            className="z-[60] max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] overflow-y-auto rounded-2xl border border-border bg-popover p-1.5 shadow-xl"
+            className="z-[60] flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] flex-col gap-1 overflow-y-auto rounded-xl border-[0.5px] border-border bg-background p-3 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
           >
             {children(() => setOpen(false))}
           </Popover.Content>
@@ -97,7 +97,7 @@ function Row({ selected, onClick, children }: { selected?: boolean; onClick: () 
       aria-selected={selected}
       onClick={onClick}
       className={cn(
-        'flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted',
+        'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted',
         selected && 'bg-muted',
       )}
     >
@@ -169,17 +169,17 @@ export function CreateWatcherLinkPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-label="Create watcher link"
-        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto rounded-bl-xl border-b border-l border-border bg-popover shadow-xl"
+        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto bg-background shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
       >
         {created ? (
           <WatcherLinkCreated link={created} origin={origin} onClose={onClose} />
         ) : (
           <>
-            <div className="flex items-start justify-between gap-4 border-b border-border p-6">
+            <div className="flex items-start justify-between gap-4 border-b-[0.5px] border-border p-6 sm:p-8">
               <div>
                 <h2 className="text-lg font-semibold text-heading">Create watcher link</h2>
                 <p className="mt-1 text-sm text-body-alt">Choose the account and data this Watcher link can access.</p>
@@ -194,7 +194,7 @@ export function CreateWatcherLinkPanel({
               </button>
             </div>
 
-            <div className="flex flex-col gap-5 p-6">
+            <div className="flex flex-col gap-6 p-6 sm:p-8">
               <Field
                 label="Account"
                 required
@@ -279,11 +279,11 @@ export function CreateWatcherLinkPanel({
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
 
-            <div className="mt-auto flex items-center justify-end gap-3 border-t border-border p-6">
+            <div className="mt-auto flex items-center justify-end gap-3 border-t-[0.5px] border-border p-6 sm:p-8">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="inline-flex h-11 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-6 text-base leading-6 text-foreground transition-opacity hover:opacity-80"
               >
                 Cancel
               </button>
@@ -291,7 +291,7 @@ export function CreateWatcherLinkPanel({
                 type="button"
                 disabled={!canSubmit}
                 onClick={() => void submit()}
-                className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
               >
                 {submitting ? 'Creating...' : 'Create watcher link'}
               </button>

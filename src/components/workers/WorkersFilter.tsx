@@ -18,7 +18,7 @@ const STATUS_OPTIONS: WorkerStatus[] = ['online', 'offline', 'offline_24h'];
 const MODE_OPTIONS: WorkerModeFilter[] = ['PPLNS', 'FPPS'];
 const REJECTION_OPTIONS: { value: WorkerRejectionFilter; label: string }[] = [
   { value: 'lt1', label: 'Less than 1%' },
-  { value: '1to3', label: '1% - 3%' },
+  { value: '1to3', label: '1%–3%' },
   { value: 'gt3', label: 'Greater than 3%' },
 ];
 
@@ -141,7 +141,7 @@ export function WorkersFilter({
       ref={ref}
       role="dialog"
       aria-label="Filter workers"
-      className="absolute right-0 top-full z-20 mt-2 w-[500px] max-w-[calc(100vw-2rem)] rounded-3xl border border-border bg-popover px-4 pb-5 pt-4 shadow-xl sm:px-8 sm:pb-8"
+      className="absolute right-0 top-full z-20 mt-2 flex w-[574px] max-w-[calc(100vw-2rem)] flex-col gap-4 rounded-3xl border-[0.5px] border-border bg-card px-4 pb-8 pt-4 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] sm:px-8"
     >
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
@@ -160,7 +160,7 @@ export function WorkersFilter({
                 setDraft(EMPTY_WORKER_FILTER);
                 onReset();
               }}
-              className="rounded-full border border-border px-5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 py-2 text-sm leading-5 text-foreground transition-colors hover:opacity-80"
             >
               Reset
             </button>
@@ -170,7 +170,7 @@ export function WorkersFilter({
                 onApply(draft);
                 onClose();
               }}
-              className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-xs font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              className="rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 py-2 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
               Apply filter(s)
             </button>

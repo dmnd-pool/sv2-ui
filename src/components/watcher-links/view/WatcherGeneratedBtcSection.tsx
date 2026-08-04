@@ -32,7 +32,7 @@ export function WatcherGeneratedBtcSection({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="border-[0.5px] border-border bg-card p-4 lg:p-8">
         <p className="text-sm text-body-alt">Total generated</p>
         <p className="mt-2 font-mono text-2xl font-semibold text-heading">{formatBtc(sumGenerated(entries))}</p>
       </div>

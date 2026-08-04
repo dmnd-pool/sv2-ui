@@ -87,13 +87,13 @@ export function WatcherLinkDetailsPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-label="Watcher link details"
-        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto rounded-bl-xl border-b border-l border-border bg-popover shadow-xl"
+        className="relative flex max-h-full w-full max-w-[472px] flex-col overflow-y-auto bg-background shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-border p-6">
+        <div className="flex items-start justify-between gap-4 border-b-[0.5px] border-border p-6 sm:p-8">
           <div>
             <h2 className="text-lg font-semibold text-heading">Watcher link Details</h2>
             <p className="mt-1 text-sm text-body-alt">View this Watcher link, copy its details, or disable access.</p>
@@ -108,7 +108,7 @@ export function WatcherLinkDetailsPanel({
           </button>
         </div>
 
-        <div className="flex flex-col gap-5 p-6">
+        <div className="flex flex-col gap-6 p-6 sm:p-8">
           <div className="flex flex-col gap-2">
             <span className="text-xs text-body-alt">Account</span>
             <span className="text-sm text-foreground">{account ?? '--'}</span>
@@ -137,7 +137,7 @@ export function WatcherLinkDetailsPanel({
           </div>
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 border-t border-border p-6">
+        <div className="mt-auto flex flex-col gap-3 border-t-[0.5px] border-border p-6 sm:p-8">
           <div>
             <p className="text-base font-medium text-foreground">Revoke watcher link</p>
             <p className="mt-1 text-sm text-body-alt">This watcher link will stop working immediately.</p>
@@ -146,7 +146,7 @@ export function WatcherLinkDetailsPanel({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              className="inline-flex h-11 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-6 text-base leading-6 text-foreground transition-opacity hover:opacity-80"
             >
               Close
             </button>

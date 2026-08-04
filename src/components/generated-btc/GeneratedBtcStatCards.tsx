@@ -1,13 +1,21 @@
 import type { ReactNode } from 'react';
-import { formatHashrate } from '@/lib/utils';
+import { Reading } from '@/components/ui/Reading';
+import { formatAxisValue, pickHashrateScale } from '@/lib/chartAxis';
 import { formatBtc } from '@/lib/generatedBtcTable';
 
+/**
+ * A stat card. Same shell and type ramp as the home, workers and subaccounts cards so
+ * the pages cannot drift apart, except that this page sets its unit one step larger
+ * (18/28) than they do, which is how the frame draws it.
+ */
 function Card({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <span className="text-sm text-body-alt">{title}</span>
-      {children}
-      <p className="mt-1 text-xs text-body-alt">{sub}</p>
+    <div className="flex flex-col justify-between gap-6 border-[0.5px] border-border bg-card p-4 lg:p-8">
+      <span className="text-sm leading-5 text-body-alt">{title}</span>
+      <div className="flex flex-col gap-1">
+        {children}
+        <p className="text-sm leading-5 text-body-alt">{sub}</p>
+      </div>
     </div>
   );
 }
@@ -22,21 +30,21 @@ export function GeneratedBtcStatCards({
   averageHashrate: number;
   activeWorkers: number;
 }) {
+  // One unit for the hashrate figure, matching how every other hashrate reading is set.
+  const scale = pickHashrateScale([averageHashrate]);
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       <Card title="Generated BTC" sub="Total Bitcoin generated">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">
-          {formatBtc(generated)}
-          <span className="ml-1 text-base font-normal text-body-alt">BTC</span>
-        </p>
+        <Reading value={formatBtc(generated)} unit="BTC" unitSize="lg" />
       </Card>
 
       <Card title="Average hashrate" sub="Average hashrate across workers">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">{formatHashrate(averageHashrate)}</p>
+        <Reading value={formatAxisValue(averageHashrate, scale.divisor)} unit={scale.unit} unitSize="lg" />
       </Card>
 
       <Card title="Active workers" sub="Workers that submitted shares">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">{activeWorkers}</p>
+        <Reading value={activeWorkers} />
       </Card>
     </div>
   );

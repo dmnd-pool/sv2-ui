@@ -172,7 +172,7 @@ export function WorkersPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-heading">Workers</h2>
+          <h2 className="font-heading text-2xl font-semibold leading-9 text-heading">Workers</h2>
           <p className="mt-1 text-sm text-body-alt">Monitor connected machines, share activity, and worker health.</p>
         </div>
         <div className="flex items-center gap-2">

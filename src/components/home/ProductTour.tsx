@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Check } from 'lucide-react';
+import { BdCheckCircle } from 'solar-icon-react/bd';
 import * as Popover from '@radix-ui/react-popover';
 import { cn, overlayContainer } from '@/lib/utils';
 import welcomeIllustration from '@/assets/tour-welcome.png';
@@ -110,36 +110,38 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
   if (phase === 'welcome') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50" onClick={finish} aria-hidden />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={finish} aria-hidden />
         <div
           role="dialog"
           aria-label="Welcome to DMND"
-          className="relative w-full max-w-md rounded-3xl border border-border bg-popover p-6 text-center shadow-2xl"
+          className="relative flex w-full max-w-[447px] flex-col items-center gap-6 rounded-[32px] bg-background px-2 pb-8 pt-2 text-center"
         >
           <img
             src={welcomeIllustration}
             alt=""
-            className="mb-5 w-full rounded-2xl"
+            className="w-full rounded-3xl bg-muted"
             width={862}
             height={406}
           />
-          <h2 className="text-xl font-semibold text-heading">Welcome to DMND</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-body-alt">
-            Your dashboard is ready. Learn where to monitor hashrate, track workers, view earnings, and customize your
-            workspace.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-3">
+          <div className="flex flex-col gap-0.5 px-4">
+            <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">Welcome to DMND</h2>
+            <p className="text-sm leading-5 text-body-alt">
+              Your dashboard is ready. Learn where to monitor hashrate, track workers, view earnings, and customize your
+              workspace.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2">
             <button
               type="button"
               onClick={finish}
-              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              className="rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-6 py-2.5 text-base leading-6 text-foreground transition-colors hover:bg-muted"
             >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => setPhase(0)}
-              className="rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              className="rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 py-2.5 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
               Take a tour
             </button>
@@ -152,28 +154,28 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
   if (phase === 'done') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50" onClick={finish} aria-hidden />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={finish} aria-hidden />
         <div
           role="dialog"
           aria-label="You're ready to go"
-          className="relative w-full max-w-sm rounded-3xl border border-border bg-popover p-8 text-center shadow-2xl"
+          className="relative flex w-full max-w-[448px] flex-col items-center gap-3 rounded-[32px] bg-background px-6 py-10 text-center"
         >
-          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success/15">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success">
-              <Check className="h-5 w-5 text-white" strokeWidth={3} />
-            </span>
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-toast-success p-1">
+            <BdCheckCircle className="h-12 w-12 text-success" />
           </span>
-          <h2 className="text-xl font-semibold text-heading">You&apos;re ready to go.</h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm text-body-alt">
-            Connect a worker to begin tracking mining activity.
-          </p>
+          <div className="flex flex-col gap-0.5 px-6">
+            <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">
+              You&apos;re ready to go.
+            </h2>
+            <p className="text-sm leading-5 text-body-alt">Connect a worker to begin tracking mining activity.</p>
+          </div>
           <button
             type="button"
             onClick={() => {
               markSeen();
               navigate('/account-setup');
             }}
-            className="mt-6 w-full rounded-full bg-[hsl(var(--btn))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+            className="rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 py-2.5 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
           >
             Start mining
           </button>
@@ -225,7 +227,10 @@ function CoachMark({
   // When neither side fits, drop the card below the target instead; Radix still flips it
   // above if the target sits near the bottom.
   const CARD_SIDE_SPACE = 460;
-  const CARD_STACK_SPACE = 210; // card height plus the side offset
+  // The rendered card measures 380px tall (every step carries the 180px preview),
+  // plus the 12px side offset. Under-stating this is what let the card anchor below
+  // a target with too little room, pushing its buttons off-screen.
+  const CARD_STACK_SPACE = 392;
   const wantsHorizontal = step.side === 'left' || step.side === 'right';
   const noSideRoom =
     wantsHorizontal &&
@@ -246,49 +251,55 @@ function CoachMark({
   // The card's contents, shared by the anchored and the floating placement.
   const cardBody = (
     <>
-      <h3 className="text-xl font-semibold text-heading">{step.title}</h3>
-      <p className="mt-1.5 text-sm text-body-alt">{step.body}</p>
-      <div className="mt-5 flex items-center justify-between gap-4">
-        <div>
-          <div className="flex gap-[3px]">
-            {Array.from({ length: total }, (_, i) => (
-              <span key={i} className={cn('h-0.5 w-5 rounded-full', i <= index ? 'bg-foreground' : 'bg-secondary')} />
-            ))}
-          </div>
-          <span className="mt-1.5 block text-xs font-light text-body-alt">
-            Step {index + 1} of {total}
-          </span>
+      <StepPreview target={step.target} />
+      {/* Text and footer sit in their own 24px-inset block below the preview area. */}
+      <div className="flex flex-col gap-6 px-6">
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-xl font-semibold leading-8 tracking-normal text-foreground">{step.title}</h3>
+          <p className="text-sm leading-5 text-body-alt">{step.body}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={index > 0 ? onBack : onSkip}
-            className="rounded-full border border-border bg-muted px-5 py-2 text-sm text-foreground transition-colors hover:bg-secondary"
-          >
-            {index > 0 ? 'Back' : 'Skip'}
-          </button>
-          <button
-            type="button"
-            onClick={onNext}
-            className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
-          >
-            {index === total - 1 ? 'Finish' : 'Next'}
-          </button>
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-[3px]">
+              {Array.from({ length: total }, (_, i) => (
+                <span key={i} className={cn('h-0.5 w-5 rounded', i <= index ? 'bg-foreground' : 'bg-secondary')} />
+              ))}
+            </div>
+            <span className="block text-xs font-light leading-4 text-body-alt">
+              Step {index + 1} of {total}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={index > 0 ? onBack : onSkip}
+              className="rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 py-2 text-sm leading-5 text-foreground transition-colors hover:bg-secondary"
+            >
+              {index > 0 ? 'Back' : 'Skip'}
+            </button>
+            <button
+              type="button"
+              onClick={onNext}
+              className="rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 py-2 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+            >
+              {index === total - 1 ? 'Finish' : 'Next'}
+            </button>
+          </div>
         </div>
       </div>
     </>
   );
   const cardClass =
-    'flex w-[431px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-border bg-popover p-6 shadow-2xl';
+    'flex w-[447px] max-w-[calc(100vw-2rem)] flex-col gap-3 bg-muted px-2 pb-6 pt-2 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]';
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onSkip} aria-hidden />
+      <div className="absolute inset-0" onClick={onSkip} aria-hidden />
       {rect && (
         <div
           // `fixed` so the ring uses viewport coordinates directly (getBoundingClientRect
           // is viewport-relative); an `absolute` box can pick up an offset parent.
-          className="pointer-events-none fixed rounded-xl ring-2 ring-success ring-offset-2 ring-offset-background"
+          className="pointer-events-none fixed ring-2 ring-inset ring-success"
           style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
           aria-hidden
         />
@@ -301,7 +312,11 @@ function CoachMark({
             floatAtBottom ? 'bottom-4' : 'top-4',
           )}
         >
-          <div role="dialog" aria-label={step.title} className={cn('pointer-events-auto z-50', cardClass)}>
+          <div
+            role="dialog"
+            aria-label={step.title}
+            className={cn('pointer-events-auto z-50 max-h-[calc(100vh-2rem)] overflow-y-auto', cardClass)}
+          >
             {cardBody}
           </div>
         </div>
@@ -336,10 +351,10 @@ function CoachMark({
             hideWhenDetached={false}
             onOpenAutoFocus={(e) => e.preventDefault()}
             aria-label={step.title}
-            // No internal scrolling: the card is short, and it falls back to a centred
-            // overlay when no side has room, so a scrollbar inside the card would only
-            // ever look like a glitch. Width is capped to the viewport for narrow screens.
-            className={cn('z-50', cardClass)}
+            // Width is capped to the viewport for narrow screens; height is capped so a
+            // window too short for the whole card scrolls it internally rather than
+            // hiding its footer buttons, which would strand the user mid-tour.
+            className={cn('z-50 max-h-[calc(100vh-2rem)] overflow-y-auto', cardClass)}
           >
             {cardBody}
           </Popover.Content>
@@ -396,6 +411,43 @@ function unionRect(els: Element[]): Box | null {
  * highlight a group of cards (e.g. the two worker stat cards) by tagging them all
  * with the same value; the ring wraps their union. Tracked on resize and scroll.
  */
+/**
+ * The preview panel each coach mark shows above its copy: a scaled-down, inert copy of
+ * the widget being described. It clones the live element rather than shipping a static
+ * asset so the preview always matches what the miner is actually looking at. The clone
+ * is inert (aria-hidden, pointer-events disabled) so it never becomes a second, stale
+ * set of controls.
+ */
+function StepPreview({ target }: { target: string }) {
+  const host = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const box = host.current;
+    const source = document.querySelector(`[data-tour="${target}"]`);
+    if (!box || !(source instanceof HTMLElement)) return;
+    const clone = source.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('data-tour');
+    clone.setAttribute('aria-hidden', 'true');
+    clone.style.width = `${source.offsetWidth}px`;
+    clone.style.pointerEvents = 'none';
+    // Fit the widget's width into the panel, matching the design's scaled thumbnails.
+    const scale = Math.min(1, (PREVIEW_WIDTH - PREVIEW_INSET * 2) / Math.max(source.offsetWidth, 1));
+    clone.style.transform = `scale(${scale})`;
+    clone.style.transformOrigin = 'top left';
+    box.replaceChildren(clone);
+    return () => box.replaceChildren();
+  }, [target]);
+
+  return (
+    <div className="h-[180px] w-full overflow-hidden bg-secondary">
+      <div ref={host} aria-hidden className="pointer-events-none select-none p-4" />
+    </div>
+  );
+}
+
+const PREVIEW_WIDTH = 431;
+const PREVIEW_INSET = 16;
+
 function useTargetRect(target: string) {
   const selector = useMemo(() => `[data-tour="${target}"]`, [target]);
   const [rect, setRect] = useState<Box | null>(null);

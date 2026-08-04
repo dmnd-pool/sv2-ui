@@ -61,7 +61,7 @@ function Option({ label, checked, onClick }: { label: string; checked: boolean; 
   );
 }
 
-const Divider = () => <div className="w-px shrink-0 self-stretch bg-border" aria-hidden />;
+const Divider = () => <div className="w-[0.5px] shrink-0 self-stretch bg-border" aria-hidden />;
 
 /**
  * The subaccounts Filter popover. A draft of the selection lives here; "Apply
@@ -108,14 +108,14 @@ export function SubaccountsFilter({
       ref={ref}
       role="dialog"
       aria-label="Filter subaccounts"
-      className="absolute right-0 top-full z-20 mt-2 w-[574px] max-w-[calc(100vw-2rem)] rounded-3xl border border-border bg-popover px-4 pb-5 pt-4 shadow-xl sm:px-8 sm:pb-8"
+      className="absolute right-0 top-full z-20 mt-2 w-[574px] max-w-[calc(100vw-2rem)] rounded-3xl border-[0.5px] border-border bg-card px-4 pb-5 pt-4 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] sm:px-8 sm:pb-8"
     >
       {/* Header: title + Reset/Apply, then a full-width divider. */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-heading">Filter subaccounts</p>
-            <p className="mt-0.5 text-xs text-body-alt">Find by status or performance.</p>
+            <p className="text-base font-bold leading-6 text-foreground">Filter subaccounts</p>
+            <p className="text-sm leading-5 text-body-alt">Find by status or performance.</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -124,7 +124,7 @@ export function SubaccountsFilter({
                 setDraft(EMPTY_SUBACCOUNT_FILTER);
                 onReset();
               }}
-              className="rounded-full border border-border px-5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="inline-flex h-9 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80"
             >
               Reset
             </button>
@@ -134,13 +134,13 @@ export function SubaccountsFilter({
                 onApply(draft);
                 onClose();
               }}
-              className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-xs font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              className="inline-flex h-9 items-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-5 text-sm leading-5 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
               Apply filter(s)
             </button>
           </div>
         </div>
-        <div className="h-px w-full bg-border" aria-hidden />
+        <div className="h-[0.5px] w-full bg-border" aria-hidden />
       </div>
 
       {/* Body: rail | divider | option column(s). Tighter gaps on mobile so the
@@ -154,9 +154,8 @@ export function SubaccountsFilter({
               onClick={() => setCategory(key)}
               className={cn(
                 'flex items-center gap-1 text-left text-sm transition-colors',
-                category === key
-                  ? 'font-medium text-foreground underline underline-offset-4'
-                  : 'text-body-alt hover:text-foreground',
+                'text-foreground',
+                category === key ? 'underline underline-offset-4' : 'hover:opacity-70',
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" />

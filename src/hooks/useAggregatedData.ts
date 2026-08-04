@@ -3,7 +3,7 @@ import { donutSlices, sumAccountStats } from '@/lib/aggregatedStats';
 import { MAIN_ACCOUNT_LABEL } from '@/lib/payoutsTable';
 import { todayGeneratedBtc } from '@/lib/generatedBtcTable';
 import { deriveWorkersPageStats } from '@/lib/workersTable';
-import type { EnrichedSubaccount } from '@/lib/subaccountsTable';
+import { sumGeneratedBtc, type EnrichedSubaccount } from '@/lib/subaccountsTable';
 import { useSubaccounts } from './useSubaccounts';
 import { useAccountAllWorkers, useAccountHashrate, useAccountShareStats } from './useAccountData';
 import { useGeneratedBtc } from './useGeneratedBtc';
@@ -54,6 +54,7 @@ export function useAggregatedData(enabled = true) {
       accepted: mainShares?.accepted ?? 0,
       rejected: mainShares?.rejected ?? 0,
       todayEarnings: todayGeneratedBtc(mainGenerated ?? [], Date.now()),
+      generatedBtc: sumGeneratedBtc(mainGenerated ?? []),
       workers,
     };
   }, [mainWorkers, mainHashrate, mainShares, mainGenerated]);

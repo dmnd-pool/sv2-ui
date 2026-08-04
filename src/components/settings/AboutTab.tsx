@@ -18,21 +18,21 @@ const LINKS: { label: string; href: string }[] = [
 /** The About tab: the dashboard version and a set of external document/social links. */
 export function AboutTab() {
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-[542px] space-y-10 sm:space-y-14">
       <div className="space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-heading">DMND Dashboard</h2>
-          <p className="mt-1 text-sm text-body-alt">{DASHBOARD_VERSION}</p>
+          <h2 className="!font-body text-base font-semibold leading-6 text-heading">DMND Dashboard</h2>
+          <p className="mt-1 text-xs leading-4 text-body-alt">{DASHBOARD_VERSION}</p>
         </div>
-        <div className="h-px w-full bg-border" />
+        <div className="h-[0.5px] w-full bg-border" />
       </div>
 
       <div className="space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-heading">Links</h2>
+          <h2 className="!font-body text-base font-semibold leading-6 text-heading">Links</h2>
           <p className="mt-1 text-sm text-body-alt">Access our important documents and social addresses</p>
         </div>
-        <div className="h-px w-full bg-border" />
+        <div className="h-[0.5px] w-full bg-border" />
         <ul className="space-y-4">
           {LINKS.map((link) =>
             link.href ? (
@@ -41,20 +41,20 @@ export function AboutTab() {
                   href={link.href}
                   target={link.href.startsWith('mailto:') ? undefined : '_blank'}
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-foreground underline-offset-4 hover:underline"
+                  className="inline-flex items-center gap-1 border-b-[0.5px] border-foreground pb-0.5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80"
                 >
                   {link.label}
-                  <LiArrowRightUp className="h-3.5 w-3.5 text-body-alt" />
+                  <LiArrowRightUp className="h-3.5 w-3.5" />
                 </a>
               </li>
             ) : (
               <li key={link.label}>
                 <span
                   aria-disabled
-                  className="inline-flex cursor-default items-center gap-1 text-sm text-foreground"
+                  className="inline-flex cursor-default items-center gap-1 border-b-[0.5px] border-foreground pb-0.5 text-sm leading-5 text-foreground"
                 >
                   {link.label}
-                  <LiArrowRightUp className="h-3.5 w-3.5 text-body-alt" />
+                  <LiArrowRightUp className="h-3.5 w-3.5" />
                 </span>
               </li>
             ),

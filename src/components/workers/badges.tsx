@@ -1,18 +1,20 @@
 import { cn } from '@/lib/utils';
 import { STATUS_LABEL, type WorkerStatus } from '@/lib/workersTable';
 
+// Solid status tints from the design, not alpha blends. Only Online carries a dot,
+// and the badge reds differ from the banner icon red on purpose.
 const STATUS: Record<WorkerStatus, { className: string; dot: boolean }> = {
-  online: { className: 'bg-success/10 text-success', dot: true },
-  offline: { className: 'bg-warning/15 text-warning', dot: false },
-  offline_24h: { className: 'bg-destructive/10 text-destructive', dot: false },
+  online: { className: 'bg-toast-success text-success-text', dot: true },
+  offline: { className: 'bg-toast-warning text-warning-text', dot: false },
+  offline_24h: { className: 'bg-toast-error text-destructive-text', dot: false },
 };
 
 /** The Online / Offline / Offline >24h pill in the Status column. */
 export function StatusBadge({ status }: { status: WorkerStatus }) {
   const s = STATUS[status];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', s.className)}>
-      {s.dot && <span className="h-1.5 w-1.5 rounded-full bg-success" />}
+    <span className={cn('inline-flex items-center gap-1 rounded-sm px-3 py-1 text-xs font-medium leading-4', s.className)}>
+      {s.dot && <span className="h-1 w-1 rounded-full bg-success" />}
       {STATUS_LABEL[status]}
     </span>
   );

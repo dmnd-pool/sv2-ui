@@ -1,67 +1,85 @@
 import type { ReactNode } from 'react';
 import { InfoHint } from '@/components/ui/InfoHint';
+import { Reading } from '@/components/ui/Reading';
+import { WorkerBars } from '@/components/ui/WorkerBars';
 import { cn } from '@/lib/utils';
 import type { WorkersPageStats } from '@/lib/workersTable';
 
-function Card({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+/**
+ * A stat card. Same shell and type ramp as the home cards, so the two pages cannot
+ * drift apart: the reading is a numeral in the heading face with its unit trailing at
+ * body size, and the caption sits at body size below it.
+ */
+function Card({
+  title,
+  hint,
+  children,
+  caption,
+  captionTone = 'muted',
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+  caption: ReactNode;
+  captionTone?: 'muted' | 'strong';
+}) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-sm text-body-alt">{title}</span>
+    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-8">
+      <div className="flex items-center gap-2">
+        <span className="text-sm leading-5 text-body-alt">{title}</span>
         {hint && <InfoHint text={hint} />}
       </div>
       {children}
-    </div>
-  );
-}
-
-/** A 12-segment bar showing the active share of the roster (Active card viz). */
-function ActivityBar({ active, total }: { active: number; total: number }) {
-  const segments = 12;
-  const filled = total > 0 ? Math.round((active / total) * segments) : 0;
-  return (
-    <div className="flex items-center gap-[3px]">
-      {Array.from({ length: segments }, (_, i) => (
-        <span key={i} className={cn('h-3.5 w-1 rounded-sm', i < filled ? 'bg-success' : 'bg-border')} />
-      ))}
+      <div className={cn('text-sm leading-5', captionTone === 'strong' ? 'text-foreground' : 'text-body-alt')}>
+        {caption}
+      </div>
     </div>
   );
 }
 
 /** Total / Active / Offline / Rejection-rate cards above the workers table. */
 export function WorkersStatCards({ stats }: { stats: WorkersPageStats }) {
-  const rejection = stats.rejectionRate === null ? '--' : `${(stats.rejectionRate * 100).toFixed(1)}`;
+  const hasWorkers = stats.total > 0;
+  const rated = stats.rejectionRate !== null;
+  const rejection = rated ? (stats.rejectionRate! * 100).toFixed(1) : '--';
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card title="Total workers" hint="The total number of workers on this account.">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">{stats.total}</p>
-        <p className="mt-1 text-xs text-body-alt">Workers on this account</p>
+      <Card title="Total workers" hint="The total number of workers on this account." caption="Workers on this account">
+        <Reading value={stats.total} />
       </Card>
 
-      <Card title="Active workers" hint="Workers currently connected and submitting shares to the pool.">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">{stats.active}</p>
-        <div className="mt-2.5 flex items-center gap-2">
-          <ActivityBar active={stats.active} total={stats.total} />
-          <span className="text-xs text-body-alt">
-            {stats.active} active &middot; {stats.offline} offline
+      <Card
+        title="Active workers"
+        hint="Workers currently connected and submitting shares to the pool."
+        captionTone={hasWorkers ? 'strong' : 'muted'}
+        caption={
+          <span className="flex flex-col gap-2">
+            {hasWorkers && <WorkerBars active={stats.active} total={stats.total} />}
+            <span>
+              {stats.active} active &middot; {stats.offline} offline
+            </span>
           </span>
-        </div>
+        }
+      >
+        <Reading value={stats.active} />
       </Card>
 
-      <Card title="Offline">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">{stats.offline}</p>
-        <p className="mt-1 text-xs text-body-alt">
-          {stats.offline24h > 0 ? `${stats.offline24h} offline for over 24h` : 'None offline over 24h'}
-        </p>
+      <Card
+        title="Offline"
+        captionTone={hasWorkers ? 'strong' : 'muted'}
+        caption={stats.offline24h > 0 ? `${stats.offline24h} offline for over 24h` : 'None offline over 24h'}
+      >
+        <Reading value={stats.offline} />
       </Card>
 
-      <Card title="Rejection rate" hint="The percentage of shares that were rejected and did not count toward Payouts.">
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">
-          {rejection}
-          {stats.rejectionRate !== null && <span className="ml-1 text-base font-normal text-body-alt">%</span>}
-        </p>
-        <p className="mt-1 text-xs text-body-alt">Across all workers</p>
+      <Card
+        title="Rejection rate"
+        hint="The percentage of shares that were rejected and did not count toward Payouts."
+        captionTone={rated ? 'strong' : 'muted'}
+        caption="Across all workers"
+      >
+        <Reading value={rejection} unit={rated ? '%' : undefined} tone={rated ? 'success' : 'default'} />
       </Card>
     </div>
   );

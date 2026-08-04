@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Subaccount, SubaccountShareStats, SubaccountSummary, Worker } from '@/api/types';
+import type { GeneratedBtcEntry, Subaccount, SubaccountShareStats, SubaccountSummary, Worker } from '@/api/types';
 import {
   subaccountName,
   parseHashrate,
@@ -11,6 +11,8 @@ import {
   searchSubaccounts,
   sortSubaccounts,
   subaccountsToCsv,
+  withGeneratedBtc,
+  sumGeneratedBtc,
   formatBtc,
   applySubaccountFilter,
   isSubaccountFilterActive,
@@ -32,7 +34,7 @@ function row(over: Partial<Subaccount> = {}): Subaccount {
   };
 }
 function enriched(over: Partial<EnrichedSubaccount> = {}): EnrichedSubaccount {
-  return { id: '1', name: 'X', hashrate: 0, active: 0, offline: 0, offline24h: 0, rejection: null, accepted: 0, rejected: 0, todayEarnings: 0, workers: [], ...over };
+  return { id: '1', name: 'X', hashrate: 0, active: 0, offline: 0, offline24h: 0, rejection: null, accepted: 0, rejected: 0, todayEarnings: 0, generatedBtc: null, workers: [], ...over };
 }
 function worker(over: Partial<Worker> = {}): Worker {
   return { name: 'w', hashrate: 1, total_shares: 0, rejected_shares: 0, is_connected: true, ...over };
@@ -210,4 +212,49 @@ test('applySubaccountFilter: status and rejection combine (AND), then sort', () 
   ];
   const out = applySubaccountFilter(rows, f({ status: 'has_offline', rejection: '1to3', sortBy: 'hashrate_desc' }));
   assert.deepEqual(out.map((s) => s.id), ['keep']);
+});
+
+function gen(account: string, btc: number | null): GeneratedBtcEntry {
+  return { entry_day: '2026-08-01', hashrate: null, btc_generated: btc, account };
+}
+
+test('withGeneratedBtc sums each subaccount lifetime BTC from the account-tagged entries', () => {
+  const subs = [enriched({ id: '1', name: 'Alpha' }), enriched({ id: '2', name: 'Beta' })];
+  const out = withGeneratedBtc(subs, [gen('Alpha', 0.5), gen('Alpha', 0.25), gen('Beta', 1)]);
+  assert.equal(out[0].generatedBtc, 0.75);
+  assert.equal(out[1].generatedBtc, 1);
+});
+
+test('withGeneratedBtc reports null (not 0) when an account has no entries or only null readings', () => {
+  const subs = [enriched({ id: '1', name: 'Alpha' }), enriched({ id: '2', name: 'Beta' })];
+  const out = withGeneratedBtc(subs, [gen('Alpha', null)]);
+  assert.equal(out[0].generatedBtc, null, 'all-null readings are unknown, not zero');
+  assert.equal(out[1].generatedBtc, null, 'an account with no entries is unknown');
+});
+
+test('withGeneratedBtc ignores entries belonging to another account', () => {
+  const out = withGeneratedBtc([enriched({ name: 'Alpha' })], [gen('Main account', 9), gen('Alpha', 0.1)]);
+  assert.equal(out[0].generatedBtc, 0.1);
+});
+
+test('subaccountsToCsv exports the columns the table shows, including generated BTC', () => {
+  const csv = subaccountsToCsv([
+    enriched({ name: 'Alpha', active: 2, hashrate: 1000, rejection: 0.01, generatedBtc: 0.5, todayEarnings: 0.25 }),
+  ]);
+  const [header, first] = csv.split('\n');
+  assert.equal(header, 'Name,Active workers,Hashrate (H/s),Rejection rate,Generated BTC,Today\'s earnings (BTC)');
+  assert.equal(first, 'Alpha,2,1000,1.00%,0.5,0.25');
+});
+
+test('subaccountsToCsv writes an unknown generated-BTC total as --, formula-guarded', () => {
+  const csv = subaccountsToCsv([enriched({ name: 'Alpha', generatedBtc: null })]);
+  // The leading dash is quote-prefixed so a spreadsheet cannot read the cell as a formula.
+  assert.equal(csv.split('\n')[1].split(',')[4], "'--");
+});
+
+test('sumGeneratedBtc totals untagged entries and reports null when no reading is usable', () => {
+  const untagged = (btc: number | null): GeneratedBtcEntry => ({ entry_day: '2026-08-01', hashrate: null, btc_generated: btc });
+  assert.equal(sumGeneratedBtc([untagged(0.5), untagged(null), untagged(0.25)]), 0.75);
+  assert.equal(sumGeneratedBtc([untagged(null)]), null);
+  assert.equal(sumGeneratedBtc([]), null);
 });

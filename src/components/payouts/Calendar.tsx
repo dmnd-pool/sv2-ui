@@ -1,20 +1,25 @@
 import { useState } from 'react';
 import { LiAltArrowLeft, LiAltArrowRight } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
-import { monthInfo, clampRange, fullDayRange, type DateRange } from '@/lib/payoutsTable';
+import {
+  monthInfo,
+  clampRange,
+  fullDayRange,
+  formatCalendarDate,
+  isRangeEndpoint,
+  type DateRange,
+} from '@/lib/payoutsTable';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+/** The two date readouts share one 40px, radius-16 field at the design's 12/16 type. */
+const dateFieldClass = 'flex h-10 flex-1 items-center rounded-[16px] bg-muted px-4 py-2 text-xs leading-4 text-foreground';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 /** A picked calendar day as its UTC-midnight unix seconds. */
 function dayKey(year: number, month0: number, day: number): number {
   return Math.floor(Date.UTC(year, month0, day) / 1000);
 }
-function fmt(sec: number): string {
-  const d = new Date(sec * 1000);
-  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
-}
-
 /**
  * A month calendar for picking a start/end date range. The first click sets the
  * start; the second sets the end (order is normalized). "Done" is enabled once a
@@ -57,6 +62,7 @@ export function Calendar({ onCancel, onDone }: { onCancel: () => void; onDone: (
   // Live range (normalized) for highlighting and the input displays.
   const range = startKey !== null && endKey !== null ? clampRange(startKey, endKey) : null;
   const inRange = (key: number) => (range ? key >= range.startSec && key <= range.endSec : key === startKey);
+  const isEndpoint = (key: number) => isRangeEndpoint(key, startKey, endKey);
 
   const cells: (number | null)[] = [
     ...Array<null>(firstWeekdayMon).fill(null),
@@ -64,31 +70,40 @@ export function Calendar({ onCancel, onDone }: { onCancel: () => void; onDone: (
   ];
 
   return (
-    <div className="w-[320px] rounded-2xl border border-border bg-popover p-4 shadow-xl">
-      <div className="mb-3 flex items-center justify-between">
-        <button type="button" onClick={() => step(-1)} aria-label="Previous month" className="rounded-full p-1.5 text-body-alt hover:bg-muted hover:text-foreground">
+    <div
+      className={cn(
+        // The design draws one component two ways: a 396px popover with 32px corners on
+        // desktop, and a bottom-anchored full-bleed sheet with square corners on mobile.
+        'flex flex-col gap-4 border-[0.5px] border-border bg-background p-6 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]',
+        'w-full rounded-none sm:w-[396px] sm:rounded-[32px]',
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={() => step(-1)} aria-label="Previous month" className="flex h-10 w-10 items-center justify-center rounded-[32px] bg-btn-secondary p-3 text-foreground transition-colors hover:opacity-80">
           <LiAltArrowLeft className="h-4 w-4" />
         </button>
-        <span className="text-sm font-semibold text-heading">
+        <span className="!font-body text-base font-semibold leading-6 text-heading-alt">
           {MONTHS[month0]} {year}
         </span>
-        <button type="button" onClick={() => step(1)} aria-label="Next month" className="rounded-full p-1.5 text-body-alt hover:bg-muted hover:text-foreground">
+        <button type="button" onClick={() => step(1)} aria-label="Next month" className="flex h-10 w-10 items-center justify-center rounded-[32px] bg-btn-secondary p-3 text-foreground transition-colors hover:opacity-80">
           <LiAltArrowRight className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="mb-3 flex gap-2">
-        <div className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-body-alt">
-          {startKey !== null ? fmt(range ? range.startSec : startKey) : 'Enter start date'}
+      {/* The two date readouts: placeholder grey until a date is picked, then the
+          picked date in the body colour, as the filled frame draws them. */}
+      <div className="flex gap-2">
+        <div className={cn(dateFieldClass, startKey === null && 'text-placeholder')}>
+          {startKey !== null ? formatCalendarDate(range ? range.startSec : startKey) : 'Enter start date'}
         </div>
-        <div className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-body-alt">
-          {range ? fmt(range.endSec) : 'Enter end date'}
+        <div className={cn(dateFieldClass, !range && 'text-placeholder')}>
+          {range ? formatCalendarDate(range.endSec) : 'Enter end date'}
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-x-0.5 text-center">
         {WEEKDAYS.map((w) => (
-          <span key={w} className="py-1 text-xs font-medium text-body-alt">
+          <span key={w} className="flex aspect-square items-center justify-center text-sm font-medium leading-5 text-heading-alt">
             {w}
           </span>
         ))}
@@ -101,10 +116,12 @@ export function Calendar({ onCancel, onDone }: { onCancel: () => void; onDone: (
               type="button"
               onClick={() => clickDay(day)}
               className={cn(
-                'flex h-8 items-center justify-center rounded-full text-sm transition-colors',
-                inRange(dayKey(year, month0, day))
-                  ? 'bg-[hsl(var(--btn))] text-[hsl(var(--btn-foreground))]'
-                  : 'text-foreground hover:bg-muted',
+                'flex aspect-square items-center justify-center rounded-full text-sm leading-5 transition-colors',
+                isEndpoint(dayKey(year, month0, day))
+                  ? 'bg-[#262626] text-on-solid'
+                  : inRange(dayKey(year, month0, day))
+                    ? 'bg-muted text-foreground'
+                    : 'text-foreground hover:bg-muted',
               )}
             >
               {day}
@@ -113,11 +130,12 @@ export function Calendar({ onCancel, onDone }: { onCancel: () => void; onDone: (
         )}
       </div>
 
-      <div className="mt-4 flex justify-end gap-2">
+      <div aria-hidden className="-mx-6 h-[0.5px] bg-border" />
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full border border-border px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="flex-1 rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-6 py-2.5 text-base leading-6 text-foreground transition-colors hover:opacity-80"
         >
           Cancel
         </button>
@@ -125,7 +143,7 @@ export function Calendar({ onCancel, onDone }: { onCancel: () => void; onDone: (
           type="button"
           disabled={startKey === null}
           onClick={() => onDone(fullDayRange(startKey!, endKey ?? startKey!))}
-          className="rounded-full bg-[hsl(var(--btn))] px-5 py-2 text-sm font-medium text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="flex-1 rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 py-2.5 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           Done
         </button>

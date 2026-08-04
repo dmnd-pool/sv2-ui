@@ -29,12 +29,12 @@ export function SettingsPage() {
         <h1 className="text-xl font-semibold text-heading">Settings</h1>
         <p className="mt-1 text-sm text-body-alt">Manage your account, security, and application preferences.</p>
       </header>
-      <div className="h-px w-full bg-border" />
+      <div className="h-[0.5px] w-full bg-border" />
 
-      <div className="flex flex-col gap-6 sm:flex-row sm:gap-10">
+      <div className="flex flex-col gap-6 sm:flex-row sm:gap-16">
         <nav
           aria-label="Settings sections"
-          className="-mx-1 flex gap-1 overflow-x-auto px-1 sm:mx-0 sm:w-44 sm:shrink-0 sm:flex-col sm:overflow-visible sm:px-0"
+          className="flex h-9 gap-2 rounded-[8px] bg-muted p-0.5 sm:h-auto sm:w-[117px] sm:shrink-0 sm:flex-col sm:bg-transparent sm:p-0"
         >
           {TABS.map((t) => (
             <button
@@ -43,8 +43,10 @@ export function SettingsPage() {
               aria-current={tab === t.id ? 'page' : undefined}
               onClick={() => setTab(t.id)}
               className={cn(
-                'shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors',
-                tab === t.id ? 'bg-muted text-foreground' : 'text-body-alt hover:text-foreground',
+                'h-8 flex-1 whitespace-nowrap rounded-[8px] px-3 py-1.5 text-center text-sm leading-5 transition-colors sm:flex-none sm:text-left',
+                tab === t.id
+                  ? 'bg-background font-medium text-foreground shadow-[0_20px_30px_-5px_rgba(0,0,0,0.05),0_8px_20px_-6px_rgba(0,0,0,0.05)] sm:bg-muted sm:shadow-none'
+                  : 'text-body-alt hover:text-foreground',
               )}
             >
               {t.label}
@@ -52,7 +54,7 @@ export function SettingsPage() {
           ))}
         </nav>
 
-        <section className="min-w-0 flex-1 sm:border-l sm:border-border sm:pl-8 lg:pl-10">
+        <section className="min-w-0 flex-1">
           {tab === 'account' && <AccountTab />}
           {tab === 'security' && <SecurityTab />}
           {tab === 'preferences' && <PreferencesTab />}

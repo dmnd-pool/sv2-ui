@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { LiShieldWarning } from 'solar-icon-react/li';
+import { BdCloseCircle, BdShieldWarning } from 'solar-icon-react/bd';
 import { cn, formatHashrate, formatNumber, overlayContainer } from '@/lib/utils';
 import type { Worker } from '@/api/types';
 import {
@@ -21,8 +21,8 @@ import { StatusBadge } from './badges';
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-[3px]">
-      <p className="text-sm text-body-alt">{label}</p>
-      <div className="text-base text-foreground">{children}</div>
+      <p className="text-sm leading-5 text-body-alt">{label}</p>
+      <div className="text-base leading-6 text-foreground">{children}</div>
     </div>
   );
 }
@@ -41,8 +41,12 @@ function OfflineBanner({ worker, now, severe }: { worker: Worker; now: number; s
     ? 'Mining Payouts may be affected until the worker reconnects.'
     : 'Check power, internet connection, or miner status.';
   return (
-    <div className={cn('flex items-start gap-2 rounded-2xl p-3', severe ? 'bg-destructive/10' : 'bg-warning/15')}>
-      <LiShieldWarning className={cn('mt-0.5 h-5 w-5 shrink-0', severe ? 'text-destructive' : 'text-warning')} />
+    <div className={cn('flex items-start gap-1 rounded-2xl p-3', severe ? 'bg-toast-error' : 'bg-toast-warning')}>
+      {severe ? (
+        <BdCloseCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+      ) : (
+        <BdShieldWarning className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+      )}
       <p className="text-sm text-foreground">
         {lead} {tail}
       </p>
@@ -74,24 +78,24 @@ export function WorkerDetailsPanel({ worker, now, onClose }: { worker: Worker; n
   // offsetting this fixed overlay) into the themed shell. See overlayContainer.
   return createPortal(
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Worker Details"
-        className="absolute right-0 top-0 flex max-h-screen w-full max-w-[472px] flex-col gap-6 overflow-y-auto bg-background p-8 shadow-2xl"
+        className="absolute right-0 top-0 flex max-h-screen w-full max-w-[472px] flex-col gap-6 overflow-y-auto bg-background p-8 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
       >
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-heading">Worker Details</h2>
-              <p className="mt-0.5 text-sm text-body-alt">Here&apos;s all the details of this worker.</p>
+              <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">Worker Details</h2>
+              <p className="text-sm leading-5 text-body-alt">Here&rsquo;s all the details of this worker.</p>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors hover:bg-border"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[32px] bg-btn-secondary p-4 text-foreground transition-colors hover:opacity-80"
             >
               <X className="h-6 w-6" />
             </button>

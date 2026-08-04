@@ -1,32 +1,56 @@
 import type { ReactNode } from 'react';
 import { InfoHint } from '@/components/ui/InfoHint';
+import { cn } from '@/lib/utils';
+import { Reading } from '@/components/ui/Reading';
+import { WorkerBars } from '@/components/ui/WorkerBars';
 import { useAccountAllWorkers, useTodayEarnings } from '@/hooks/useAccountData';
 import { deriveWorkerStats } from '@/lib/workerStats';
 import { classifyWorker } from '@/lib/workersTable';
 import { BTC_DISPLAY_DP } from '@/lib/utils';
 import type { AggregatedStats } from '@/lib/aggregatedStats';
 
+/**
+ * A stat card. The reading is one big numeral in the heading face with the unit
+ * trailing it at body size, which is why value and unit are separate props rather
+ * than one formatted string. `emphasis` colours the numeral for a rated figure, and
+ * `captionTone` follows the design's split between an empty hint and a live caption.
+ */
 function StatCard({
   title,
   value,
+  unit,
+  unitSize = 'lg',
+  emphasis,
   caption,
+  captionTone = 'muted',
+  meter,
   hint,
   tour,
 }: {
   title: string;
-  value: ReactNode;
+  value: string | number;
+  unit?: string;
+  unitSize?: 'base' | 'lg';
+  emphasis?: boolean;
   caption: string;
+  captionTone?: 'muted' | 'strong';
+  meter?: ReactNode;
   hint?: string;
   tour?: string;
 }) {
   return (
-    <div data-tour={tour} className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-sm text-body-alt">{title}</span>
+    <div data-tour={tour} className="flex flex-col justify-between border-[0.5px] border-border bg-card p-4 lg:p-8">
+      <div className="flex items-center gap-2">
+        <span className="text-sm leading-5 text-body-alt">{title}</span>
         {hint && <InfoHint text={hint} />}
       </div>
-      <p className="mt-2 font-mono text-2xl font-semibold text-heading">{value}</p>
-      <p className="mt-1 text-xs text-body-alt">{caption}</p>
+      <Reading value={value} unit={unit} size="md" tone={emphasis ? 'success' : 'default'} unitSize={unitSize} />
+      <div className="flex flex-col gap-2">
+        {meter}
+        <p className={cn('text-sm leading-5', captionTone === 'strong' ? 'text-foreground' : 'text-body-alt')}>
+          {caption}
+        </p>
+      </div>
     </div>
   );
 }
@@ -67,15 +91,19 @@ export function WorkerStatCards({ aggregated }: { aggregated?: AggregatedStats }
   const todayEarnings = aggregated ? aggregated.todayEarnings : earnings;
   const hasWorkers = stats.totalCount > 0;
   const hasMined = stats.rejectionRate !== null;
-  const rejection = stats.rejectionRate === null ? '--' : `${(stats.rejectionRate * 100).toFixed(2)}%`;
-  const earningsLabel = todayEarnings === undefined ? '--' : formatBtc(todayEarnings);
+  const rejection = stats.rejectionRate === null ? '--' : (stats.rejectionRate * 100).toFixed(2);
+  const earningsValue = todayEarnings === undefined ? '--' : formatBtc(todayEarnings);
+  const earningsKnown = todayEarnings !== undefined;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         tour="stats-workers"
         title="Active workers"
-        value={`${stats.activeCount}/${stats.totalCount}`}
+        value={stats.activeCount}
+        unit={`/${stats.totalCount}`}
+        unitSize="base"
+        meter={aggregated && hasWorkers ? <WorkerBars active={stats.activeCount} total={stats.totalCount} /> : undefined}
         // Once workers exist, show the live split; before that, the empty hint.
         caption={
           hasWorkers ? `${stats.activeCount} active • ${stats.offlineCount} offline` : 'Connected workers will appear here.'
@@ -86,6 +114,7 @@ export function WorkerStatCards({ aggregated }: { aggregated?: AggregatedStats }
         tour="stats-workers"
         title="Offline workers"
         value={stats.offlineCount}
+        captionTone={hasWorkers ? 'strong' : 'muted'}
         caption={
           !hasWorkers
             ? "You don't have any offline workers."
@@ -100,13 +129,18 @@ export function WorkerStatCards({ aggregated }: { aggregated?: AggregatedStats }
         tour="stats-earnings"
         title="Rejection rate"
         value={rejection}
+        unit={hasMined ? '%' : undefined}
+        emphasis={hasMined}
+        captionTone={hasMined ? 'strong' : 'muted'}
         caption={hasMined ? 'Across PPLNS and FPPS shares.' : 'Rejected share rate will appear after mining starts.'}
         hint="The percentage of shares that were rejected and did not count toward Payouts."
       />
       <StatCard
         tour="stats-earnings"
         title="Today's earnings"
-        value={earningsLabel}
+        value={earningsKnown ? earningsValue.replace(' BTC', '') : '--'}
+        unit={earningsKnown ? 'BTC' : undefined}
+        captionTone={earningsKnown && todayEarnings > 0 ? 'strong' : 'muted'}
         // Aggregated mode sums each subaccount's today_generated_btc (accrued, not yet
         // paid out), a different figure than single mode's on-chain-paid total, so the
         // caption can't claim "paid out" for both.

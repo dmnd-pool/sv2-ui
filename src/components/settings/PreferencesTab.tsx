@@ -35,7 +35,7 @@ function ThemeCard({
       type="button"
       aria-pressed={selected}
       onClick={onSelect}
-      className="flex flex-col items-center gap-2"
+      className="flex w-[72px] flex-col items-center gap-2"
     >
       <div
         className={cn(
@@ -74,11 +74,11 @@ export function PreferencesTab() {
     <div className="max-w-2xl space-y-10">
       <div className="space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-heading">Theme</h2>
+          <h2 className="!font-body text-base font-semibold leading-6 text-heading">Theme</h2>
           <p className="mt-1 text-sm text-body-alt">Choose the theme of your dashboard</p>
         </div>
-        <div className="h-px w-full bg-border" />
-        <div className="grid max-w-md grid-cols-3 gap-4">
+        <div className="h-[0.5px] w-full bg-border" />
+        <div className="flex flex-wrap gap-3">
           {THEMES.map((t) => (
             <ThemeCard
               key={t.variant}
@@ -93,20 +93,20 @@ export function PreferencesTab() {
 
       <div className="space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-heading">Localization</h2>
+          <h2 className="!font-body text-base font-semibold leading-6 text-heading">Localization</h2>
           {/* States the language rather than offering a choice: the account language is
               set server-side and there is no endpoint to change it. */}
           <p className="mt-1 text-sm text-body-alt">The language used across your dashboard</p>
         </div>
-        <div className="h-px w-full bg-border" />
+        <div className="h-[0.5px] w-full bg-border" />
         <div className="space-y-1.5">
           <span className="text-sm text-body-alt">Display language</span>
           <div
-            className="flex items-center gap-2 rounded-2xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground"
+            className="flex h-10 items-center gap-3 rounded-[16px] bg-muted px-4 py-2 text-sm leading-5 text-foreground"
             aria-disabled
           >
-            <span className="flex items-center gap-2">
-              <LiGlobal className="h-4 w-4 text-body-alt" />
+            <span className="flex items-center gap-3">
+              <LiGlobal className="h-3.5 w-3.5 text-[#525252]" />
               English
             </span>
           </div>

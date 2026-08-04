@@ -32,7 +32,7 @@ export function RevokeWatcherLinkConfirm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onCancel} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={onCancel} aria-hidden />
       <div
         role="dialog"
         aria-label="Revoke watcher link"
@@ -74,7 +74,7 @@ export function RevokeWatcherLinkConfirm({
               type="button"
               disabled={busy}
               onClick={() => void confirm()}
-              className="flex-[2] rounded-full bg-destructive px-5 py-2.5 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="h-11 flex-[2] rounded-[32px] bg-destructive-strong px-6 text-base leading-6 text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {busy ? 'Revoking...' : 'Revoke'}
             </button>
