@@ -83,6 +83,7 @@ export default {
         btn: {
           DEFAULT: 'hsl(var(--btn))',
           foreground: 'hsl(var(--btn-foreground))',
+          secondary: 'hsl(var(--btn-secondary))',
           disabled: 'hsl(var(--btn-disabled))',
         },
         link: 'hsl(var(--link))',
@@ -102,6 +103,10 @@ export default {
         pill: '9999px',
       },
       fontFamily: {
+        // The DMND surfaces set Geist for body and Radio Canada Big for headings.
+        // Utilities are needed because the raw CSS rule only covers h1-h3.
+        body: ['Geist Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        heading: ['Radio Canada Big Variable', 'Geist Variable', 'sans-serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },

@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { LiLogout3, LiSidebarMinimalistic } from 'solar-icon-react/li';
+import { LiLogout3, LiSidebarMinimalistic, LiAltArrowUp, LiAltArrowDown } from 'solar-icon-react/li';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth';
 import { DmndLogo } from '@/components/auth/Logo';
@@ -10,6 +11,77 @@ import { useAccountScope } from '@/hooks/useAccountScope';
 import { NAV_GROUPS, SETTINGS_ITEM, isSubaccountRestrictedRoute, type NavItem } from './nav';
 import { AccountSwitcher } from './AccountSwitcher';
 import { accountInitials } from './accountInitials';
+
+function NavDropdown({
+  item,
+  location,
+  collapsed,
+  onNavigate,
+}: {
+  item: NavItem;
+  location: string;
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
+  const children = item.children ?? [];
+  // Open while the reader is on one of its pages, so the trail back is always visible.
+  const [open, setOpen] = useState(() => children.some((c) => c.href === location));
+  const Icon = item.icon;
+
+  if (collapsed) {
+    // The rail has no room for the label or the sub-items; the parent has no page of
+    // its own, so it links to its first child rather than nowhere.
+    return (
+      <Link href={children[0]?.href ?? item.href} onClick={onNavigate}>
+        <span
+          title={item.label}
+          className="flex items-center justify-center rounded-lg px-0 py-2 text-sm text-body-alt transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Icon className="h-[18px] w-[18px] shrink-0" />
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-body-alt transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Icon className="h-[18px] w-[18px] shrink-0" />
+        <span className="flex-1 text-xs font-medium uppercase tracking-wider">{item.label}</span>
+        {open ? (
+          <LiAltArrowUp className="h-4 w-4 shrink-0" />
+        ) : (
+          <LiAltArrowDown className="h-4 w-4 shrink-0" />
+        )}
+      </button>
+      {open && (
+        <div className="space-y-0.5">
+          {children.map((child) => (
+            <Link key={child.href} href={child.href} onClick={onNavigate}>
+              <span
+                className={cn(
+                  // The drawn sub-row keeps an empty 20px slot where the parent's icon
+                  // sits, so the labels align in a single column.
+                  'flex items-center gap-2 rounded-lg py-2 pl-[38px] pr-3 text-sm transition-colors',
+                  location === child.href
+                    ? 'bg-muted font-medium text-foreground'
+                    : 'text-body-alt hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {child.label}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function NavRow({
   item,
@@ -143,15 +215,25 @@ export function Sidebar({
                 </p>
               )}
               <div className="space-y-0.5">
-                {items.map((item) => (
-                  <NavRow
-                    key={item.href}
-                    item={item}
-                    active={location === item.href}
-                    collapsed={collapsed}
-                    onNavigate={onNavigate}
-                  />
-                ))}
+                {items.map((item) =>
+                  item.children ? (
+                    <NavDropdown
+                      key={item.href}
+                      item={item}
+                      location={location}
+                      collapsed={collapsed}
+                      onNavigate={onNavigate}
+                    />
+                  ) : (
+                    <NavRow
+                      key={item.href}
+                      item={item}
+                      active={location === item.href}
+                      collapsed={collapsed}
+                      onNavigate={onNavigate}
+                    />
+                  ),
+                )}
               </div>
             </div>
           );

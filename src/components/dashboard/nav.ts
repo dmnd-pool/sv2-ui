@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { LiHomeAngle, LiLayersMinimalistic, LiWallet, LiKeyMinimalistic, LiSettingsMinimalistic } from 'solar-icon-react/li';
 import { BdHomeAngle, BdLayersMinimalistic, BdWallet, BdKeyMinimalistic, BdSettingsMinimalistic } from 'solar-icon-react/bd';
 import { MiningIcon } from './icons/MiningIcon';
+import { NodeHardwareIcon } from './icons/NodeHardwareIcon';
 import { BitcoinCircleIcon } from './icons/BitcoinCircleIcon';
 
 type IconComp = ComponentType<{ className?: string }>;
@@ -13,10 +14,30 @@ export interface NavItem {
   iconActive?: IconComp;
   label: string;
   href: string;
+  /**
+   * A dropdown entry: the row expands to reveal these instead of navigating. The
+   * parent has no page of its own, so `href` is only used as a stable key.
+   */
+  children?: NavItem[];
 }
 
 export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  { label: 'Overview', items: [{ icon: LiHomeAngle, iconActive: BdHomeAngle, label: 'Home', href: '/home' }] },
+  {
+    label: 'Overview',
+    items: [
+      { icon: LiHomeAngle, iconActive: BdHomeAngle, label: 'Home', href: '/home' },
+      {
+        icon: NodeHardwareIcon,
+        label: 'BUILD YOUR BLOCK',
+        href: '/build-your-block',
+        children: [
+          { icon: LiHomeAngle, label: 'Job declaration', href: '/build-your-block/job-declaration' },
+          { icon: LiHomeAngle, label: 'Merge mining', href: '/build-your-block/merge-mining' },
+          { icon: LiHomeAngle, label: 'Prioritize transactions', href: '/build-your-block/prioritize-transactions' },
+        ],
+      },
+    ],
+  },
   {
     label: 'Mining',
     items: [
@@ -55,7 +76,12 @@ export function isSubaccountRestrictedRoute(path: string): boolean {
   return SUBACCOUNT_RESTRICTED_ROUTES.includes(path);
 }
 
-const ALL_ITEMS = [...NAV_GROUPS.flatMap((group) => group.items), SETTINGS_ITEM];
+// Dropdown children are real routes, so they must be flattened too or their pages
+// fall back to the default title.
+const ALL_ITEMS = [
+  ...NAV_GROUPS.flatMap((group) => group.items.flatMap((item) => [item, ...(item.children ?? [])])),
+  SETTINGS_ITEM,
+];
 
 // Routes reachable outside the sidebar (top-bar actions) still need a title.
 const EXTRA_TITLES: Record<string, string> = { '/help': 'Help & Support' };

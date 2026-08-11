@@ -1,6 +1,7 @@
 import {
   type AccountPermissions,
   type BrokerAccount,
+  type BrokerMiner,
   type BrokerSignupInput,
   type CreateSubaccountInput,
   DmndApiError,
@@ -283,6 +284,20 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
         req,
       );
       return normalizeBrokerAccount(raw);
+    },
+    async brokerMiners(fromBlockHeight: number, req): Promise<BrokerMiner[]> {
+      // Broker calls are cookie-authenticated and must never carry the miner
+      // account header. Omitting the height makes the server fail with
+      // "from_block_height is required".
+      return request<BrokerMiner[]>(
+        {
+          method: 'GET',
+          path: `/api/broker/miners?from_block_height=${encodeURIComponent(String(fromBlockHeight))}`,
+          omitAccountId: true,
+        },
+        opts,
+        req,
+      );
     },
     async brokerSignup(input: BrokerSignupInput, req): Promise<BrokerAccount> {
       const raw = await request<RawBrokerAccount>(

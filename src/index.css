@@ -184,6 +184,7 @@
   /* Primary button inverts vs the page: dark button in light mode. */
   --btn: 0 0% 15%; /* Button/Background  #262626 */
   --btn-foreground: 0 0% 96%; /* Button/Text  #F5F5F5 */
+  --btn-secondary: 220 14% 96%; /* Button/Secondary  #F3F4F6 */
   --btn-disabled: 0 0% 90%; /* Button/Disabled  #E5E5E5 */
   --link: 0 0% 15%; /* high-contrast links  #262626 */
   /* Toast / Info Prompt backgrounds. */
@@ -226,6 +227,7 @@
   --ring: 4 86% 86%;
   --btn: 0 0% 96%; /* Button/Background  #F5F5F5 */
   --btn-foreground: 0 0% 15%; /* Button/Text  #262626 */
+  --btn-secondary: 0 0% 15%; /* Button/Secondary (dark)  #262626 */
   --btn-disabled: 0 0% 25%; /* Button/Disabled  #404040 */
   --link: 0 0% 96%; /* #F5F5F5 */
   --toast-success: 143 25% 13%; /* #18281E */

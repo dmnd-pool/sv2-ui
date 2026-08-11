@@ -44,6 +44,20 @@ export interface SignupInput {
   referralCode?: string;
 }
 
+/**
+ * A miner assigned to a broker's referral code, from `GET /api/broker/miners`.
+ * The live decoder carries `id`; the spec table omits it, so it stays optional.
+ */
+export interface BrokerMiner {
+  id?: string;
+  name: string;
+  hashrate: number;
+  /** A work counter, not an earnings figure: no endpoint returns broker earnings. */
+  total_work: number;
+  /** Already a percentage (2 = 2%), like the pool/broker fee rates elsewhere. */
+  broker_fee: number;
+}
+
 export interface BrokerAccount {
   id: string | number;
   email: string;
@@ -270,6 +284,12 @@ export interface DmndClient {
    */
   setBitcoinAddress(address: string, twoFaToken: string, req?: RequestOptions): Promise<void>;
   brokerLogin(email: string, password: string, req?: RequestOptions): Promise<BrokerAccount>;
+  /**
+   * The miners assigned to this broker's referral code. `fromBlockHeight` is
+   * required by the server (it 500s without it) and is sent as `from_block_height`;
+   * camelCase is rejected.
+   */
+  brokerMiners(fromBlockHeight: number, req?: RequestOptions): Promise<BrokerMiner[]>;
   brokerSignup(input: BrokerSignupInput, req?: RequestOptions): Promise<BrokerAccount>;
   /** Live hashrate snapshot for the account (auto-polled on the home). */
   getHashrate(req?: RequestOptions): Promise<HashrateSnapshot>;

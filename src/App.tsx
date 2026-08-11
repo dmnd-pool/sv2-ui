@@ -14,6 +14,9 @@ import { GeneratedBtcPage } from '@/pages/generated-btc/GeneratedBtcPage';
 import { PayoutsPage } from '@/pages/payouts/PayoutsPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { HelpPage } from '@/pages/help/HelpPage';
+import { JobDeclarationPage } from '@/pages/build-your-block/JobDeclarationPage';
+import { PrioritizeTransactionsPage } from '@/pages/build-your-block/PrioritizeTransactionsPage';
+import { MergeMiningPage } from '@/pages/build-your-block/MergeMiningPage';
 import { WatcherLinksPage } from '@/pages/watcher-links/WatcherLinksPage';
 import { WatcherView } from '@/pages/watcher-links/WatcherView';
 import { MultiwatcherView } from '@/pages/watcher-links/MultiwatcherView';
@@ -23,6 +26,7 @@ import { ResetPassword } from '@/pages/auth/ResetPassword';
 import { BrokerSignIn } from '@/pages/auth/BrokerSignIn';
 import { BrokerSignUp } from '@/pages/auth/BrokerSignUp';
 import { BrokerHome } from '@/pages/broker/BrokerHome';
+import { BrokerSettings } from '@/pages/broker/BrokerSettings';
 import { AuthProvider, AuthGuard, BrokerAuthProvider, BrokerGuard } from '@/auth';
 import { ToastProvider } from '@/components/ui/toast';
 import { FullScreenStatus } from '@/components/layout/FullScreenStatus';
@@ -114,6 +118,21 @@ function AppRoutes() {
           <HelpPage />
         </DashboardShell>
       </Route>
+      <Route path="/build-your-block/job-declaration">
+        <DashboardShell>
+          <JobDeclarationPage />
+        </DashboardShell>
+      </Route>
+      <Route path="/build-your-block/merge-mining">
+        <DashboardShell>
+          <MergeMiningPage />
+        </DashboardShell>
+      </Route>
+      <Route path="/build-your-block/prioritize-transactions">
+        <DashboardShell>
+          <PrioritizeTransactionsPage />
+        </DashboardShell>
+      </Route>
       {/* Full-screen account-setup flow, reached from the home prompt. */}
       <Route path="/account-setup">
         <AccountSetup />
@@ -151,6 +170,11 @@ function Router() {
       </Route>
       <Route path="/broker/signup">
         <BrokerSignUp />
+      </Route>
+      <Route path="/broker/settings">
+        <BrokerGuard>
+          <BrokerSettings />
+        </BrokerGuard>
       </Route>
       <Route path="/broker">
         <BrokerGuard>
