@@ -89,28 +89,40 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
-              <div className="absolute right-0 z-50 mt-2 w-48 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-lg">
+              <div className="absolute right-0 z-50 mt-2 flex w-[212px] flex-col gap-1 rounded-[12px] bg-background p-3 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
                 {session?.email && (
-                  <p className="truncate px-3 py-2 text-xs text-body-alt">{session.email}</p>
+                  <>
+                    <div className="flex items-center gap-1 rounded-lg px-2 py-1">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#93C5FD] bg-[#3B82F6] text-xs font-semibold leading-5 text-white">
+                        {accountInitials(session.email)}
+                      </span>
+                      <span className="ml-1 flex min-w-0 flex-col">
+                        <span className="truncate text-sm leading-5 text-foreground">{session.email.split('@')[0]}</span>
+                        <span className="truncate text-xs leading-4 text-body-alt">{session.email}</span>
+                      </span>
+                    </div>
+                    <div aria-hidden className="h-[0.5px] bg-border" />
+                  </>
                 )}
                 <Link
                   href="/account"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm leading-5 text-body-alt transition-colors hover:bg-muted"
                 >
-                  <LiSettingsMinimalistic className="h-4 w-4 shrink-0" />
-                  Settings
+                  <LiSettingsMinimalistic className="h-4 w-4 shrink-0 text-[#525252]" />
+                  <span className="ml-1">Settings</span>
                 </Link>
+                <div aria-hidden className="h-[0.5px] bg-border" />
                 <button
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
                     signOut();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                  className="flex w-full items-center gap-1 rounded-lg px-2 py-1 text-left text-xs leading-4 text-body-alt transition-colors hover:bg-muted"
                 >
-                  <LiLogout3 className="h-4 w-4 shrink-0" />
-                  Logout
+                  <LiLogout3 className="h-4 w-4 shrink-0 text-[#525252]" />
+                  <span className="ml-1">Logout</span>
                 </button>
               </div>
             </>

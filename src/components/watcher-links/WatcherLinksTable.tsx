@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LiCopy, LiCheckCircle, LiQuestionCircle, LiSquareShareLine } from 'solar-icon-react/li';
 import { BoSort } from 'solar-icon-react/bo';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/toast';
 import type { WatcherLink } from '@/api/types';
 import {
   accountLabel,
@@ -46,12 +47,15 @@ function InfoHint({ label }: { label: string }) {
 /** Copies `value` to the clipboard; hidden at rest, revealed on hover or focus. */
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const toast = useToast();
   return (
     <button
       type="button"
       onClick={() => {
         void navigator.clipboard?.writeText(value);
         setCopied(true);
+        // The design confirms a copy with the neutral toast, not just the icon swap.
+        toast({ type: 'info', message: `${label.charAt(0).toUpperCase()}${label.slice(1)} copied` });
         setTimeout(() => setCopied(false), 1500);
       }}
       aria-label={copied ? `${label} copied` : `Copy ${label}`}
