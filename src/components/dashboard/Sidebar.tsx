@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth';
 import { DmndLogo } from '@/components/auth/Logo';
 import { Switch } from '@/components/ui/switch';
+import { TooltipPill } from '@/components/ui/tooltip-pill';
 import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useHasSubaccounts } from '@/hooks/useSubaccounts';
 import { useAccountScope } from '@/hooks/useAccountScope';
@@ -25,22 +26,31 @@ function NavRow({
   // The active nav icon is the filled (bold-duotone) glyph; custom icons
   // without a duotone variant fall back to their single form.
   const Icon = active && item.iconActive ? item.iconActive : item.icon;
+  const row = (
+    <span
+      className={cn(
+        'flex items-center text-sm leading-5 transition-colors',
+        collapsed ? 'justify-center rounded-sm px-0 py-2' : 'gap-2 p-2',
+        active
+          ? 'rounded-[32px] bg-muted font-semibold text-foreground'
+          : 'rounded-sm text-body-alt hover:bg-muted hover:text-foreground',
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {!collapsed && <span className="flex-1">{item.label}</span>}
+    </span>
+  );
   return (
     <Link href={item.href} onClick={onNavigate}>
-      <span
-        // When collapsed the label is hidden, so the title gives a hover tooltip.
-        title={collapsed ? item.label : undefined}
-        className={cn(
-          'flex items-center text-sm leading-5 transition-colors',
-          collapsed ? 'justify-center rounded-sm px-0 py-2' : 'gap-2 p-2',
-          active
-            ? 'rounded-[32px] bg-muted font-semibold text-foreground'
-            : 'rounded-sm text-body-alt hover:bg-muted hover:text-foreground',
-        )}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        {!collapsed && <span className="flex-1">{item.label}</span>}
-      </span>
+      {/* Collapsed hides the label, so the design reveals it in the tooltip pill
+          beside the rail rather than the browser's own title bubble. */}
+      {collapsed ? (
+        <TooltipPill label={item.label} side="right" emphasis>
+          {row}
+        </TooltipPill>
+      ) : (
+        row
+      )}
     </Link>
   );
 }

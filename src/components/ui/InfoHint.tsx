@@ -1,6 +1,5 @@
-import * as Tooltip from '@radix-ui/react-tooltip';
 import { LiQuestionCircle } from 'solar-icon-react/li';
-import { overlayContainer } from '@/lib/utils';
+import { TooltipPill } from './tooltip-pill';
 
 /**
  * The small info icon next to a stat label that reveals an explanatory tooltip on
@@ -12,30 +11,14 @@ import { overlayContainer } from '@/lib/utils';
  */
 export function InfoHint({ text }: { text: string }) {
   return (
-    <Tooltip.Provider delayDuration={0}>
-      <Tooltip.Root>
-        <Tooltip.Trigger asChild>
-          <button
-            type="button"
-            aria-label="More information"
-            className="inline-flex shrink-0 text-placeholder transition-colors hover:text-body-alt"
-          >
-            <LiQuestionCircle className="h-4 w-4" />
-          </button>
-        </Tooltip.Trigger>
-        <Tooltip.Portal container={overlayContainer()}>
-          <Tooltip.Content
-            side="top"
-            align="center"
-            sideOffset={6}
-            collisionPadding={12}
-            className="z-50 max-w-[331px] rounded-xl bg-tooltip px-4 py-3 text-sm font-light leading-5 text-on-solid-alt shadow-xl"
-          >
-            {text}
-            <Tooltip.Arrow className="fill-tooltip" width={28} height={6} />
-          </Tooltip.Content>
-        </Tooltip.Portal>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+    <TooltipPill label={text}>
+      <button
+        type="button"
+        aria-label="More information"
+        className="inline-flex shrink-0 text-placeholder transition-colors hover:text-body-alt"
+      >
+        <LiQuestionCircle className="h-4 w-4" />
+      </button>
+    </TooltipPill>
   );
 }
