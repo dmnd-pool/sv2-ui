@@ -61,7 +61,7 @@ export function useAggregatedGeneratedBtc(enabled = true) {
         client.getGeneratedBtc({ signal, accountId: ownerAccountId ?? undefined }),
         Promise.all(
           owners.map((s) =>
-            client.getSubaccountGeneratedBtc(s.id, s.token, {
+            client.getSubaccountGeneratedBtc(s.id, {
               signal,
               accountId: ownerAccountId ?? undefined,
             }),

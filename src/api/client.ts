@@ -31,12 +31,7 @@ export const API_BASE =
   (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_DMND_API_BASE ??
   'https://staging-user-dashboard-server.dmnd.work';
 
-/**
- * Auth calls are interactive, so they use a short retry budget: a login that
- * blocks the UI for two minutes is worse than failing fast and letting the user
- * retry. Background callers (share submit, worker activity in later PRs) can
- * pass their own slower profile through DmndClientOptions.
- */
+/** Default retry profile. Stateful authentication calls override this below. */
 const DEFAULT_PROFILE = Object.freeze({
   maxAttempts: 3,
   requestTimeoutMs: 5_000,
@@ -67,6 +62,35 @@ let accountId: string | null = null;
 
 export function setDmndAccountId(id: string | null): void {
   accountId = id;
+}
+
+export interface DmndAuthRejection {
+  /** The account whose cookie/header pair the backend rejected. */
+  accountId: string | null;
+}
+
+type AuthRejectionListener = (rejection: DmndAuthRejection) => void;
+
+const authRejectionListeners = new Set<AuthRejectionListener>();
+
+/**
+ * Reports a rejected authenticated request to the auth layer. This keeps the
+ * transport independent of React while allowing an expired HttpOnly cookie to
+ * end the matching browser session immediately instead of becoming a page error.
+ */
+export function subscribeToDmndAuthRejections(listener: AuthRejectionListener): () => void {
+  authRejectionListeners.add(listener);
+  return () => authRejectionListeners.delete(listener);
+}
+
+function reportAuthRejection(rejection: DmndAuthRejection): void {
+  for (const listener of authRejectionListeners) {
+    try {
+      listener(rejection);
+    } catch {
+      // A UI listener must never replace the API error the caller expects.
+    }
+  }
 }
 
 function resolveOptions(o: DmndClientOptions): ResolvedOptions {
@@ -131,6 +155,8 @@ interface RequestSpec {
   omitAccountId?: boolean;
   /** Per-call timeout override (ms). Dense responses (the historical series) need more than the interactive default. */
   timeoutMs?: number;
+  /** Per-call retry override. Stateful requests should not be replayed automatically. */
+  maxAttempts?: number;
 }
 
 // /api/broker/log returns `referenceCode`, /api/brokers returns `reference_code`;
@@ -156,8 +182,9 @@ async function request<T>(
   req: RequestOptions = {},
 ): Promise<T> {
   let lastError: unknown = null;
+  const maxAttempts = spec.maxAttempts ?? opts.maxAttempts;
 
-  for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (req.signal?.aborted) throw new DmndApiError(API_ERROR_MESSAGES.cancelled, 'network');
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -178,6 +205,9 @@ async function request<T>(
       });
 
       if (response.status === 401 || response.status === 403) {
+        if (response.status === 401 && !spec.omitAccountId && requestAccountId) {
+          reportAuthRejection({ accountId: requestAccountId });
+        }
         throw new DmndApiError(
           (await readErrorMessage(response)) ?? API_ERROR_MESSAGES.unauthorized,
           'unauthorized',
@@ -186,6 +216,7 @@ async function request<T>(
       }
       const serverMessage = response.ok ? undefined : await readErrorMessage(response);
       if (response.status === 400 && serverMessage === 'Unauthorized. User ID cookie not found or invalid.') {
+        if (!spec.omitAccountId && requestAccountId) reportAuthRejection({ accountId: requestAccountId });
         throw new DmndApiError(API_ERROR_MESSAGES.unauthorized, 'unauthorized', response.status);
       }
       if (response.status >= 500) {
@@ -208,7 +239,7 @@ async function request<T>(
       lastError = err;
     }
 
-    if (attempt < opts.maxAttempts) {
+    if (attempt < maxAttempts) {
       await new Promise((r) => setTimeout(r, opts.backoffMs));
     }
   }
@@ -238,11 +269,22 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
       };
       return request<void>({ method: 'POST', path: '/api/users', body }, opts, req);
     },
-    login(email, password, req) {
+    login(email, password, totpToken, req) {
       // The live endpoint requires `language` (the dashboard hardcodes "En");
       // without it Rocket fails to deserialize the body and returns 422.
       return request<DmndSession>(
-        { method: 'POST', path: '/api/log_user', body: { email, password, language: 'En' } },
+        {
+          method: 'POST',
+          path: '/api/log_user',
+          timeoutMs: 30_000,
+          maxAttempts: 1,
+          body: {
+            email,
+            password,
+            language: 'En',
+            ...(totpToken ? { totp_token: totpToken } : {}),
+          },
+        },
         opts,
         req,
       );
@@ -404,20 +446,19 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
     getSubaccounts(req) {
       return request<Subaccount[]>({ method: 'GET', path: '/api/user/sub_account' }, opts, req);
     },
-    getSubaccountSummary(id, token, req) {
-      const q = new URLSearchParams({ token }).toString();
+    getSubaccountSummary(id, req) {
       return request<SubaccountSummary>(
-        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/summary?${q}` },
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/summary` },
         opts,
         req,
       );
     },
-    async getSubaccountWorkers(id, token, req) {
+    async getSubaccountWorkers(id, req) {
       const workers: Worker[] = [];
       const seen = new Set<string>();
       let cursor: string | null = null;
       for (;;) {
-        const params = new URLSearchParams({ token, limit: '1000' });
+        const params = new URLSearchParams({ limit: '1000' });
         if (cursor) params.set('cursor', cursor);
         const page = await request<WorkersResponse>(
           {
@@ -434,12 +475,11 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
       }
       return { workers, next_cursor: null };
     },
-    async getSubaccountGeneratedBtc(id, token, req) {
+    async getSubaccountGeneratedBtc(id, req) {
       // Bare array like the main /api/generated_btc; the same non-array collapse guards
       // against an error body ever reaching the page as if it were data.
-      const q = new URLSearchParams({ token }).toString();
       const result = await request<unknown>(
-        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc?${q}` },
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc` },
         opts,
         req,
       );

@@ -7,11 +7,11 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import { getUser } from '@/api';
+import { getUser, subscribeToDmndAuthRejections } from '@/api';
 import { queryClient } from '@/lib/queryClient';
 import { createAuthStore, type AuthStore, type SignOutReason } from './authStore';
 import { viewingAccountFromAuth, type Session, type ViewingAccountSession } from './session';
-import { shouldEndSessionAfterValidation } from './sessionValidation';
+import { actionForRejectedRequest, shouldEndSessionAfterValidation } from './sessionValidation';
 
 export type AuthStatus = 'authenticated' | 'anonymous';
 
@@ -78,6 +78,18 @@ export function AuthProvider({ children, store: injectedStore }: AuthProviderPro
       if (owns) store.teardown();
     };
   }, [store]);
+
+  // Listen for auth rejections from the backend. If the master session is rejected, sign out entirely.
+  // If a subaccount session is rejected, drop the subaccount and return to the master account.
+  useEffect(
+    () =>
+      subscribeToDmndAuthRejections(({ accountId: rejectedAccountId }) => {
+        const action = actionForRejectedRequest(store.getSnapshot(), rejectedAccountId);
+        if (action === 'sign-out') store.signOut('expired');
+        else if (action === 'leave-subaccount') store.setViewingAccount(null);
+      }),
+    [store],
+  );
 
   // Drop all cached account data when the master session changes or signs out. Queries
   // within a session are keyed by the active account id, so master/subaccount switches

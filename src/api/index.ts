@@ -11,6 +11,12 @@ export type {
   RequestOptions,
   SignupInput,
 } from './types';
-export { createUser, getUser, setDmndClient, setDmndAccountId } from './client';
-export type { DmndClientOptions } from './client';
+export {
+  createUser,
+  getUser,
+  setDmndClient,
+  setDmndAccountId,
+  subscribeToDmndAuthRejections,
+} from './client';
+export type { DmndAuthRejection, DmndClientOptions } from './client';
 export { API_ERROR_MESSAGES } from './errorMessages';

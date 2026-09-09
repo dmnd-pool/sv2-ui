@@ -251,7 +251,12 @@ export interface CreateSubaccountInput {
 // it on every call, so these methods don't take a token argument.
 export interface DmndClient {
   signup(input: SignupInput, req?: RequestOptions): Promise<void>;
-  login(email: string, password: string, req?: RequestOptions): Promise<DmndSession>;
+  /**
+   * Signs in with email/password and, for an enrolled account, the current
+   * authenticator code. Omitting `totpToken` lets the server signal that the
+   * second factor is required without issuing a session cookie.
+   */
+  login(email: string, password: string, totpToken?: string, req?: RequestOptions): Promise<DmndSession>;
   logout(req?: RequestOptions): Promise<void>;
   /** Validates the session cookie (used on app startup to restore a session). */
   checkAuth(req?: RequestOptions): Promise<DmndSession>;
@@ -310,12 +315,12 @@ export interface DmndClient {
   getGeneratedBtc(req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
   /** The account's subaccounts (master only); a lightweight list, enriched per-row. */
   getSubaccounts(req?: RequestOptions): Promise<Subaccount[]>;
-  /** Per-subaccount hashrate, share stats, fees, and today's BTC in one response. */
-  getSubaccountSummary(id: string, token: string, req?: RequestOptions): Promise<SubaccountSummary>;
-  /** Per-subaccount live worker roster. */
-  getSubaccountWorkers(id: string, token: string, req?: RequestOptions): Promise<WorkersResponse>;
-  /** The subaccount's daily generated-BTC entries; a bare array, empty when none. */
-  getSubaccountGeneratedBtc(id: string, token: string, req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
+  /** Session-authenticated summary for a subaccount owned by the signed-in master. */
+  getSubaccountSummary(id: string, req?: RequestOptions): Promise<SubaccountSummary>;
+  /** Session-authenticated live worker roster for an owned subaccount. */
+  getSubaccountWorkers(id: string, req?: RequestOptions): Promise<WorkersResponse>;
+  /** Session-authenticated daily generated-BTC entries for an owned subaccount. */
+  getSubaccountGeneratedBtc(id: string, req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
   /** Capability flags gating the Create button and the page itself. */
   getPermissions(req?: RequestOptions): Promise<AccountPermissions>;
   /** The account's watcher links (GET /api/api-tokens); a bare array, empty when none. */

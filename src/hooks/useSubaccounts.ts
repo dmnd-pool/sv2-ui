@@ -27,10 +27,9 @@ export function useSubaccounts(enabled = true) {
       const list = await client.getSubaccounts(requestOptions);
       return Promise.all(
         list.map(async (row) => {
-          const token = row.token ?? '';
           const [summary, workersRes] = await Promise.all([
-            client.getSubaccountSummary(row.id, token, requestOptions),
-            client.getSubaccountWorkers(row.id, token, requestOptions),
+            client.getSubaccountSummary(row.id, requestOptions),
+            client.getSubaccountWorkers(row.id, requestOptions),
           ]);
           return enrichSubaccount(row, summary, workersRes.workers);
         }),
