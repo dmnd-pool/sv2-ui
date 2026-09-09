@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAuthStore } from '../authStore';
-import { createSession } from '../session';
+import { createSession, IDLE_TTL_MS } from '../session';
 import { createUser, setDmndAccountId } from '@/api/client';
 
 function memoryStorage(): Storage {
@@ -185,6 +185,21 @@ test('an idle bump keeps the viewed subaccount, but signing in or out resets it'
   store.setViewingAccount(subaccountSession('sub-2'));
   store.signIn(minerSession());
   assert.equal(store.getSnapshot().viewingAccountId, null);
+});
+
+test('activity after the idle deadline signs out instead of reviving the session', () => {
+  const storage = memoryStorage();
+  const store = createAuthStore({ tabId: 'A', storage, channel: null });
+  const signedInAt = 1_000;
+  store.signIn(minerSession({ now: signedInAt }));
+  store.setViewingAccount(subaccountSession('sub-1'));
+
+  store.bumpActivity(signedInAt + IDLE_TTL_MS);
+
+  assert.equal(store.getSnapshot().session, null);
+  assert.equal(store.getSnapshot().viewingAccountId, null);
+  assert.equal(store.getSnapshot().signOutReason, 'expired');
+  assert.equal(storage.getItem('dmnd_session'), null);
 });
 
 test('refreshing session profile fields preserves the selected account and expiry deadlines', () => {

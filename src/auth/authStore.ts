@@ -244,6 +244,12 @@ export function createAuthStore(options: AuthStoreOptions = {}): AuthStore {
     },
     bumpActivity(now?: number) {
       if (!state.session) return;
+      if (isExpired(state.session, now)) {
+        clearStoredSession();
+        writeViewingAccount(null);
+        setState({ session: null, signOutReason: 'expired', viewingAccountId: null, viewingAccount: null });
+        return;
+      }
       // An idle refresh preserves the viewed account: a mere activity tick must not
       // yank the miner out of a subaccount they are viewing.
       const refreshed = refreshIdle(state.session, now);

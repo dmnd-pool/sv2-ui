@@ -72,10 +72,10 @@ export function GettingStartedCard() {
     >
       <div className="flex w-full items-start justify-between gap-4 px-8">
         <div className="flex flex-col">
-          <p className="text-lg font-semibold leading-7 text-foreground">
+          <p className="text-base font-medium leading-7 text-foreground">
             {allDone ? 'Setup complete' : 'Getting started'}
           </p>
-          <p className="text-sm leading-5 text-body-alt">
+          <p className="text-xs leading-3 text-body-alt">
             {allDone ? 'Your dashboard is good to go!' : 'Finish setting up your dashboard'}
           </p>
         </div>

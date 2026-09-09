@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createUser, setDmndAccountId } from '../client';
+import { createUser, setDmndAccountId, subscribeToDmndAuthRejections } from '../client';
 import { API_ERROR_MESSAGES } from '../errorMessages';
 import { DmndApiError } from '../types';
 import { pplnsProjectionFixture } from './pplnsProjectionFixture';
@@ -46,6 +46,21 @@ test('login posts email and password to log_user and returns the session', async
   assert.deepEqual(result, session);
 });
 
+test('login includes the authenticator code only when completing a 2FA challenge', async () => {
+  const session = { token: 'abc', id: '42', email: 'm@x.io', two_factor_secret: null, bitcoin_addresses: {} };
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(session));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  await client.login('m@x.io', 'pw', '123456');
+
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    email: 'm@x.io',
+    password: 'pw',
+    language: 'En',
+    totp_token: '123456',
+  });
+});
+
 test('a 401 surfaces as an unauthorized error without retrying', async () => {
   const { fetchImpl, calls } = fakeFetch(() => new Response('', { status: 401 }));
   const client = createUser({ fetchImpl, backoffMs: 0, maxAttempts: 3 });
@@ -57,20 +72,61 @@ test('a 401 surfaces as an unauthorized error without retrying', async () => {
   assert.equal(calls.length, 1);
 });
 
-test('a network failure retries up to the limit then throws a network error', async () => {
+test('an authenticated 401 reports the rejected account to the auth layer', async () => {
+  const { fetchImpl } = fakeFetch(() => new Response('', { status: 401 }));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+  const rejectedAccounts: Array<string | null> = [];
+  const unsubscribe = subscribeToDmndAuthRejections(({ accountId }) => rejectedAccounts.push(accountId));
+
+  try {
+    await assert.rejects(() => client.getHashrate({ accountId: 'master' }), DmndApiError);
+    assert.deepEqual(rejectedAccounts, ['master']);
+  } finally {
+    unsubscribe();
+  }
+});
+
+test('a broker 401 does not reject the miner session', async () => {
+  const { fetchImpl } = fakeFetch(() => new Response('', { status: 401 }));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+  const rejectedAccounts: Array<string | null> = [];
+  const unsubscribe = subscribeToDmndAuthRejections(({ accountId }) => rejectedAccounts.push(accountId));
+
+  try {
+    await assert.rejects(() => client.brokerMiners(0), DmndApiError);
+    assert.deepEqual(rejectedAccounts, []);
+  } finally {
+    unsubscribe();
+  }
+});
+
+test('an idempotent auth check retries up to the limit then throws a network error', async () => {
   const { fetchImpl, calls } = fakeFetch(() => {
     throw new Error('connection refused');
   });
   const client = createUser({ fetchImpl, backoffMs: 0, maxAttempts: 3 });
 
   await assert.rejects(
-    () => client.login('m@x.io', 'pw'),
+    () => client.checkAuth(),
     (e: unknown) =>
       e instanceof DmndApiError &&
       e.code === 'network' &&
       e.message === "We couldn't connect. Check your internet connection and try again.",
   );
   assert.equal(calls.length, 3);
+});
+
+test('login uses one attempt because replaying it can rotate a successful session cookie', async () => {
+  const { fetchImpl, calls } = fakeFetch(() => {
+    throw new Error('connection closed before the response');
+  });
+  const client = createUser({ fetchImpl, backoffMs: 0, maxAttempts: 3 });
+
+  await assert.rejects(
+    () => client.login('m@x.io', 'pw', '123456'),
+    (e: unknown) => e instanceof DmndApiError && e.code === 'network',
+  );
+  assert.equal(calls.length, 1);
 });
 
 test('a dead session cookie reported as a 400 still surfaces as an expired session', async () => {
@@ -104,7 +160,7 @@ test('a 5xx retries and surfaces a user-friendly message without implementation 
   const client = createUser({ fetchImpl, backoffMs: 0, maxAttempts: 2 });
 
   await assert.rejects(
-    () => client.login('m@x.io', 'pw'),
+    () => client.checkAuth(),
     (e: unknown) =>
       e instanceof DmndApiError &&
       e.code === 'server' &&
@@ -276,31 +332,31 @@ test('logSubaccount POSTs owner_token and subaccount_token and returns the new s
   assert.equal(result.id, 'returned-sub-id');
 });
 
-test('getSubaccountSummary GETs the per-subaccount summary with a token and the X-Account-ID header', async () => {
+test('getSubaccountSummary uses the master session without a query token', async () => {
   const body = { sub_account_id: -77, hashrate: null, share_stats: null, fees: null, today_generated_btc: null };
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(body));
   const client = createUser({ fetchImpl, backoffMs: 0 });
   setDmndAccountId('42');
   try {
-    await client.getSubaccountSummary('-77', 'sub-tok', {});
+    await client.getSubaccountSummary('-77', {});
     assert.equal(calls[0].init.method, 'GET');
-    assert.ok(calls[0].url.includes('/api/user/sub_account/-77/summary'));
-    assert.ok(calls[0].url.includes('token=sub-tok'));
+    assert.ok(calls[0].url.endsWith('/api/user/sub_account/-77/summary'));
+    assert.equal(calls[0].url.includes('token='), false);
     assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
   } finally {
     setDmndAccountId(null);
   }
 });
 
-test('getSubaccountWorkers GETs the per-subaccount live workers endpoint', async () => {
+test('getSubaccountWorkers uses the master session without a query token', async () => {
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse({ workers: [], next_cursor: null }));
   const client = createUser({ fetchImpl, backoffMs: 0 });
   setDmndAccountId('currently-viewed-subaccount');
   try {
-    await client.getSubaccountWorkers('-77', 'sub-tok', { accountId: 'master' });
+    await client.getSubaccountWorkers('-77', { accountId: 'master' });
     assert.equal(calls[0].init.method, 'GET');
     assert.ok(calls[0].url.includes('/api/user/sub_account/-77/workers'));
-    assert.ok(calls[0].url.includes('token=sub-tok'));
+    assert.equal(calls[0].url.includes('token='), false);
     assert.equal(calls[0].init.credentials, 'include');
     assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], 'master');
   } finally {
@@ -320,7 +376,7 @@ test('getSubaccountWorkers follows pagination on the live per-subaccount endpoin
   );
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  const result = await client.getSubaccountWorkers('-77', 'sub-tok');
+  const result = await client.getSubaccountWorkers('-77');
 
   assert.deepEqual(result, { workers: [first, second], next_cursor: null });
   assert.equal(calls.length, 2);
@@ -411,16 +467,17 @@ test('revokeWatcherLink DELETEs the link by id', async () => {
   assert.ok(calls[0].url.endsWith('/api/api-tokens/531'));
 });
 
-test('getSubaccountGeneratedBtc GETs the per-subaccount generated-BTC list with a token', async () => {
+test('getSubaccountGeneratedBtc uses the master session without a query token', async () => {
   const rows = [{ entry_day: '2026-07-08', hashrate: 98, btc_generated: 0.00001274 }];
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  const result = await client.getSubaccountGeneratedBtc('-77', 'sub-tok');
+  const result = await client.getSubaccountGeneratedBtc('-77', { accountId: 'master' });
 
   assert.equal(calls[0].init.method, 'GET');
-  assert.ok(calls[0].url.includes('/api/user/sub_account/-77/generated_btc'));
-  assert.ok(calls[0].url.includes('token=sub-tok'));
+  assert.ok(calls[0].url.endsWith('/api/user/sub_account/-77/generated_btc'));
+  assert.equal(calls[0].url.includes('token='), false);
+  assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], 'master');
   assert.deepEqual(result, rows);
 });
 
@@ -428,7 +485,7 @@ test('getSubaccountGeneratedBtc collapses a non-array response to an empty list'
   const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  assert.deepEqual(await client.getSubaccountGeneratedBtc('-77', 'sub-tok'), []);
+  assert.deepEqual(await client.getSubaccountGeneratedBtc('-77'), []);
 });
 
 test('a 4xx with a server message surfaces it as an unknown error', async () => {
