@@ -22,7 +22,7 @@ const SCOPE_LABELS: Record<WatcherScope, string> = {
 export const SCOPE_DESCRIPTIONS: Record<WatcherScope, string> = {
   hashrate_read: 'Current and historical hashrate data.',
   workers_read: 'Live worker roster, miner count and share counts per worker.',
-  earnings_read: 'Daily generated BTC for FPPS earnings.',
+  earnings_read: 'Daily generated BTC for FPPS earnings, and the PPLNS projection.',
   rejects_read: 'Aggregate accepted and rejected share counts.',
   fees_read: 'The pool fee percentage charged on this account.',
 };

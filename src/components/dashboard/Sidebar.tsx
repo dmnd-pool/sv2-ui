@@ -9,7 +9,17 @@ import { TooltipPill } from '@/components/ui/tooltip-pill';
 import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useHasSubaccounts } from '@/hooks/useSubaccounts';
 import { useAccountScope } from '@/hooks/useAccountScope';
-import { NAV_GROUPS, SETTINGS_ITEM, isPathActive, isSubaccountRestrictedRoute, type NavItem } from './nav';
+import { usePplnsProjection } from '@/hooks/usePplnsProjection';
+import { hasPayablePplnsWork } from '@/lib/pplnsProjection';
+import {
+  NAV_GROUPS,
+  SETTINGS_ITEM,
+  PPLNS_PROJECTION_ROUTE,
+  isPathActive,
+  isAggregatedRestrictedRoute,
+  isSubaccountRestrictedRoute,
+  type NavItem,
+} from './nav';
 import { AccountSwitcher } from './AccountSwitcher';
 import { accountInitials } from './accountInitials';
 
@@ -156,7 +166,7 @@ function NavRow({
 
 /**
  * The DMND dashboard's left navigation: brand, an account row, grouped nav
- * (Overview / Mining / Developer), and Settings + Logout pinned to the bottom.
+ * (Overview / Mining / Monitoring), and Settings + Logout pinned to the bottom.
  * `collapsed` renders an icon-only rail (desktop); `onToggleCollapse` shows the
  * collapse control. `onNavigate` lets the mobile drawer close itself after a tap.
  */
@@ -182,6 +192,9 @@ export function Sidebar({
   // A subaccount cannot reach the subaccounts page, so its nav entry is dropped rather
   // than left to lead somewhere it has no permission for.
   const { canViewSubaccounts } = useAccountScope();
+  const { data: pplnsProjection } = usePplnsProjection();
+
+  const hasPplnsWork = hasPayablePplnsWork(pplnsProjection);
 
   return (
     <div
@@ -244,9 +257,12 @@ export function Sidebar({
 
       <nav className="flex-1 overflow-y-auto px-3 pb-2">
         {NAV_GROUPS.map((group) => {
-          const items = canViewSubaccounts
-            ? group.items
-            : group.items.filter((item) => !isSubaccountRestrictedRoute(item.href));
+          const items = group.items.filter(
+            (item) =>
+              (canViewSubaccounts || !isSubaccountRestrictedRoute(item.href)) &&
+              (!aggregated || !isAggregatedRestrictedRoute(item.href)) &&
+              (item.href !== PPLNS_PROJECTION_ROUTE || hasPplnsWork),
+          );
           // A group whose every entry is restricted would otherwise leave a bare heading.
           if (items.length === 0) return null;
           return (

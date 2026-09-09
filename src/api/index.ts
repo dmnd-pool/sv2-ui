@@ -5,6 +5,9 @@ export type {
   DmndApiErrorCode,
   DmndClient,
   DmndSession,
+  PplnsProjection,
+  PplnsProjectionDailyWork,
+  PplnsProjectionHorizon,
   RequestOptions,
   SignupInput,
 } from './types';

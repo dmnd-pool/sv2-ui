@@ -98,6 +98,7 @@ export function GeneratedBtcFilter({
   onReset,
   onClose,
   accounts = [],
+  copy,
 }: {
   applied: GbtcFilterDraft;
   onApply: (f: GbtcFilterDraft) => void;
@@ -105,12 +106,18 @@ export function GeneratedBtcFilter({
   onClose: () => void;
   /** Account names offered by the Account facet; empty hides the facet AND the rail. */
   accounts?: string[];
+  /** Optional wording when the date filter is reused for another daily data table. */
+  copy?: { title: string; description: string; ariaLabel: string };
 }) {
   const [draft, setDraft] = useState<GbtcFilterDraft>(applied);
   const [showCalendar, setShowCalendar] = useState(false);
   const [category, setCategory] = useState<Category>('date');
   const ref = useRef<HTMLDivElement>(null);
   const hasAccounts = accounts.length > 0;
+  const title = copy?.title ?? 'Filter generated BTC';
+  const description =
+    copy?.description ??
+    (hasAccounts ? 'Find generated BTC by date or subaccount.' : 'Find generated BTC by date.');
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -145,15 +152,13 @@ export function GeneratedBtcFilter({
     <div
       ref={ref}
       role="dialog"
-      aria-label="Filter generated BTC"
+      aria-label={copy?.ariaLabel ?? 'Filter generated BTC'}
       className="absolute right-0 top-full z-20 mt-4 w-[574px] max-w-[calc(100vw-2rem)] rounded-3xl border-[0.5px] border-border bg-card px-8 pb-8 pt-4 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-base font-bold leading-6 text-foreground">Filter generated BTC</p>
-          <p className="text-sm leading-5 text-body-alt">
-            {hasAccounts ? 'Find generated BTC by date or subaccount.' : 'Find generated BTC by date.'}
-          </p>
+          <p className="text-base font-bold leading-6 text-foreground">{title}</p>
+          <p className="text-sm leading-5 text-body-alt">{description}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button

@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createUser, setDmndAccountId } from '../client';
 import { API_ERROR_MESSAGES } from '../errorMessages';
 import { DmndApiError } from '../types';
+import { pplnsProjectionFixture } from './pplnsProjectionFixture';
 
 interface Call {
   url: string;
@@ -636,4 +637,59 @@ test('getPayoutAddresses GETs the payout addresses', async () => {
   assert.equal(calls[0].init.method, 'GET');
   assert.ok(calls[0].url.endsWith('/api/payouts/addresses'));
   assert.deepEqual(result, addrs);
+});
+
+test('getPplnsProjection GETs the sub_account projection and returns it', async () => {
+  const body = pplnsProjectionFixture();
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(body));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.getPplnsProjection('123');
+
+  assert.equal(calls[0].init.method, 'GET');
+  assert.ok(calls[0].url.endsWith('/api/user/sub_account/123/pplns_projection'));
+  assert.deepEqual(result, body);
+});
+
+test('getPplnsProjection rejects a projection for a different account', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ ...pplnsProjectionFixture(), subaccount_id: '456' }));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  await assert.rejects(() => client.getPplnsProjection('123'), /account does not match/);
+});
+
+test('a 404 means nothing is cached yet, so getPplnsProjection returns null', async () => {
+  const { fetchImpl } = fakeFetch(() => new Response('', { status: 404 }));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  assert.equal(await client.getPplnsProjection('acct-1'), null);
+});
+
+test('a 4xx naming the missing projection also returns null', async () => {
+  const { fetchImpl } = fakeFetch(() =>
+    jsonResponse({ message: 'PPLNS projection is not available for this boundary' }, 400),
+  );
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  assert.equal(await client.getPplnsProjection('acct-1'), null);
+});
+
+test('any other 4xx stays an error rather than reading as an empty cache', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ message: 'Bad subaccount id' }, 400));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  await assert.rejects(
+    () => client.getPplnsProjection('acct-1'),
+    (e: unknown) => e instanceof DmndApiError && e.code === 'other' && e.status === 400,
+  );
+});
+
+test('an auth failure is an error even when its body names the missing projection', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ message: 'projection-not-found' }, 403));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  await assert.rejects(
+    () => client.getPplnsProjection('acct-1'),
+    (e: unknown) => e instanceof DmndApiError && e.code === 'unauthorized',
+  );
 });

@@ -15,6 +15,7 @@ import { JobDeclarationPage } from '@/pages/build-your-block/JobDeclarationPage'
 import { PrioritizeTransactionsPage } from '@/pages/build-your-block/PrioritizeTransactionsPage';
 import { MergeMiningPage } from '@/pages/build-your-block/MergeMiningPage';
 import { WatcherLinksPage } from '@/pages/watcher-links/WatcherLinksPage';
+import { PplnsProjectionPage } from '@/pages/pplns-projection/PplnsProjectionPage';
 import { WatcherView } from '@/pages/watcher-links/WatcherView';
 import { MultiwatcherView } from '@/pages/watcher-links/MultiwatcherView';
 import { SignIn } from '@/pages/auth/SignIn';
@@ -57,6 +58,11 @@ function AppRoutes() {
       <Route path="/generated-bitcoin">
         <DashboardShell>
           <GeneratedBtcPage />
+        </DashboardShell>
+      </Route>
+      <Route path="/pplns-projection">
+        <DashboardShell>
+          <PplnsProjectionPage />
         </DashboardShell>
       </Route>
       <Route path="/watcher-links">

@@ -1,13 +1,13 @@
 import type { ComponentType } from 'react';
-import { LiHomeAngle, LiSidebarMinimalistic, LiGasStation } from 'solar-icon-react/li';
-import { BdHomeAngle } from 'solar-icon-react/bd';
+import { LiHomeAngle, LiSidebarMinimalistic, LiGasStation, LiChart } from 'solar-icon-react/li';
+import { BdHomeAngle, BdChart } from 'solar-icon-react/bd';
 import { cn } from '@/lib/utils';
 import { DmndLogo } from '@/components/auth/Logo';
 import { MiningIcon } from '@/components/dashboard/icons/MiningIcon';
 import { BitcoinCircleIcon } from '@/components/dashboard/icons/BitcoinCircleIcon';
 
 /** The sections a watcher link can expose, in the order the sidebar lists them. */
-export type WatcherSection = 'home' | 'workers' | 'generated' | 'fees';
+export type WatcherSection = 'home' | 'workers' | 'generated' | 'fees' | 'pplns';
 
 type IconComp = ComponentType<{ className?: string }>;
 
@@ -25,6 +25,7 @@ export const WATCHER_SECTIONS: Record<WatcherSection, SectionMeta> = {
   workers: { group: 'Mining', label: 'Workers', icon: MiningIcon },
   generated: { group: 'Mining', label: 'Generated BTC', icon: BitcoinCircleIcon },
   fees: { group: 'Mining', label: 'Fees', icon: LiGasStation },
+  pplns: { group: 'Mining', label: 'PPLNS Projection', icon: LiChart, iconActive: BdChart },
 };
 
 function NavRow({

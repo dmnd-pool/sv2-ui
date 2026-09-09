@@ -6,6 +6,7 @@ import {
   LiKeyMinimalistic,
   LiSettingsMinimalistic,
   LiShieldCheck,
+  LiChart,
 } from 'solar-icon-react/li';
 import {
   BdHomeAngle,
@@ -14,6 +15,7 @@ import {
   BdKeyMinimalistic,
   BdSettingsMinimalistic,
   BdShieldCheck,
+  BdChart,
 } from 'solar-icon-react/bd';
 import { MiningIcon } from './icons/MiningIcon';
 import { NodeHardwareIcon } from './icons/NodeHardwareIcon';
@@ -22,6 +24,8 @@ import { BitcoinCircleIcon } from './icons/BitcoinCircleIcon';
 type IconComp = ComponentType<{ className?: string }>;
 
 const TRUST_CENTER_URL = 'https://app.eu.vanta.com/dmnd.work/trust/4u48n4nf8yiwi9swpqjsf';
+
+export const PPLNS_PROJECTION_ROUTE = '/pplns-projection';
 
 export interface NavItem {
   /** Resting glyph: a solar outline icon, or a custom DMND glyph. */
@@ -66,10 +70,11 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { icon: LiLayersMinimalistic, iconActive: BdLayersMinimalistic, label: 'Subaccounts', href: '/subaccounts' },
       { icon: BitcoinCircleIcon, label: 'Generated BTC', href: '/generated-bitcoin' },
       { icon: LiWallet, iconActive: BdWallet, label: 'Payouts', href: '/payouts' },
+      { icon: LiChart, iconActive: BdChart, label: 'PPLNS Projection', href: PPLNS_PROJECTION_ROUTE },
     ],
   },
   {
-    label: 'Developer',
+    label: 'Monitoring',
     items: [
       { icon: LiKeyMinimalistic, iconActive: BdKeyMinimalistic, label: 'Watcher links', href: '/watcher-links' },
     ],
@@ -108,6 +113,12 @@ export const SUBACCOUNT_RESTRICTED_ROUTES = ['/subaccounts'];
 /** Whether the given route is off-limits while viewing a subaccount. */
 export function isSubaccountRestrictedRoute(path: string): boolean {
   return SUBACCOUNT_RESTRICTED_ROUTES.includes(path);
+}
+
+export const AGGREGATED_RESTRICTED_ROUTES = [PPLNS_PROJECTION_ROUTE];
+
+export function isAggregatedRestrictedRoute(path: string): boolean {
+  return AGGREGATED_RESTRICTED_ROUTES.includes(path);
 }
 
 // Dropdown children are real routes, so they must be flattened too or their pages

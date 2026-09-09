@@ -1,9 +1,21 @@
+import type { PplnsProjection } from './pplnsProjection';
+
+export type {
+  PplnsProjection,
+  PplnsProjectionDailyWork,
+  PplnsProjectionHorizon,
+} from './pplnsProjection';
+
 export type DmndApiErrorCode = 'unauthorized' | 'network' | 'server' | 'other';
 
 export class DmndApiError extends Error {
   constructor(
     message: string,
     public readonly code: DmndApiErrorCode,
+    /**
+     * The HTTP status behind the failure, set whenever the server answered with one.
+     */
+    public readonly status?: number,
   ) {
     super(message);
     this.name = 'DmndApiError';
@@ -320,4 +332,10 @@ export interface DmndClient {
    * session (the new tab carries its own server-set cookie).
    */
   logSubaccount(ownerToken: string, subaccountToken: string, req?: RequestOptions): Promise<DmndSession>;
+  /**
+   * The cached PPLNS projection for an account (GET /api/user/sub_account/{id}/pplns_projection),
+   * including its source metadata, horizon scenarios, and daily work. Returns null
+   * when no projection is available yet (404 / cache not refreshed).
+   */
+  getPplnsProjection(id: string, req?: RequestOptions): Promise<PplnsProjection | null>;
 }

@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { AggregatedModeProvider, useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useHasSubaccounts } from '@/hooks/useSubaccounts';
+import { isAggregatedRestrictedRoute } from './nav';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { AggregatedBanner } from './AggregatedBanner';
@@ -42,7 +43,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 function DashboardShellInner({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { aggregated, setAggregated } = useAggregatedModeContext();
   // The banner only shows when the mode is genuinely available: on it is stored, but
   // a miner with no subaccounts (or one who has none anymore) should never see it.
@@ -50,6 +51,10 @@ function DashboardShellInner({ children }: { children: ReactNode }) {
   const showBanner = aggregated && hasSubaccounts;
 
   useEffect(() => writeCollapsed(collapsed), [collapsed]);
+
+  useEffect(() => {
+    if (aggregated && isAggregatedRestrictedRoute(location)) navigate('/home', { replace: true });
+  }, [aggregated, location, navigate]);
 
   // Close the drawer when navigating or pressing Escape.
   useEffect(() => setDrawerOpen(false), [location]);

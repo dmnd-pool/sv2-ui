@@ -1,6 +1,24 @@
-import { API_BASE } from './client';
+import { API_BASE, isPplnsProjectionMissing } from './client';
 import { API_ERROR_MESSAGES } from './errorMessages';
-import type { GeneratedBtcEntry, HashratePoint, HashrateSnapshot, SubaccountFees, WorkersResponse } from './types';
+import { decodePplnsProjection, pplnsProjectionMatchesAccount } from './pplnsProjection';
+import type {
+  GeneratedBtcEntry,
+  HashratePoint,
+  HashrateSnapshot,
+  PplnsProjection,
+  SubaccountFees,
+  WorkersResponse,
+} from './types';
+
+class WatcherRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = 'WatcherRequestError';
+  }
+}
 
 /**
  * A client for the public Watcher View. Unlike the authenticated client, it sends
@@ -15,6 +33,8 @@ export interface WatcherClient {
   getHashrateHistory(from: string, to: string, signal?: AbortSignal): Promise<HashratePoint[]>;
   getGeneratedBtc(signal?: AbortSignal): Promise<GeneratedBtcEntry[]>;
   getFees(signal?: AbortSignal): Promise<SubaccountFees>;
+  /** Null when the cache holds no projection for the latest PPLNS boundary yet. */
+  getPplnsProjection(accountId: string, signal?: AbortSignal): Promise<PplnsProjection | null>;
 }
 
 interface WatcherClientOptions {
@@ -29,10 +49,10 @@ export function createWatcherClient(token: string, options: WatcherClientOptions
     // No credentials, no X-Account-ID: the token is the only thing sent.
     const response = await fetchImpl(`${API_BASE}${path}?${query}`, { method: 'GET', signal });
     if (response.status === 401 || response.status === 403) {
-      throw new Error('This Watcher link is no longer valid.');
+      throw new WatcherRequestError('This Watcher link is no longer valid.', response.status);
     }
     if (!response.ok) {
-      throw new Error(API_ERROR_MESSAGES.watcher);
+      throw new WatcherRequestError(API_ERROR_MESSAGES.watcher, response.status);
     }
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
@@ -75,6 +95,25 @@ export function createWatcherClient(token: string, options: WatcherClientOptions
       // Current pool + broker fee rates for the linked account. The spec returns the
       // rates already in percent (2 = 2%), so the view shows the number verbatim.
       return get<SubaccountFees>('/api/user/fees', {}, signal);
+    },
+    async getPplnsProjection(accountId, signal) {
+      try {
+        const payload = await get<unknown>(
+          `/api/user/sub_account/${encodeURIComponent(accountId)}/pplns_projection`,
+          {},
+          signal,
+        );
+        const projection = decodePplnsProjection(payload);
+        if (!pplnsProjectionMatchesAccount(projection, accountId)) {
+          throw new Error('PPLNS projection account does not match the request');
+        }
+        return projection;
+      } catch (err) {
+        if (err instanceof WatcherRequestError && isPplnsProjectionMissing(err.status, err.message)) {
+          return null;
+        }
+        throw err;
+      }
     },
   };
 }

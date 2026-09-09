@@ -11,8 +11,11 @@ import {
   useWatcherWorkers,
   useWatcherGeneratedBtc,
   useWatcherFees,
+  useWatcherPplnsProjection,
   type CustomWindow,
 } from '@/hooks/useWatcherView';
+import { hasPayablePplnsWork } from '@/lib/pplnsProjection';
+import { PplnsProjectionPanel } from '@/components/pplns-projection/PplnsProjectionPanel';
 import { WatcherHashratePanel } from '@/components/watcher-links/view/WatcherHashratePanel';
 import { WatcherPerformanceChart } from '@/components/watcher-links/view/WatcherPerformanceChart';
 import { WatcherWorkersSection } from '@/components/watcher-links/view/WatcherWorkersSection';
@@ -35,6 +38,7 @@ const SECTION_NOUNS: Record<WatcherSection, string> = {
   workers: 'workers',
   generated: 'earnings',
   fees: 'fees',
+  pplns: 'PPLNS projection',
 };
 
 function joinNouns(sections: WatcherSection[]): string {
@@ -55,10 +59,10 @@ export function WatcherView({ userId, token }: { userId: string; token: string }
   useAppliedTheme();
   const parsed = parseWatcherPath(userId, token);
   if (!parsed) return <WatcherInvalid />;
-  return <WatcherViewInner token={parsed.token} />;
+  return <WatcherViewInner accountId={parsed.userId} token={parsed.token} />;
 }
 
-function WatcherViewInner({ token }: { token: string }) {
+function WatcherViewInner({ accountId, token }: { accountId: string; token: string }) {
   const [range, setRange] = useState<HashrateRange>('24H');
   const [custom, setCustom] = useState<CustomWindow | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -73,17 +77,20 @@ function WatcherViewInner({ token }: { token: string }) {
   // scope still renders that section instead of looking like a dead link.
   const generated = useWatcherGeneratedBtc(token, true);
   const fees = useWatcherFees(token, true);
+  const pplns = useWatcherPplnsProjection(accountId, token, true);
 
   // A scope is granted unless its probe came back unauthorised; while a probe is still
   // loading we cannot yet tell, so navigation waits for it to settle before deciding
   // the link is dead.
   const granted = (q: { isError: boolean; error: unknown }) => !(q.isError && isUnauthorized(q.error));
-  const settled = !hashrate.isLoading && !workers.isLoading && !generated.isLoading && !fees.isLoading;
+  const settled =
+    !hashrate.isLoading && !workers.isLoading && !generated.isLoading && !fees.isLoading && !pplns.isLoading;
   const sections: WatcherSection[] = [
     granted(hashrate) ? 'home' : null,
     granted(workers) ? 'workers' : null,
     granted(generated) ? 'generated' : null,
     granted(fees) ? 'fees' : null,
+    granted(pplns) && hasPayablePplnsWork(pplns.data) ? 'pplns' : null,
   ].filter((s): s is WatcherSection => s !== null);
 
   const active: WatcherSection = chosen && sections.includes(chosen) ? chosen : sections[0] ?? 'home';
@@ -241,6 +248,16 @@ function WatcherViewInner({ token }: { token: string }) {
                     fees={fees.data ?? null}
                     isLoading={fees.isLoading}
                     isError={fees.isError && !isUnauthorized(fees.error)}
+                  />
+                </section>
+              )}
+
+              {active === 'pplns' && (
+                <section>
+                  <PplnsProjectionPanel
+                    projection={pplns.data}
+                    isLoading={pplns.isLoading}
+                    isError={pplns.isError && !isUnauthorized(pplns.error)}
                   />
                 </section>
               )}

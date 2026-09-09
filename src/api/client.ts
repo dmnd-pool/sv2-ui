@@ -21,6 +21,7 @@ import {
   type WorkersResponse,
 } from './types';
 import { API_ERROR_MESSAGES } from './errorMessages';
+import { decodePplnsProjection, pplnsProjectionMatchesAccount } from './pplnsProjection';
 
 // The DMND dashboard API is called directly: it sets CORS for our origin and
 // allows credentials, so the browser sends the HttpOnly session cookie on every
@@ -111,6 +112,17 @@ async function readErrorMessage(response: Response): Promise<string | undefined>
   }
 }
 
+// The server responds "no projection for this boundary yet" with a 404
+const PPLNS_PROJECTION_MISSING_MESSAGES = ['pplns projection is not available', 'projection-not-found'];
+
+/** Whether a failed projection request means the cache simply has nothing yet. */
+export function isPplnsProjectionMissing(status: number | undefined, message: string): boolean {
+  if (status === 401 || status === 403) return false;
+  if (status === 404) return true;
+  const lower = message.toLowerCase();
+  return PPLNS_PROJECTION_MISSING_MESSAGES.some((phrase) => lower.includes(phrase));
+}
+
 interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   path: string;
@@ -166,11 +178,15 @@ async function request<T>(
       });
 
       if (response.status === 401 || response.status === 403) {
-        throw new DmndApiError((await readErrorMessage(response)) ?? API_ERROR_MESSAGES.unauthorized, 'unauthorized');
+        throw new DmndApiError(
+          (await readErrorMessage(response)) ?? API_ERROR_MESSAGES.unauthorized,
+          'unauthorized',
+          response.status,
+        );
       }
       const serverMessage = response.ok ? undefined : await readErrorMessage(response);
       if (response.status === 400 && serverMessage === 'Unauthorized. User ID cookie not found or invalid.') {
-        throw new DmndApiError(API_ERROR_MESSAGES.unauthorized, 'unauthorized');
+        throw new DmndApiError(API_ERROR_MESSAGES.unauthorized, 'unauthorized', response.status);
       }
       if (response.status >= 500) {
         if (serverMessage === 'Invalid referral code') {
@@ -179,7 +195,7 @@ async function request<T>(
         lastError = new DmndApiError(API_ERROR_MESSAGES.server, 'server');
       } else if (!response.ok) {
         // 4xx with a server message (e.g. weak password) surfaces that message.
-        throw new DmndApiError(serverMessage || 'Something went wrong. Please try again.', 'other');
+        throw new DmndApiError(serverMessage || 'Something went wrong. Please try again.', 'other', response.status);
       } else {
         const text = await response.text();
         return (text ? JSON.parse(text) : undefined) as T;
@@ -483,6 +499,27 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
         opts,
         req,
       );
+    },
+    async getPplnsProjection(id, req) {
+      try {
+        const payload = await request<unknown>(
+          { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/pplns_projection` },
+          opts,
+          req,
+        );
+        const projection = decodePplnsProjection(payload);
+        if (!pplnsProjectionMatchesAccount(projection, id)) {
+          throw new Error('PPLNS projection account does not match the request');
+        }
+        return projection;
+      } catch (err) {
+        const missing =
+          err instanceof DmndApiError &&
+          err.code !== 'unauthorized' &&
+          isPplnsProjectionMissing(err.status, err.message);
+        if (missing) return null;
+        throw err;
+      }
     },
   };
 }
