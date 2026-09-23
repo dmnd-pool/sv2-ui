@@ -13,29 +13,24 @@ export function classifyWorker(worker: Worker): WorkerStatus {
   return worker.is_connected ? 'online' : 'offline';
 }
 
-/**
- * Which scheme the worker mines, read from the field the pool filled in: a rate in
- * `fpps_hashrate` means FPPS, one in `hashrate` means PPLNS. A worker is never both. Null
- * once a rig goes quiet, because the roster then reports figures in neither scheme and
- * nothing is left to tell the two apart.
- */
-export function workerKind(worker: Worker): 'pplns' | 'fpps' | null {
+/** Payment modes with recent telemetry; the same worker name can report both. */
+export function workerKind(worker: Worker): 'pplns' | 'fpps' | 'both' | null {
+  if (worker.fpps_hashrate != null && worker.hashrate != null) return 'both';
   if (worker.fpps_hashrate != null) return 'fpps';
   if (worker.hashrate != null) return 'pplns';
   return null;
 }
 
-/** Uppercase scheme label for the table's Mode badge; null when the scheme is unknown. */
-export function workerMode(worker: Worker): 'PPLNS' | 'FPPS' | null {
+export function workerMode(worker: Worker): 'PPLNS' | 'FPPS' | 'PPLNS + FPPS' | null {
   const kind = workerKind(worker);
+  if (kind === 'both') return 'PPLNS + FPPS';
   return kind === null ? null : kind === 'fpps' ? 'FPPS' : 'PPLNS';
 }
 
-/**
-  * The worker's FPPS or PPLNS hashrate
- */
+/** Combined H/s, preserving unknown when neither mode has telemetry. */
 export function workerHashrate(worker: Worker): number | null {
-  return worker.fpps_hashrate ?? worker.hashrate ?? null;
+  if (worker.hashrate == null && worker.fpps_hashrate == null) return null;
+  return (worker.hashrate ?? 0) + (worker.fpps_hashrate ?? 0);
 }
 
 /**
@@ -131,8 +126,9 @@ export function applyWorkerFilter(workers: Worker[], filter: WorkerFilter): Work
   return workers.filter((w) => {
     if (filter.status.length > 0 && !filter.status.includes(classifyWorker(w))) return false;
     // A worker of unknown scheme matches neither bucket, so a set Mode facet excludes it.
-    const mode = workerMode(w);
-    if (filter.mode.length > 0 && (mode === null || !filter.mode.includes(mode))) return false;
+    if (filter.mode.length > 0 && !filter.mode.some((mode) =>
+      mode === 'FPPS' ? w.fpps_hashrate != null : w.hashrate != null,
+    )) return false;
     if (filter.rejection !== null && rejectionBucket(w) !== filter.rejection) return false;
     if (filter.accounts.length > 0) {
       const sub = (w as TaggedWorker).subaccount;
@@ -241,7 +237,7 @@ export type WorkerExportMode = 'all' | 'pplns' | 'fpps';
  */
 export function filterWorkersByMode(workers: Worker[], mode: WorkerExportMode): Worker[] {
   if (mode === 'all') return workers;
-  return workers.filter((w) => workerKind(w) === mode);
+  return workers.filter((w) => mode === 'fpps' ? w.fpps_hashrate != null : w.hashrate != null);
 }
 
 const CSV_HEADER = ['name', 'kind', 'hashrate', 'total_shares', 'rejected_shares', 'is_connected'];
@@ -270,13 +266,14 @@ function hashrateCell(value: number | null): string {
  */
 export function workersToCsv(workers: Worker[]): string {
   const rows = workers.map((w) => {
-    const fpps = workerKind(w) === 'fpps';
+    const kind = workerKind(w);
+    const fpps = kind === 'fpps';
     return [
       w.name,
       workerKind(w) ?? '',
       hashrateCell(workerHashrate(w)),
-      numCell(fpps ? w.fpps_total_shares : w.total_shares),
-      numCell(fpps ? w.fpps_rejected_shares : w.rejected_shares),
+      numCell(kind === 'both' ? workerTotalShares(w) : fpps ? w.fpps_total_shares : w.total_shares),
+      numCell(kind === 'both' ? workerRejectedShares(w) : fpps ? w.fpps_rejected_shares : w.rejected_shares),
       w.is_connected ? 'true' : 'false',
     ].map(csvCell);
   });

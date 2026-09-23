@@ -13,7 +13,7 @@ const CLOUD_POLL_MS = 5 * 60 * 1000;
 
 /**
  * The account's daily generated-BTC entries (GET /api/generated_btc). The endpoint
- * returns a bare array; the client collapses a non-array to []. The Average-hashrate
+ * returns daily FPPS and projected PPLNS amounts. The Average-hashrate
  * and Active-workers stat cards come from the shared workers roster
  * (`useAccountAllWorkers`), not from this query.
  */
@@ -40,13 +40,6 @@ export function useGeneratedBtc(enabled = true) {
  * name itself — never trusting an embedded field, since `GeneratedBtcEntry` carries
  * none. A failed subaccount fetch rejects the whole query (Promise.all), so the page
  * shows its error state rather than a total that is silently missing an account's BTC.
- *
- * CAVEAT: if `/api/generated_btc` ever included a subaccount's entries under the main
- * account with no way to tell them apart, this would double-count that BTC in the
- * total. Every other per-account endpoint in this API (hashrate, workers) is scoped to
- * the calling account with no such overlap, so this is expected to be scoped the same
- * way, but it could not be confirmed live since the account has zero generated-BTC rows
- * to observe. Revisit once real multi-subaccount BTC data exists.
  */
 export function useAggregatedGeneratedBtc(enabled = true) {
   const { session } = useAuth();

@@ -41,11 +41,11 @@ export function GeneratedBtcStatCards({
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      <Card title="Generated BTC" sub="Total Bitcoin generated">
+      <Card title="Generated BTC" sub="FPPS generated + PPLNS projected">
         <Reading value={formatBtc(generated)} unit="BTC" unitSize="lg" />
       </Card>
 
-      <Card title="Average hashrate" sub="Across the days listed" hint={GENERATED_AVG_HASHRATE_HINT}>
+      <Card title="Average FPPS hashrate" sub="Across the days listed" hint={GENERATED_AVG_HASHRATE_HINT}>
         <Reading value={formatAxisValue(averageHashrate, scale.divisor)} unit={scale.unit} unitSize="lg" />
       </Card>
 

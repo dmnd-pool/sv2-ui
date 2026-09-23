@@ -19,12 +19,22 @@ const CLOUD_POLL_MS = 5 * 60 * 1000;
 export function useSubaccounts(enabled = true) {
   const { session } = useAuth();
   const ownerAccountId = session?.accountId ?? null;
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['account', 'subaccounts', ownerAccountId],
     queryFn: async ({ signal }): Promise<EnrichedSubaccount[]> => {
       const client = getUser();
       const requestOptions = { signal, accountId: ownerAccountId ?? undefined };
-      const list = await client.getSubaccounts(requestOptions);
+      // Share the lightweight list cache used by the account switcher, aggregate
+      // chart, and filters instead of issuing a second identical list request.
+      const list = await queryClient.fetchQuery({
+        queryKey: ['account', 'subaccounts', 'list', ownerAccountId],
+        queryFn: ({ signal: listSignal }) => client.getSubaccounts({
+          signal: listSignal,
+          accountId: ownerAccountId ?? undefined,
+        }),
+        staleTime: CLOUD_POLL_MS,
+      });
       return Promise.all(
         list.map(async (row) => {
           const [summary, workersRes] = await Promise.all([

@@ -23,7 +23,7 @@ import {
 import { MAIN_ACCOUNT_LABEL } from '@/lib/payoutsTable';
 
 function entry(over: Partial<GeneratedBtcEntry> = {}): GeneratedBtcEntry {
-  return { entry_day: '2026-06-21', hashrate: 100e12, btc_generated: 0.0001, ...over };
+  return { entry_day: '2026-06-21', hashrate: 100e12, btc_generated: 0.0001, fpps_btc_generated: 0.0001, pplns_btc_generated: 0, pplns_hashrate: 0, ...over };
 }
 
 test('sumGenerated adds btc_generated across entries; 0 when empty', () => {
@@ -101,12 +101,12 @@ test('formatBtc shows the amount as the API sent it, never in exponent form', ()
   assert.equal(formatBtc(0.001 + 0.0004), '0.0014');
 });
 
-test('generatedBtcToCsv emits the prod schema header, a row per entry, and guards formula injection', () => {
-  const csv = generatedBtcToCsv([entry({ entry_day: '2026-06-21', hashrate: 102e12, btc_generated: 0.00001342 })]);
+test('generatedBtcToCsv exports both payment modes and zero hashrate, a row per entry, and guards formula injection', () => {
+  const csv = generatedBtcToCsv([entry({ entry_day: '2026-06-21', hashrate: 102e12, fpps_btc_generated: 0.00001, pplns_btc_generated: 0.00000342, btc_generated: 0.00001342 })]);
   const lines = csv.split('\n');
-  assert.equal(lines[0], 'entry_day,hashrate,btc_generated');
+  assert.equal(lines[0], 'entry_day,hashrate,pplns_hashrate,fpps_btc_generated,pplns_btc_generated,btc_generated');
   assert.equal(lines.length, 2);
-  assert.equal(lines[1], '2026-06-21,102000000000000,0.00001342');
+  assert.equal(lines[1], '2026-06-21,102000000000000,0,0.00001,0.00000342,0.00001342');
   // a leading '=' in a cell is neutralized
   const inj = generatedBtcToCsv([entry({ entry_day: '=SUM(A1)', hashrate: 1, btc_generated: 1 })]);
   assert.match(inj.split('\n')[1], /^'=SUM\(A1\)/);

@@ -70,7 +70,7 @@ export function WorkerStatCards({ aggregated }: { aggregated?: AggregatedStats }
   const { data: workers } = useAccountAllWorkers();
   const { data: shareStats } = useAccountShareStats(aggregated === undefined);
   const { data: hashrate } = useAccountHashrate(aggregated === undefined);
-  const { data: earnings } = useTodayEarnings();
+  const { data: earnings } = useTodayEarnings(aggregated === undefined);
   const roster = workers ?? [];
   const single = deriveWorkerStats(roster);
   const shareTotal = (shareStats?.accepted ?? 0) + (shareStats?.rejected ?? 0);

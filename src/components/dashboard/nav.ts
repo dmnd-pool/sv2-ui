@@ -69,8 +69,8 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { icon: MiningIcon, label: 'Workers', href: '/workers' },
       { icon: LiLayersMinimalistic, iconActive: BdLayersMinimalistic, label: 'Subaccounts', href: '/subaccounts' },
       { icon: BitcoinCircleIcon, label: 'Generated BTC', href: '/generated-bitcoin' },
-      { icon: LiWallet, iconActive: BdWallet, label: 'Payouts', href: '/payouts' },
       { icon: LiChart, iconActive: BdChart, label: 'PPLNS Projection', href: PPLNS_PROJECTION_ROUTE },
+      { icon: LiWallet, iconActive: BdWallet, label: 'Payouts', href: '/payouts' },
     ],
   },
   {

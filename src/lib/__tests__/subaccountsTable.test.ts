@@ -27,7 +27,6 @@ function row(over: Partial<Subaccount> = {}): Subaccount {
     id: '1',
     sub_account: 'X',
     token: 't',
-    api_token: 'a',
     fpps_token: null,
     hashrate: '',
     bitcoin_addresses: {},
@@ -77,7 +76,14 @@ test('rejectionFromStats derives rejected/(accepted+rejected); null without shar
 });
 
 function summary(over: Partial<SubaccountSummary> = {}): SubaccountSummary {
-  return { sub_account_id: 1, hashrate: null, share_stats: null, fees: null, today_generated_btc: null, ...over };
+  return {
+    sub_account_id: '1',
+    hashrate: { account_id: '1', observed_at: null, pplns_hashrate: 0, fpps_hashrate: 0, total_hashrate: 0 },
+    share_stats: STATS,
+    fees: { pool_fee: 0.02, broker_fee: 0 },
+    today_generated_btc: null,
+    ...over,
+  };
 }
 
 test('enrichSubaccount combines the row with workers and the summary (rejection + earnings)', () => {
@@ -227,7 +233,7 @@ test('applySubaccountFilter: rejection and sorting combine', () => {
 });
 
 function gen(account: string, btc: number): GeneratedBtcEntry {
-  return { entry_day: '2026-08-01', hashrate: 0, btc_generated: btc, account };
+  return { entry_day: '2026-08-01', hashrate: 0, btc_generated: btc, fpps_btc_generated: btc, pplns_btc_generated: 0, pplns_hashrate: 0, account };
 }
 
 test('withGeneratedBtc sums each subaccount lifetime BTC from the account-tagged entries', () => {
@@ -239,8 +245,8 @@ test('withGeneratedBtc sums each subaccount lifetime BTC from the account-tagged
 
 test('withGeneratedBtc replaces the misleading newest-row amount with the selected UTC day', () => {
   const entries = [
-    { entry_day: '2026-08-12', hashrate: 0, btc_generated: 0.25, account: 'Alpha' },
-    { entry_day: '2026-08-11', hashrate: 0, btc_generated: 9, account: 'Alpha' },
+    { entry_day: '2026-08-12', hashrate: 0, btc_generated: 0.25, fpps_btc_generated: 0.25, pplns_btc_generated: 0, pplns_hashrate: 0, account: 'Alpha' },
+    { entry_day: '2026-08-11', hashrate: 0, btc_generated: 9, fpps_btc_generated: 9, pplns_btc_generated: 0, pplns_hashrate: 0, account: 'Alpha' },
   ];
   const [out] = withGeneratedBtc([enriched({ name: 'Alpha', todayEarnings: 9 })], entries, Date.parse('2026-08-12T18:00:00Z'));
   assert.equal(out.todayEarnings, 0.25);
@@ -274,7 +280,7 @@ test('subaccountsToCsv writes an unknown generated-BTC total as --, formula-guar
 });
 
 test('sumGeneratedBtc totals untagged entries and reports null when there are none', () => {
-  const untagged = (btc: number): GeneratedBtcEntry => ({ entry_day: '2026-08-01', hashrate: 0, btc_generated: btc });
+  const untagged = (btc: number): GeneratedBtcEntry => ({ entry_day: '2026-08-01', hashrate: 0, btc_generated: btc, fpps_btc_generated: btc, pplns_btc_generated: 0, pplns_hashrate: 0 });
   assert.equal(sumGeneratedBtc([untagged(0.5), untagged(0.25)]), 0.75);
   assert.equal(sumGeneratedBtc([]), null);
 });
