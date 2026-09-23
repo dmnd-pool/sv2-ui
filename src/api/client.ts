@@ -135,11 +135,16 @@ async function readErrorMessage(response: Response): Promise<string | undefined>
     if (data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string') {
       return (data as { message: string }).message;
     }
+    if (data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string') {
+      return (data as { error: string }).error;
+    }
     return undefined;
   } catch {
     return undefined;
   }
 }
+
+const CHECK_AUTH_SESSION_MISSING_MESSAGE = 'User not found';
 
 interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -155,6 +160,8 @@ interface RequestSpec {
   maxAttempts?: number;
   /** An auth failure is expected while probing for an optional account session. */
   suppressAuthRejection?: boolean;
+  /** `/check_auth` represents a missing/expired User guard as a specific 400 response. */
+  sessionCheck?: boolean;
 }
 
 interface PayoutPage {
@@ -192,19 +199,25 @@ async function request<T>(
         signal: combineSignals(spec.timeoutMs ?? opts.requestTimeoutMs, req.signal),
       });
 
-      if (response.status === 401 || response.status === 403) {
+      const serverMessage = response.ok ? undefined : await readErrorMessage(response);
+      const invalidSession =
+        spec.sessionCheck &&
+        response.status === 400 &&
+        serverMessage === CHECK_AUTH_SESSION_MISSING_MESSAGE;
+      if (response.status === 401 || response.status === 403 || invalidSession) {
         const error = new DmndApiError(
-          (await readErrorMessage(response)) ?? API_ERROR_MESSAGES.unauthorized,
+          serverMessage ?? API_ERROR_MESSAGES.unauthorized,
           'unauthorized',
           response.status,
         );
-        if (response.status === 401 && !spec.suppressAuthRejection && !spec.omitAccountId && requestAccountId &&
-            !(spec.stepUp && isAuthenticatorCodeError(error))) {
+        const rejectedSession =
+          invalidSession ||
+          (response.status === 401 && !(spec.stepUp && isAuthenticatorCodeError(error)));
+        if (rejectedSession && !spec.suppressAuthRejection && !spec.omitAccountId && requestAccountId) {
           reportAuthRejection({ accountId: requestAccountId });
         }
         throw error;
       }
-      const serverMessage = response.ok ? undefined : await readErrorMessage(response);
       if (response.status >= 500) {
         if (serverMessage === 'Invalid referral code') {
           throw new DmndApiError("Invalid referral code", 'other');
@@ -348,7 +361,7 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
     },
     checkAuth(req) {
       // Validate the selected dashboard session on startup and profile refresh.
-      return request<DmndSession>({ method: 'GET', path: '/api/check_auth' }, opts, req);
+      return request<DmndSession>({ method: 'GET', path: '/api/check_auth', sessionCheck: true }, opts, req);
     },
     forgotPassword(email, req) {
       return request<void>({ method: 'POST', path: '/api/forgot_password', body: { email } }, opts, req);

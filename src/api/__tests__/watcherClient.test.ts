@@ -23,7 +23,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-test('getWorkers passes the token in the query and sends NO cookie or account header', async () => {
+test('getWorkers passes the token in the Authorization header and sends NO cookie or account header', async () => {
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse({ workers: [], next_cursor: null }));
   const client = createWatcherClient('SECRETTOKEN', { fetchImpl });
 
@@ -31,7 +31,7 @@ test('getWorkers passes the token in the query and sends NO cookie or account he
 
   const call = calls[0];
   assert.ok(call.url.includes('/api/workers/all'));
-  assert.ok(call.url.includes('token=SECRETTOKEN'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer SECRETTOKEN');
   // the whole point: a public page must not leak the owner's session
   assert.notEqual(call.init.credentials, 'include');
   const headers = (call.init.headers ?? {}) as Record<string, string>;
@@ -55,7 +55,7 @@ test('getWorkers follows pagination until the complete watcher roster is loaded'
   assert.deepEqual(result, { workers: [first, second], next_cursor: null });
   assert.equal(calls.length, 2);
   assert.ok(calls[1].url.includes('cursor=page-2'));
-  assert.ok(calls[1].url.includes('token=TOK'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer TOK');
 });
 
 test('getHashrate passes the token and sends no credentials', async () => {
@@ -67,7 +67,7 @@ test('getHashrate passes the token and sends no credentials', async () => {
   await client.getHashrate();
 
   assert.ok(calls[0].url.includes('/api/user/hashrate?'));
-  assert.ok(calls[0].url.includes('token=TOK'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer TOK');
   assert.notEqual(calls[0].init.credentials, 'include');
 });
 
@@ -79,37 +79,68 @@ test('getHashrateHistory passes the token plus the RFC3339 window', async () => 
 
   const url = calls[0].url;
   assert.ok(url.includes('/api/user/hashrate/historical?'));
-  assert.ok(url.includes('token=TOK'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer TOK');
   assert.ok(url.includes('from=2026-07-01'));
-  assert.ok(url.includes('to=2026-07-17'));
+  assert.ok(calls.at(-1)!.url.includes('to=2026-07-17'));
+  assert.equal(calls.length, 3);
 });
 
-test('getGeneratedBtc passes the token and collapses a non-array to an empty list', async () => {
-  const rows = [{ entry_day: '2026-06-21', hashrate: 100, btc_generated: 0.0001 }];
+test('getGeneratedBtc uses bearer auth and rejects malformed earnings', async () => {
+  const rows = [{ entry_day: '2026-06-21', hashrate: 100, btc_generated: 0.0001, fpps_btc_generated: 0.0001, pplns_btc_generated: 0, pplns_hashrate: 0 }];
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
   const client = createWatcherClient('TOK', { fetchImpl });
 
-  const result = await client.getGeneratedBtc();
-  // The token-authenticated path: /api/generated_btc is session-only and rejects a
-  // watcher token, so an earnings-only link must read /api/user/generated_btc.
-  assert.ok(calls[0].url.includes('/api/user/generated_btc?'));
-  assert.ok(calls[0].url.includes('token=TOK'));
+  const result = await client.getGeneratedBtc('123');
+  // Exact-account reads exclude directly owned subaccounts.
+  assert.ok(calls[0].url.includes('/api/user/sub_account/123/generated_btc?'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer TOK');
   assert.notEqual(calls[0].init.credentials, 'include');
   assert.deepEqual(result, rows);
 
   const bad = fakeFetch(() => jsonResponse({ error: 'x' }));
   const c2 = createWatcherClient('TOK', { fetchImpl: bad.fetchImpl });
-  assert.deepEqual(await c2.getGeneratedBtc(), []);
+  await assert.rejects(() => c2.getGeneratedBtc('123'));
+});
+
+test('getPayouts uses the same earnings-scoped watcher token and follows every page', async () => {
+  const first = {
+    txid: 'tx-1', output_index: 0, kind: 'fpps', address: 'bc1first', amount_sats: 10, confirmed_at: 1,
+  };
+  const second = {
+    txid: 'tx-2', output_index: 1, kind: 'pplns', address: 'bc1second', amount_sats: 20, confirmed_at: 2,
+  };
+  const { fetchImpl, calls } = fakeFetch(({ url }) =>
+    jsonResponse(url.includes('cursor=next')
+      ? { payouts: [second], next_cursor: null }
+      : { payouts: [first], next_cursor: 'next' }),
+  );
+  const client = createWatcherClient('TOK', { fetchImpl });
+
+  const result = await client.getPayouts('123');
+
+  assert.deepEqual(result, [first, second]);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].url.includes('/api/v1/user/sub_account/123/payouts?limit=100'));
+  assert.ok(calls[1].url.includes('cursor=next'));
+  assert.ok(calls.every((call) => new Headers(call.init.headers).get('Authorization') === 'Bearer TOK'));
+  assert.ok(calls.every((call) => call.init.credentials !== 'include'));
+});
+
+test('getPayouts rejects a malformed payout page', async () => {
+  const { fetchImpl } = fakeFetch(() => jsonResponse({ payouts: null, next_cursor: null }));
+  const client = createWatcherClient('TOK', { fetchImpl });
+
+  await assert.rejects(() => client.getPayouts('123'), /Invalid payouts response/);
 });
 
 test('getFees passes the token and reads the current pool and broker fee rates', async () => {
-  const fees = { pool_fee: 2, broker_fee: 0.5 };
+  const fees = { pool_fee: 0.02, broker_fee: 0.005 };
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(fees));
   const client = createWatcherClient('TOK', { fetchImpl });
 
   const result = await client.getFees();
   assert.ok(calls[0].url.includes('/api/user/fees?'));
-  assert.ok(calls[0].url.includes('token=TOK'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer TOK');
   assert.notEqual(calls[0].init.credentials, 'include');
   assert.deepEqual(result, fees);
 });
@@ -134,11 +165,11 @@ test('a watcher server failure does not expose an HTTP status or implementation 
   );
 });
 
-test('a non-array historical response collapses to an empty series', async () => {
+test('a non-array historical response is rejected', async () => {
   const { fetchImpl } = fakeFetch(() => jsonResponse({ not: 'an array' }));
   const client = createWatcherClient('TOK', { fetchImpl });
 
-  assert.deepEqual(await client.getHashrateHistory('2026-07-01T00:00:00Z', '2026-07-02T00:00:00Z'), []);
+  await assert.rejects(() => client.getHashrateHistory('2026-07-01T00:00:00Z', '2026-07-02T00:00:00Z'));
 });
 
 test('getPplnsProjection reads the account path with the token and no session', async () => {
@@ -150,7 +181,7 @@ test('getPplnsProjection reads the account path with the token and no session', 
 
   const call = calls[0];
   assert.ok(call.url.includes('/api/user/sub_account/00123/pplns_projection'));
-  assert.ok(call.url.includes('token=SECRETTOKEN'));
+  assert.equal(new Headers(calls[0].init.headers).get('Authorization'), 'Bearer SECRETTOKEN');
   assert.notEqual(call.init.credentials, 'include');
   assert.deepEqual(result, body);
 });

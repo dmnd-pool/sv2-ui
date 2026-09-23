@@ -112,14 +112,14 @@ function WatcherLinkCard({
           <p className="truncate text-xs leading-4 text-body-alt">Token</p>
           <span className="group/cell flex items-center gap-1">
             <span className="truncate text-xs leading-4 text-foreground">{truncateToken(link.token)}</span>
-            <CopyButton value={link.token} label="token" />
+            {link.token && <CopyButton value={link.token} label="token" />}
           </span>
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-center">
           <p className="truncate text-xs leading-4 text-body-alt">URL</p>
           <span className="flex items-center gap-1">
             <span className="truncate text-xs leading-4 text-foreground">{watcherUrlLabel(origin, link.token)}</span>
-            <a
+            {url && <a
               href={url}
               target="_blank"
               rel="noreferrer"
@@ -127,7 +127,7 @@ function WatcherLinkCard({
               className="shrink-0 text-body-alt transition-colors hover:text-foreground"
             >
               <LiSquareShareLine className="h-3.5 w-3.5" />
-            </a>
+            </a>}
           </span>
         </div>
       </div>
@@ -210,13 +210,13 @@ export function WatcherLinksTable({
                 <td className="group/cell px-6 py-4 text-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-mono">{truncateToken(l.token)}</span>
-                    <CopyButton value={l.token} label="token" />
+                    {l.token && <CopyButton value={l.token} label="token" />}
                   </span>
                 </td>
                 <td className="group/cell px-6 py-4 text-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-mono">{watcherUrlLabel(origin, l.token)}</span>
-                    <a
+                    {url && <a
                       href={url}
                       target="_blank"
                       rel="noreferrer"
@@ -224,7 +224,7 @@ export function WatcherLinksTable({
                       className="shrink-0 text-placeholder transition-colors hover:text-foreground"
                     >
                       <LiSquareShareLine className="h-3.5 w-3.5" />
-                    </a>
+                    </a>}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-foreground">{formatWatcherDate(l.created_at)}</td>

@@ -188,8 +188,8 @@ export function WatcherLinksPage() {
           onClose={() => setViewing(null)}
           // Revoking shrinks the list, so return to the first page; staying put can
           // leave the viewer on a page that no longer has any links on it.
-          onRevoke={async (id) => {
-            await revoke.mutateAsync(id);
+          onRevoke={async (id, totpToken) => {
+            await revoke.mutateAsync({ id, totpToken });
             setPage(1);
           }}
         />

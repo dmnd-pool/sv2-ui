@@ -185,6 +185,11 @@ export function userBitcoinAddresses(profile: DmndSession | undefined): Set<stri
   return new Set(Object.keys(profile?.bitcoin_addresses ?? {}).filter(Boolean));
 }
 
+/** Stable query-key fragment for data whose client-side ownership filter uses these addresses. */
+export function userBitcoinAddressesKey(profile: DmndSession | undefined): string {
+  return JSON.stringify([...userBitcoinAddresses(profile)].sort());
+}
+
 export function activeBitcoinAddress(profile: DmndSession | undefined): string | null {
   const active = Object.entries(profile?.bitcoin_addresses ?? {}).find(([address, isActive]) => isActive && address);
   return active?.[0] ?? null;
@@ -200,8 +205,12 @@ export function useTodayEarnings(enabled = true) {
   const ownerAccountId = session?.accountId ?? null;
   const accountId = useActiveAccountId();
   const { data: profile } = useAccountProfile();
+  const addressKey = viewingAccountId === null ? userBitcoinAddressesKey(profile) : 'exact-subaccount';
   return useQuery({
-    queryKey: ['account', 'today-earnings', accountId],
+    // Main-account results are filtered by the profile's address roster. Including it
+    // prevents a just-saved payout address from reusing a transformed cache entry that
+    // was computed with the old roster.
+    queryKey: ['account', 'today-earnings', accountId, addressKey],
     queryFn: async ({ signal }) => {
       const today = new Date().toISOString().slice(0, 10);
       const query = { from: today, to: today };

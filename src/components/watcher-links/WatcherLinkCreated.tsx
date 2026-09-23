@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LiCloseCircle, LiCopy, LiCheckCircle, LiSquareShareLine, LiDangerTriangle } from 'solar-icon-react/li';
-import type { WatcherLink } from '@/api/types';
+import type { CreatedWatcherLink } from '@/api/types';
 import { scopeLabels, watcherLinkUrl } from '@/lib/watcherLinks';
 
 /** One labelled value with a copy button; used for the token, URL, and curl command. */
@@ -40,11 +40,9 @@ function CopyRow({ label, value, href }: { label: string; value: string; href?: 
 }
 
 /**
- * The one-time reveal shown after a link is created: the full token, the shareable
- * URL, and a ready-to-run curl command. This is the only place the full token is
- * shown, so it warns the holder to keep it safe before they close the panel.
+ * Creation reveals the secret and shareable URL; available secrets remain in the owner's listing.
  */
-export function WatcherLinkCreated({ link, origin, onClose }: { link: WatcherLink; origin: string; onClose: () => void }) {
+export function WatcherLinkCreated({ link, origin, onClose }: { link: CreatedWatcherLink; origin: string; onClose: () => void }) {
   const url = watcherLinkUrl(origin, link.user_id, link.token);
   return (
     <>
@@ -76,7 +74,6 @@ export function WatcherLinkCreated({ link, origin, onClose }: { link: WatcherLin
 
         <CopyRow label="Token" value={link.token} />
         <CopyRow label="URL" value={url} href={url} />
-        <CopyRow label="cURL" value={`curl "${url}"`} />
 
         <div className="flex flex-col gap-2">
           <span className="text-xs text-body-alt">Scopes</span>

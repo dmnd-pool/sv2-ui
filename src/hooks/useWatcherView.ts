@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createWatcherClient } from '@/api/watcherClient';
 import type { HashrateRange } from '@/api/types';
 import { rangeToWindow } from '@/lib/hashrateHistory';
+import { payoutFromApi, sortPayoutsByDateDesc } from '@/lib/payoutsTable';
 
 // The public view polls a little slower than the owner's dashboard; it is a shared,
 // read-only page and does not need second-by-second freshness.
@@ -71,13 +72,28 @@ export function useWatcherWorkers(token: string) {
 }
 
 /** Daily generated-BTC entries for the watcher token (gated on the earnings scope). */
-export function useWatcherGeneratedBtc(token: string, enabled: boolean) {
+export function useWatcherGeneratedBtc(token: string, enabled: boolean, accountId: string) {
   const client = useClient(token);
   return useQuery({
-    queryKey: ['watcher', token, 'generated-btc'],
-    queryFn: ({ signal }) => client.getGeneratedBtc(signal),
+    queryKey: ['watcher', token, 'generated-btc', accountId],
+    queryFn: ({ signal }) => client.getGeneratedBtc(accountId, signal),
     enabled,
     staleTime: WATCHER_POLL_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+/** Confirmed on-chain payouts exposed by the same earnings-scoped watcher token. */
+export function useWatcherPayouts(token: string, enabled: boolean, accountId: string) {
+  const client = useClient(token);
+  return useQuery({
+    queryKey: ['watcher', token, 'payouts', accountId],
+    queryFn: ({ signal }) => client
+      .getPayouts(accountId, signal)
+      .then((rows) => sortPayoutsByDateDesc(rows.map(payoutFromApi))),
+    enabled,
+    staleTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: false,
   });

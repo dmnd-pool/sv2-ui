@@ -10,6 +10,7 @@ import {
   useWatcherHashrateHistory,
   useWatcherWorkers,
   useWatcherGeneratedBtc,
+  useWatcherPayouts,
   useWatcherFees,
   useWatcherPplnsProjection,
   type CustomWindow,
@@ -20,6 +21,7 @@ import { WatcherHashratePanel } from '@/components/watcher-links/view/WatcherHas
 import { WatcherPerformanceChart } from '@/components/watcher-links/view/WatcherPerformanceChart';
 import { WatcherWorkersSection } from '@/components/watcher-links/view/WatcherWorkersSection';
 import { WatcherGeneratedBtcSection } from '@/components/watcher-links/view/WatcherGeneratedBtcSection';
+import { WatcherPayoutsSection } from '@/components/watcher-links/view/WatcherPayoutsSection';
 import { WatcherFeesSection } from '@/components/watcher-links/view/WatcherFeesSection';
 import {
   WatcherSidebar,
@@ -37,6 +39,7 @@ const SECTION_NOUNS: Record<WatcherSection, string> = {
   home: 'hashrate',
   workers: 'workers',
   generated: 'earnings',
+  payouts: 'payouts',
   fees: 'fees',
   pplns: 'PPLNS projection',
 };
@@ -75,7 +78,8 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
   const workers = useWatcherWorkers(token);
   // Each section is attempted (not gated on a scope flag) so a link that only grants one
   // scope still renders that section instead of looking like a dead link.
-  const generated = useWatcherGeneratedBtc(token, true);
+  const generated = useWatcherGeneratedBtc(token, true, accountId);
+  const payouts = useWatcherPayouts(token, true, accountId);
   const fees = useWatcherFees(token, true);
   const pplns = useWatcherPplnsProjection(accountId, token, true);
 
@@ -84,11 +88,12 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
   // the link is dead.
   const granted = (q: { isError: boolean; error: unknown }) => !(q.isError && isUnauthorized(q.error));
   const settled =
-    !hashrate.isLoading && !workers.isLoading && !generated.isLoading && !fees.isLoading && !pplns.isLoading;
+    !hashrate.isLoading && !workers.isLoading && !generated.isLoading && !payouts.isLoading && !fees.isLoading && !pplns.isLoading;
   const sections: WatcherSection[] = [
     granted(hashrate) ? 'home' : null,
     granted(workers) ? 'workers' : null,
     granted(generated) ? 'generated' : null,
+    granted(payouts) ? 'payouts' : null,
     granted(fees) ? 'fees' : null,
     granted(pplns) && hasPayablePplnsWork(pplns.data) ? 'pplns' : null,
   ].filter((s): s is WatcherSection => s !== null);
@@ -248,6 +253,20 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
                     fees={fees.data ?? null}
                     isLoading={fees.isLoading}
                     isError={fees.isError && !isUnauthorized(fees.error)}
+                  />
+                </section>
+              )}
+
+              {active === 'payouts' && (
+                <section className="space-y-6">
+                  <div>
+                    <h1 className="text-xl font-semibold text-heading">Payouts</h1>
+                    <p className="mt-1 text-sm text-body-alt">Confirmed on-chain payouts for this account.</p>
+                  </div>
+                  <WatcherPayoutsSection
+                    payouts={payouts.data ?? []}
+                    isLoading={payouts.isLoading}
+                    isError={payouts.isError && !isUnauthorized(payouts.error)}
                   />
                 </section>
               )}

@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { LiHomeAngle, LiSidebarMinimalistic, LiGasStation, LiChart } from 'solar-icon-react/li';
+import { LiHomeAngle, LiSidebarMinimalistic, LiGasStation, LiChart, LiWalletMoney } from 'solar-icon-react/li';
 import { BdHomeAngle, BdChart } from 'solar-icon-react/bd';
 import { cn } from '@/lib/utils';
 import { DmndLogo } from '@/components/auth/Logo';
@@ -7,7 +7,7 @@ import { MiningIcon } from '@/components/dashboard/icons/MiningIcon';
 import { BitcoinCircleIcon } from '@/components/dashboard/icons/BitcoinCircleIcon';
 
 /** The sections a watcher link can expose, in the order the sidebar lists them. */
-export type WatcherSection = 'home' | 'workers' | 'generated' | 'fees' | 'pplns';
+export type WatcherSection = 'home' | 'workers' | 'generated' | 'payouts' | 'fees' | 'pplns';
 
 type IconComp = ComponentType<{ className?: string }>;
 
@@ -24,6 +24,7 @@ export const WATCHER_SECTIONS: Record<WatcherSection, SectionMeta> = {
   home: { group: 'Overview', label: 'Home', icon: LiHomeAngle, iconActive: BdHomeAngle },
   workers: { group: 'Mining', label: 'Workers', icon: MiningIcon },
   generated: { group: 'Mining', label: 'Generated BTC', icon: BitcoinCircleIcon },
+  payouts: { group: 'Mining', label: 'Payouts', icon: LiWalletMoney },
   fees: { group: 'Mining', label: 'Fees', icon: LiGasStation },
   pplns: { group: 'Mining', label: 'PPLNS Projection', icon: LiChart, iconActive: BdChart },
 };

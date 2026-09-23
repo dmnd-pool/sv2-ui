@@ -22,7 +22,7 @@ const SCOPE_LABELS: Record<WatcherScope, string> = {
 export const SCOPE_DESCRIPTIONS: Record<WatcherScope, string> = {
   hashrate_read: 'Current and historical hashrate data.',
   workers_read: 'Live worker roster, miner count and share counts per worker.',
-  earnings_read: 'Daily generated BTC for FPPS earnings, and the PPLNS projection.',
+  earnings_read: 'Daily generated BTC, confirmed payouts, and the PPLNS projection.',
   rejects_read: 'Aggregate accepted and rejected share counts.',
   fees_read: 'The pool fee percentage charged on this account.',
 };
@@ -69,7 +69,8 @@ export function accountLabel(
 }
 
 /** The shareable link: the watcher opens this and reads only what the token allows. */
-export function watcherLinkUrl(origin: string, userId: string, token: string): string {
+export function watcherLinkUrl(origin: string, userId: string, token: string | null): string {
+  if (!token) return '';
   return `${origin.replace(/\/+$/, '')}/login/watcher/${userId}/${token}`;
 }
 
@@ -82,12 +83,14 @@ export function parseWatcherPath(userId: string, token: string): { userId: strin
 }
 
 /** The token shortened for a table cell; the full value is only copied, never shown. */
-export function truncateToken(token: string): string {
+export function truncateToken(token: string | null): string {
+  if (!token) return 'Unavailable';
   return truncateMiddle(token, 8, 4);
 }
 
 /** The link shortened for a table cell: the host plus the end of the token. */
-export function watcherUrlLabel(origin: string, token: string): string {
+export function watcherUrlLabel(origin: string, token: string | null): string {
+  if (!token) return 'Unavailable';
   const host = origin.replace(/^https?:\/\//, '').replace(/\/+$/, '');
   return `${host}/...${token.slice(-4)}`;
 }
@@ -137,12 +140,10 @@ export function formatLastUpdated(observed: string | undefined, now: number): st
 }
 
 /**
- * A fee rate for display, to two decimals (the "%" is drawn separately). The API sends
- * the rate already in percent (2 = 2%), so it is shown verbatim, not multiplied. A
- * non-finite value (a malformed response) reads as "0.00" rather than "NaN".
+ * A fractional API fee converted to a display percentage, to two decimals.
  */
 export function formatFeePercent(rate: number): string {
-  return (Number.isFinite(rate) ? rate : 0).toFixed(2);
+  return (Number.isFinite(rate) ? rate * 100 : 0).toFixed(2);
 }
 
 /**

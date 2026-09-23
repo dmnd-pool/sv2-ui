@@ -1,3 +1,5 @@
+import { OtpField } from '@/components/ui/input-otp';
+import { authErrorMessage } from '@/components/auth/authError';
 import { useState } from 'react';
 import { LiCloseCircle, LiShieldWarning } from 'solar-icon-react/li';
 import { BdShieldWarning } from 'solar-icon-react/bd';
@@ -13,8 +15,9 @@ export function RevokeWatcherLinkConfirm({
   onConfirm,
 }: {
   onCancel: () => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: (totpToken?: string) => Promise<void>;
 }) {
+  const [totpToken, setTotpToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,9 +26,9 @@ export function RevokeWatcherLinkConfirm({
     setBusy(true);
     setError(null);
     try {
-      await onConfirm();
-    } catch {
-      setError("We couldn't revoke this Watcher link. Please try again.");
+      await onConfirm(totpToken);
+    } catch (e) {
+      setError(authErrorMessage(e, 'Enter the current 6-digit authenticator code to revoke this link.'));
       setBusy(false);
     }
   };
@@ -60,6 +63,10 @@ export function RevokeWatcherLinkConfirm({
             <span className="text-sm text-body-alt">This action cannot be undone.</span>
           </div>
 
+          <div className="mt-4 space-y-2 text-left">
+            <p className="text-sm text-body-alt">Authenticator code (if required for your session)</p>
+            <OtpField value={totpToken} onChange={setTotpToken} disabled={busy} ariaLabel="Current authenticator code" />
+          </div>
           {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
           <div className="mt-6 flex w-full items-center gap-3">
@@ -72,7 +79,7 @@ export function RevokeWatcherLinkConfirm({
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || (totpToken.length > 0 && totpToken.length !== 6)}
               onClick={() => void confirm()}
               className="h-11 flex-[2] rounded-[32px] bg-destructive-strong px-6 text-base leading-6 text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
             >
