@@ -1,6 +1,6 @@
 import type { PplnsProjection } from '../types';
 
-export function pplnsProjectionFixture(modelVersion: 3 | 4 = 4): PplnsProjection {
+export function pplnsProjectionFixture(): PplnsProjection {
   return {
     generation_id: 42,
     subaccount_id: '123',
@@ -14,7 +14,7 @@ export function pplnsProjectionFixture(modelVersion: 3 | 4 = 4): PplnsProjection
     synthetic_fill_difficulty: 73456789,
     network_difficulty: 123456789,
     block_subsidy_sats: 312500000,
-    model_version: modelVersion,
+    model_version: 4,
     earned_history_complete_from_day: '2026-08-01',
     daily_work: [
       {

@@ -1,3 +1,4 @@
+import type { GeneratedBtcEntry } from './generatedBtc';
 import type { PplnsProjection } from './pplnsProjection';
 
 export type {
@@ -22,15 +23,21 @@ export class DmndApiError extends Error {
   }
 }
 
+/** The current step-up rejection is distinct from an expired dashboard session. */
+export function isAuthenticatorCodeError(error: unknown): boolean {
+  return error instanceof DmndApiError && error.status === 401 && error.message === 'Invalid authenticator code';
+}
+
 export interface RequestOptions {
   signal?: AbortSignal;
   accountId?: string;
+  /** Current authenticator code for key management and replacing enrolled 2FA. */
+  totpToken?: string;
 }
 
 /**
- * The user/session object returned by /api/log_user (verified live). `token` is
- * the SV2 pool credential and the auth carrier; `api_token` is for the public
- * API. The remaining fields model the full login response.
+ * Account data returned by session endpoints. `token` and `fpps_token` are mining
+ * credentials; dashboard authentication uses the separate HttpOnly cookie.
  */
 export interface DmndSession {
   token: string;
@@ -44,7 +51,6 @@ export interface DmndSession {
   bitcoin_addresses: Record<string, boolean>;
   language?: string;
   active?: boolean;
-  api_token?: string | null;
   fpps_token?: string | null;
   selling_hash_rate?: boolean;
 }
@@ -61,20 +67,19 @@ export interface SignupInput {
 
 /**
  * A miner assigned to a broker's referral code, from `GET /api/broker/miners`.
- * The live decoder carries `id`; the spec table omits it, so it stays optional.
  */
 export interface BrokerMiner {
-  id?: string;
+  id: string;
   name: string;
   hashrate: number;
   /** A work counter, not an earnings figure: no endpoint returns broker earnings. */
   total_work: number;
-  /** Already a percentage (2 = 2%), like the pool/broker fee rates elsewhere. */
+  /** Fractional rate (0.02 = 2%), as stored in users_data. */
   broker_fee: number;
 }
 
 export interface BrokerAccount {
-  id: string | number;
+  id: string;
   email: string;
   referenceCode: string;
 }
@@ -89,7 +94,7 @@ export interface BrokerSignupInput {
 }
 
 /**
- * Live hashrate snapshot (GET /api/user/hashrate, verified live). Carries
+ * Live hashrate snapshot (GET /api/user/hashrate). Carries
  * total_hashrate and an observed_at timestamp in addition to the per-scheme
  * rates. All hashrates are H/s.
  */
@@ -98,15 +103,15 @@ export interface HashrateSnapshot {
   fpps_hashrate: number;
   total_hashrate: number;
   observed_at?: string | null;
-  account_id?: number;
+  account_id: string;
 }
 
-/** Chart range options (from the dashboard bundle). Custom date range is deferred. */
+/** Preset chart ranges; custom windows are supplied as explicit timestamps. */
 export type HashrateRange = '1H' | '6H' | '24H' | '7D';
 
 /**
  * One point in the hashrate time series (GET /api/user/hashrate/historical,
- * verified live: a dense array, ~one sample every two minutes). The date field is
+ * a dense array sampled about every two minutes). The date field is
  * `observed_at`, matching the live snapshot; callers downsample before charting.
  */
 export interface HashratePoint {
@@ -114,12 +119,13 @@ export interface HashratePoint {
   pplns_hashrate: number;
   fpps_hashrate: number;
   total_hashrate: number;
-  account_id?: number;
+  /** Absent on chart points composed from multiple accounts. */
+  account_id?: string;
 }
 
 /**
- * A single worker row (GET /api/workers and /api/workers/all). Per the spec the
- * numeric fields are nullable and `connected_at` is a unix timestamp.
+ * A single worker row (GET /api/workers and /api/workers/all). The
+ * numeric fields are nullable and `connected_at` is Unix milliseconds.
  */
 export interface Worker {
   name: string;
@@ -139,30 +145,27 @@ export interface WorkersResponse {
   next_cursor: string | null;
 }
 
-/** The account's pool payout addresses (GET /api/payouts/addresses, verified live). */
-export interface PayoutAddresses {
-  fpps_payout_address: string;
-  pplns_payout_address: string;
+/** One confirmed payout output returned by the v1 payout-history endpoints. */
+export interface PayoutRecord {
+  txid: string;
+  output_index: number;
+  kind: 'fpps' | 'pplns';
+  address: string;
+  amount_sats: number;
+  confirmed_at: number;
 }
 
-/**
- * One daily generated-BTC entry (GET /api/generated_btc, verified live).
- * `entry_day` is a date string (YYYY-MM-DD), `hashrate` is that day's average in
- * H/s, and `btc_generated` is the gross BTC accrued that day before payout
- * adjustments. The endpoint returns a bare array (empty account -> []).
- */
-export interface GeneratedBtcEntry {
-  entry_day: string;
-  hashrate: number;
-  btc_generated: number;
-  // Which account this day's entry belongs to, set only in aggregated mode where rows
-  // span the main account and every subaccount.
-  account?: string;
+/** Optional inclusive UTC date window (`YYYY-MM-DD`); the server defaults to 30 days. */
+export interface PayoutQuery {
+  from?: string;
+  to?: string;
 }
+
+export type { GeneratedBtcEntry } from './generatedBtc';
 
 /**
  * Accepted/rejected share counts for a subaccount over a window
- * (GET /api/user/sub_account/{id}/share_stats, verified live). Rejection rate is
+ * (GET /api/user/sub_account/{id}/share_stats). Rejection rate is
  * derived from `rejected / (accepted + rejected)`.
  */
 export interface SubaccountShareStats {
@@ -176,8 +179,7 @@ export interface SubaccountShareStats {
 }
 
 /**
- * Pool + broker fee rates, already expressed in percent (2 = 2%), per the spec's
- * `/api/user/fees` "rates (%)" and prod's "Pool fee %" / "Broker fee %" columns.
+ * Pool + broker fee rates expressed as fractions (0.02 = 2%).
  * From GET /api/user/fees and GET /api/user/sub_account/{id}/fees.
  */
 export interface SubaccountFees {
@@ -190,18 +192,17 @@ export interface Subaccount {
   id: string;
   sub_account: string;
   token: string;
-  api_token: string;
   fpps_token: string | null;
   hashrate: string;
   bitcoin_addresses: Record<string, boolean>;
 }
 
-/** GET /api/user/sub_account/{id}/summary?token= : one response with the row's stats, fees, and today's BTC. */
+/** GET /api/user/sub_account/{id}/summary: stats, fractional fees, and today's FPPS BTC. */
 export interface SubaccountSummary {
-  sub_account_id: number;
-  hashrate: HashrateSnapshot | null;
-  share_stats: SubaccountShareStats | null;
-  fees: SubaccountFees | null;
+  sub_account_id: string;
+  hashrate: HashrateSnapshot;
+  share_stats: SubaccountShareStats;
+  fees: SubaccountFees;
   today_generated_btc: number | null;
 }
 
@@ -212,19 +213,30 @@ export interface SubaccountSummary {
 export type WatcherScope = 'hashrate_read' | 'workers_read' | 'earnings_read' | 'rejects_read' | 'fees_read';
 
 /**
- * A watcher link (GET /api/api-tokens, verified live). `user_id` is the account the
+ * A watcher link (GET /api/api-tokens). `user_id` is the account the
  * link can read (the master account or one of its subaccounts) and is what the
- * shareable URL embeds alongside `token`. `expires_at` is null for links that never
- * expire, which is every link the API issues today.
+ * shareable URL embeds alongside `token`. Secrets unavailable for historical keys
+ * are null; `expires_at` is null for non-expiring keys.
  */
 export interface WatcherLink {
   id: string;
   user_id: string;
-  token: string;
+  token: string | null;
+  token_prefix: string;
+  last_used_at: string | null;
   owner_email: string;
   owner_first_name: string | null;
   scopes: WatcherScope[];
   created_at: string;
+  expires_at: string | null;
+}
+
+/** Creation returns the secret and scope, without list-only ownership metadata. */
+export interface CreatedWatcherLink {
+  id: string;
+  user_id: string;
+  token: string;
+  scopes: WatcherScope[];
   expires_at: string | null;
 }
 
@@ -234,7 +246,7 @@ export interface CreateWatcherLinkInput {
   scopes: WatcherScope[];
 }
 
-/** Account capability flags (GET /api/user/permissions; snake_case, bundle-verified). */
+/** Account capability flags (GET /api/user/permissions; snake_case). */
 export interface AccountPermissions {
   view_sub_accounts: boolean;
   create_sub_account: boolean;
@@ -247,8 +259,7 @@ export interface CreateSubaccountInput {
   bitcoinAddress: string;
 }
 
-// Auth is cookie-based: once login sets the session cookie, the proxy forwards
-// it on every call, so these methods don't take a token argument.
+// The browser includes the dashboard session cookie and X-Account-ID on authenticated calls.
 export interface DmndClient {
   signup(input: SignupInput, req?: RequestOptions): Promise<void>;
   /**
@@ -269,11 +280,12 @@ export interface DmndClient {
     req?: RequestOptions,
   ): Promise<void>;
   /** Confirm TOTP setup with the 6-digit code from the authenticator app. */
-  activate2fa(code: string, req?: RequestOptions): Promise<void>;
+  activate2fa(code: string, req?: RequestOptions): Promise<DmndSession>;
   /**
    * Fetch a fresh 2FA provisioning secret to re-set-up (reset) two-factor auth,
    * returning the session object with a non-null `two_factor_secret`. A GET, so it
    * does not itself change the live secret; activate2fa commits the new one.
+   * Both calls require the current factor in req.totpToken for enrolled accounts.
    */
   newTwoFactor(req?: RequestOptions): Promise<DmndSession>;
   /**
@@ -295,22 +307,27 @@ export interface DmndClient {
   /**
    * Hashrate time series for the performance chart over an RFC3339 [from, to]
    * window (GET /api/user/hashrate/historical). The result is dense, so callers
-   * downsample before charting; a non-array response still collapses to [].
+   * downsample before charting. Windows longer than seven days use successive requests.
    */
   getHashrateHistory(from: string, to: string, req?: RequestOptions): Promise<HashratePoint[]>;
   /** The account's own 24h accepted/rejected counts (GET /api/user/share_stats). */
-  getShareStats(req?: RequestOptions): Promise<SubaccountShareStats | null>;
+  getShareStats(req?: RequestOptions): Promise<SubaccountShareStats>;
   /**
-   * A subaccount's historical hashrate. Returns the same points as the account-level
-   * series but with each figure nested as `{value, unit}` rather than a bare number,
-   * so callers must normalise before combining the two.
+   * Raw H/s history for an owned subaccount. Reuses its dashboard cookie when one
+   * exists, otherwise issues that cookie through the owner's account-switch flow.
    */
-  /** One page of workers for a date range (GET /api/workers); used by the workers page. */
-  getWorkers(from: string, to: string, req?: RequestOptions): Promise<WorkersResponse>;
+  getSubaccountHashrateHistory(
+    id: string,
+    from: string,
+    to: string,
+    ownerToken: string,
+    subaccountToken: string,
+    req?: RequestOptions,
+  ): Promise<HashratePoint[]>;
   /** The full worker roster (GET /api/workers/all, following every page); home counts. */
   getAllWorkers(req?: RequestOptions): Promise<Worker[]>;
-  /** The account's FPPS + PPLNS payout addresses, used to compute today's earnings. */
-  getPayoutAddresses(req?: RequestOptions): Promise<PayoutAddresses>;
+  /** Confirmed payouts for the account tree, following every server page. */
+  getPayouts(query?: PayoutQuery, req?: RequestOptions): Promise<PayoutRecord[]>;
   /** The account's daily generated-BTC entries (GET /api/generated_btc); a bare array, empty when none. */
   getGeneratedBtc(req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
   /** The account's subaccounts (master only); a lightweight list, enriched per-row. */
@@ -321,12 +338,14 @@ export interface DmndClient {
   getSubaccountWorkers(id: string, req?: RequestOptions): Promise<WorkersResponse>;
   /** Session-authenticated daily generated-BTC entries for an owned subaccount. */
   getSubaccountGeneratedBtc(id: string, req?: RequestOptions): Promise<GeneratedBtcEntry[]>;
+  /** Confirmed payouts for one owned subaccount, following every server page. */
+  getSubaccountPayouts(id: string, query?: PayoutQuery, req?: RequestOptions): Promise<PayoutRecord[]>;
   /** Capability flags gating the Create button and the page itself. */
   getPermissions(req?: RequestOptions): Promise<AccountPermissions>;
   /** The account's watcher links (GET /api/api-tokens); a bare array, empty when none. */
   getWatcherLinks(req?: RequestOptions): Promise<WatcherLink[]>;
   /** Issue a watcher link for one account (master or subaccount) with the given scopes. */
-  createWatcherLink(input: CreateWatcherLinkInput, req?: RequestOptions): Promise<WatcherLink>;
+  createWatcherLink(input: CreateWatcherLinkInput, req?: RequestOptions): Promise<CreatedWatcherLink>;
   /** Revoke a watcher link by id; it stops working immediately. */
   revokeWatcherLink(id: string, req?: RequestOptions): Promise<void>;
   /** Create a subaccount under the master account. */

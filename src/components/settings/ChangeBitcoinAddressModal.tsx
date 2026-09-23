@@ -4,7 +4,7 @@ import { OtpField } from '@/components/ui/input-otp';
 import { FieldLabel, filledInputClass } from '@/components/auth/AuthField';
 import { Input } from '@/components/ui/input';
 import { authErrorMessage } from '@/components/auth/authError';
-import { isTwoFactorRequiredError } from '@/auth/resetErrors';
+import { isAuthenticatorCodeError } from '@/api';
 import { useToast } from '@/components/ui/toast';
 import { getUser } from '@/api';
 import { getBitcoinAddressError } from '@/lib/utils';
@@ -48,7 +48,7 @@ export function ChangeBitcoinAddressModal({ onClose, onSaved }: { onClose: () =>
       onClose();
     } catch (e) {
       // A bad/expired code is the 2FA-token error; anything else is address/server.
-      if (isTwoFactorRequiredError(e)) {
+      if (isAuthenticatorCodeError(e)) {
         setCodeError(true);
         setCode('');
         toast({ type: 'error', message: "That code didn't match. Try again." });

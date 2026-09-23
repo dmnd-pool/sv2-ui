@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createUser, setDmndAccountId, subscribeToDmndAuthRejections } from '../client';
-import { API_ERROR_MESSAGES } from '../errorMessages';
 import { DmndApiError } from '../types';
 import { pplnsProjectionFixture } from './pplnsProjectionFixture';
 
@@ -129,19 +128,6 @@ test('login uses one attempt because replaying it can rotate a successful sessio
   assert.equal(calls.length, 1);
 });
 
-test('a dead session cookie reported as a 400 still surfaces as an expired session', async () => {
-  const body = JSON.stringify({ code: 'bad-request', message: 'Unauthorized. User ID cookie not found or invalid.' });
-  const { fetchImpl, calls } = fakeFetch(() => new Response(body, { status: 400 }));
-  const client = createUser({ fetchImpl, backoffMs: 0 });
-
-  await assert.rejects(
-    () => client.checkAuth(),
-    (e: unknown) =>
-      e instanceof DmndApiError && e.code === 'unauthorized' && e.message === API_ERROR_MESSAGES.unauthorized,
-  );
-  assert.equal(calls.length, 1, 'a dead cookie is final, not retried');
-});
-
 test('a rejected referral code reported as a 500 keeps its own message and does not retry', async () => {
   const body = JSON.stringify({ code: 'internal-error', message: 'Invalid referral code' });
   const { fetchImpl, calls } = fakeFetch(() => new Response(body, { status: 500 }));
@@ -258,7 +244,7 @@ test('signup forwards company fields and referral when provided', async () => {
 });
 
 test('getSubaccounts GETs user/sub_account, sends X-Account-ID, and returns the list', async () => {
-  const rows = [{ sub_account_id: 1, sub_account: 'Main Farm', today_generated_btc: 0.00042 }];
+  const rows = [{ id: '1', sub_account: 'Main Farm', token: 'mining-token', fpps_token: null, api_token: null, hashrate: '0', bitcoin_addresses: {} }];
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
   const client = createUser({ fetchImpl, backoffMs: 0 });
   setDmndAccountId('42');
@@ -333,7 +319,13 @@ test('logSubaccount POSTs owner_token and subaccount_token and returns the new s
 });
 
 test('getSubaccountSummary uses the master session without a query token', async () => {
-  const body = { sub_account_id: -77, hashrate: null, share_stats: null, fees: null, today_generated_btc: null };
+  const body = {
+    sub_account_id: '-77',
+    hashrate: { account_id: '-77', observed_at: null, pplns_hashrate: 0, fpps_hashrate: 0, total_hashrate: 0 },
+    share_stats: { window_hours: 24, pplns_accepted: 0, pplns_rejected: 0, fpps_accepted: 0, fpps_rejected: 0, accepted: 0, rejected: 0 },
+    fees: { pool_fee: 0.02, broker_fee: 0.005 },
+    today_generated_btc: null,
+  };
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(body));
   const client = createUser({ fetchImpl, backoffMs: 0 });
   setDmndAccountId('42');
@@ -385,7 +377,7 @@ test('getSubaccountWorkers follows pagination on the live per-subaccount endpoin
 });
 
 test('getGeneratedBtc GETs the generated_btc list with the X-Account-ID header', async () => {
-  const rows = [{ entry_day: '2026-06-21', hashrate: 100, btc_generated: 0.0001 }];
+  const rows = [{ entry_day: '2026-06-21', hashrate: 100, btc_generated: 0.0001, fpps_btc_generated: 0.0001, pplns_btc_generated: 0, pplns_hashrate: 0 }];
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
   const client = createUser({ fetchImpl, backoffMs: 0 });
   setDmndAccountId('42');
@@ -400,11 +392,11 @@ test('getGeneratedBtc GETs the generated_btc list with the X-Account-ID header',
   }
 });
 
-test('getGeneratedBtc collapses a non-array response to an empty list', async () => {
+test('getGeneratedBtc rejects a non-array response', async () => {
   const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  assert.deepEqual(await client.getGeneratedBtc(), []);
+  await assert.rejects(() => client.getGeneratedBtc());
 });
 
 test('getWatcherLinks GETs the api-tokens list with the X-Account-ID header', async () => {
@@ -434,11 +426,11 @@ test('getWatcherLinks GETs the api-tokens list with the X-Account-ID header', as
   }
 });
 
-test('getWatcherLinks collapses a non-array response to an empty list', async () => {
+test('getWatcherLinks rejects a non-array response', async () => {
   const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  assert.deepEqual(await client.getWatcherLinks(), []);
+  await assert.rejects(() => client.getWatcherLinks());
 });
 
 test('createWatcherLink POSTs the target account and scopes in snake_case', async () => {
@@ -468,7 +460,7 @@ test('revokeWatcherLink DELETEs the link by id', async () => {
 });
 
 test('getSubaccountGeneratedBtc uses the master session without a query token', async () => {
-  const rows = [{ entry_day: '2026-07-08', hashrate: 98, btc_generated: 0.00001274 }];
+  const rows = [{ entry_day: '2026-07-08', hashrate: 98, btc_generated: 0.00001274, fpps_btc_generated: 0.00001274, pplns_btc_generated: 0, pplns_hashrate: 0 }];
   const { fetchImpl, calls } = fakeFetch(() => jsonResponse(rows));
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
@@ -481,11 +473,11 @@ test('getSubaccountGeneratedBtc uses the master session without a query token', 
   assert.deepEqual(result, rows);
 });
 
-test('getSubaccountGeneratedBtc collapses a non-array response to an empty list', async () => {
+test('getSubaccountGeneratedBtc rejects a non-array response', async () => {
   const { fetchImpl } = fakeFetch(() => jsonResponse({ error: 'nope' }));
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  assert.deepEqual(await client.getSubaccountGeneratedBtc('-77'), []);
+  await assert.rejects(() => client.getSubaccountGeneratedBtc('-77'));
 });
 
 test('a 4xx with a server message surfaces it as an unknown error', async () => {
@@ -506,7 +498,7 @@ test('a 4xx with a server message surfaces it as an unknown error', async () => 
 
 test('brokerLogin posts to broker/log and maps referenceCode', async () => {
   const { fetchImpl, calls } = fakeFetch(() =>
-    jsonResponse({ id: 7, email: 'b@x.io', referenceCode: 'RC-1' }),
+    jsonResponse({ id: '7', email: 'b@x.io', referenceCode: 'RC-1' }),
   );
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
@@ -515,12 +507,12 @@ test('brokerLogin posts to broker/log and maps referenceCode', async () => {
   assert.ok(calls[0].url.endsWith('/api/broker/log'));
   assert.equal(calls[0].init.method, 'POST');
   assert.deepEqual(JSON.parse(calls[0].init.body as string), { email: 'b@x.io', password: 'pw' });
-  assert.deepEqual(result, { id: 7, email: 'b@x.io', referenceCode: 'RC-1' });
+  assert.deepEqual(result, { id: '7', email: 'b@x.io', referenceCode: 'RC-1' });
 });
 
-test('brokerSignup posts a flat body to /api/brokers and normalizes reference_code', async () => {
+test('brokerSignup posts a flat body to /api/brokers and reads referenceCode', async () => {
   const { fetchImpl, calls } = fakeFetch(() =>
-    jsonResponse({ id: '9', email: 'b@x.io', reference_code: 'RC-9' }),
+    jsonResponse({ id: '9', email: 'b@x.io', referenceCode: 'RC-9' }),
   );
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
@@ -542,7 +534,6 @@ test('brokerSignup posts a flat body to /api/brokers and normalizes reference_co
     companyName: 'Demand',
     companyLocation: 'Lisbon, PT',
   });
-  // snake_case reference_code from signup normalizes to referenceCode
   assert.deepEqual(result, { id: '9', email: 'b@x.io', referenceCode: 'RC-9' });
 });
 
@@ -574,7 +565,7 @@ test('a request-scoped account id cannot be changed by a later dashboard switch'
 
 test('broker requests never send the miner X-Account-ID header', async () => {
   const { fetchImpl, calls } = fakeFetch(() =>
-    jsonResponse({ id: 7, email: 'b@x.io', referenceCode: 'RC-1' }),
+    jsonResponse({ id: '7', email: 'b@x.io', referenceCode: 'RC-1' }),
   );
   const client = createUser({ fetchImpl, backoffMs: 0 });
   // A miner account id can linger in the same tab; broker calls must ignore it.
@@ -605,16 +596,92 @@ test('getHashrateHistory GETs the historical endpoint with from/to and returns t
   const result = await client.getHashrateHistory('2026-06-23T00:00:00.000Z', '2026-06-30T00:00:00.000Z');
 
   assert.equal(calls[0].init.method, 'GET');
-  assert.ok(calls[0].url.includes('/api/user/hashrate/historical?'));
+  assert.ok(calls[0].url.includes('/api/v1/user/hashrate/historical?'));
   assert.ok(calls[0].url.includes('from=2026-06-23T00%3A00%3A00.000Z'));
   assert.ok(calls[0].url.includes('to=2026-06-30T00%3A00%3A00.000Z'));
   assert.deepEqual(result, points);
 });
 
-test('getHashrateHistory collapses a non-array response to an empty series', async () => {
+test('getHashrateHistory rejects a non-array response', async () => {
   const { fetchImpl } = fakeFetch(() => jsonResponse(0));
   const client = createUser({ fetchImpl, backoffMs: 0 });
-  assert.deepEqual(await client.getHashrateHistory('a', 'b'), []);
+  await assert.rejects(() => client.getHashrateHistory('2026-09-01', '2026-09-02'));
+});
+
+test('getSubaccountHashrateHistory reuses an existing subaccount session for raw H/s', async () => {
+  const points = [{
+    account_id: '-77',
+    observed_at: '2026-06-30T00:00:00Z',
+    pplns_hashrate: 12_500_000_000_123,
+    fpps_hashrate: 2_000_000_000_000_456,
+    total_hashrate: 2_012_500_000_000_579,
+  }];
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(points));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  const result = await client.getSubaccountHashrateHistory(
+    '-77',
+    '2026-06-29T00:00:00.000Z',
+    '2026-06-30T00:00:00.000Z',
+    'owner-token',
+    'subaccount-token',
+    { accountId: 'master' },
+  );
+
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].url.includes('/api/v1/user/hashrate/historical?'));
+  assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '-77');
+  assert.deepEqual(result, points);
+});
+
+test('getSubaccountHashrateHistory issues a missing subaccount session and retries raw H/s', async () => {
+  const points = [{
+    account_id: '-88',
+    observed_at: '2026-06-30T00:00:00Z',
+    pplns_hashrate: 12_500_000_000_123,
+    fpps_hashrate: 2_000_000_000_000_456,
+    total_hashrate: 2_012_500_000_000_579,
+  }];
+  let responseIndex = 0;
+  const { fetchImpl, calls } = fakeFetch(() => {
+    responseIndex += 1;
+    if (responseIndex === 1) return new Response('', { status: 401 });
+    if (responseIndex === 2) {
+      return jsonResponse({ id: '-88', token: 'subaccount-token', email: 'sub@example.com' });
+    }
+    return jsonResponse(points);
+  });
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+  const rejectedAccounts: Array<string | null> = [];
+  const unsubscribe = subscribeToDmndAuthRejections(({ accountId }) => rejectedAccounts.push(accountId));
+
+  try {
+    const result = await client.getSubaccountHashrateHistory(
+      '-77',
+      '2026-06-29T00:00:00.000Z',
+      '2026-06-30T00:00:00.000Z',
+      'owner-token',
+      'subaccount-token',
+      { accountId: 'master' },
+    );
+
+    assert.deepEqual(result, points);
+    assert.deepEqual(rejectedAccounts, []);
+  } finally {
+    unsubscribe();
+  }
+
+  assert.equal(calls.length, 3);
+  assert.ok(calls[0].url.includes('/api/v1/user/hashrate/historical?'));
+  assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '-77');
+  assert.ok(calls[1].url.endsWith('/api/log_subaccount'));
+  assert.equal((calls[1].init.headers as Record<string, string>)['X-Account-ID'], 'master');
+  assert.deepEqual(JSON.parse(calls[1].init.body as string), {
+    owner_token: 'owner-token',
+    subaccount_token: 'subaccount-token',
+  });
+  assert.ok(calls[2].url.includes('/api/v1/user/hashrate/historical?'));
+  assert.equal((calls[2].init.headers as Record<string, string>)['X-Account-ID'], '-88');
 });
 
 test('getAllWorkers follows next_cursor across pages and concatenates the roster', async () => {
@@ -684,16 +751,36 @@ test('getAllWorkers stops when the server re-serves a cursor it already gave', a
   assert.equal(workers.length, 2);
 });
 
-test('getPayoutAddresses GETs the payout addresses', async () => {
-  const addrs = { fpps_payout_address: 'bc1qfpps', pplns_payout_address: 'bc1qpplns' };
-  const { fetchImpl, calls } = fakeFetch(() => jsonResponse(addrs));
+test('getPayouts follows the v1 cursor pages and preserves the UTC date window', async () => {
+  const first = { txid: 'a', output_index: 0, kind: 'fpps', address: 'bc1qa', amount_sats: 10, confirmed_at: 1 };
+  const second = { txid: 'b', output_index: 2, kind: 'pplns', address: 'bc1qb', amount_sats: 20, confirmed_at: 2 };
+  const { fetchImpl, calls } = fakeFetch(({ url }) =>
+    jsonResponse(url.includes('cursor=next')
+      ? { payouts: [second], next_cursor: null }
+      : { payouts: [first], next_cursor: 'next' }),
+  );
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  const result = await client.getPayoutAddresses();
+  const result = await client.getPayouts({ from: '2026-09-01', to: '2026-09-23' }, { accountId: '42' });
 
+  assert.equal(calls.length, 2);
   assert.equal(calls[0].init.method, 'GET');
-  assert.ok(calls[0].url.endsWith('/api/payouts/addresses'));
-  assert.deepEqual(result, addrs);
+  assert.ok(calls.every((call) => call.url.includes('/api/v1/user/payouts?')));
+  assert.ok(calls.every((call) => call.url.includes('from=2026-09-01')));
+  assert.ok(calls.every((call) => call.url.includes('to=2026-09-23')));
+  assert.ok(calls[1].url.includes('cursor=next'));
+  assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], '42');
+  assert.deepEqual(result, [first, second]);
+});
+
+test('getSubaccountPayouts uses the exact v1 subaccount route', async () => {
+  const { fetchImpl, calls } = fakeFetch(() => jsonResponse({ payouts: [], next_cursor: null }));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+
+  assert.deepEqual(await client.getSubaccountPayouts('-77', {}, { accountId: 'master' }), []);
+
+  assert.ok(calls[0].url.includes('/api/v1/user/sub_account/-77/payouts?limit=100'));
+  assert.equal((calls[0].init.headers as Record<string, string>)['X-Account-ID'], 'master');
 });
 
 test('getPplnsProjection GETs the sub_account projection and returns it', async () => {
@@ -722,13 +809,13 @@ test('a 404 means nothing is cached yet, so getPplnsProjection returns null', as
   assert.equal(await client.getPplnsProjection('acct-1'), null);
 });
 
-test('a 4xx naming the missing projection also returns null', async () => {
+test('a 400 remains an error regardless of missing-projection message text', async () => {
   const { fetchImpl } = fakeFetch(() =>
     jsonResponse({ message: 'PPLNS projection is not available for this boundary' }, 400),
   );
   const client = createUser({ fetchImpl, backoffMs: 0 });
 
-  assert.equal(await client.getPplnsProjection('acct-1'), null);
+  await assert.rejects(() => client.getPplnsProjection('acct-1'));
 });
 
 test('any other 4xx stays an error rather than reading as an empty cache', async () => {

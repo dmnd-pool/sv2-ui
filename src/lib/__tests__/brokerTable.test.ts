@@ -56,9 +56,9 @@ test('averageBrokerFee ignores non-finite fees', () => {
 
 test('formatBrokerFee drops the trailing zeros the design does not draw', () => {
   // The frames show `2%` and `1.5%`, never `2.0%`.
-  assert.equal(formatBrokerFee(2), '2%');
-  assert.equal(formatBrokerFee(1.5), '1.5%');
-  assert.equal(formatBrokerFee(2.5), '2.5%');
+  assert.equal(formatBrokerFee(0.02), '2%');
+  assert.equal(formatBrokerFee(0.015), '1.5%');
+  assert.equal(formatBrokerFee(0.025), '2.5%');
 });
 
 test('formatBrokerFee renders a dash when the fee is missing', () => {
@@ -68,11 +68,6 @@ test('formatBrokerFee renders a dash when the fee is missing', () => {
 
 test('brokerMinerRowId prefers the id and stays stable', () => {
   assert.equal(brokerMinerRowId(miner({ id: '7' })), '7');
-});
-
-test('brokerMinerRowId falls back to the name when the id is absent', () => {
-  // The spec table omits `id`; only the live decoder carries it, so it may be missing.
-  assert.equal(brokerMinerRowId(miner({ id: undefined, name: 'Warehouse 02' })), 'Warehouse 02');
 });
 
 test('splitValueUnit separates the numeral from its unit so they can be sized apart', () => {

@@ -1,3 +1,5 @@
+import { decodeGeneratedBtc } from './generatedBtc';
+import { requireArray } from './response';
 import {
   type AccountPermissions,
   type BrokerAccount,
@@ -5,13 +7,15 @@ import {
   type BrokerSignupInput,
   type CreateSubaccountInput,
   DmndApiError,
+  isAuthenticatorCodeError,
   type DmndClient,
   type DmndSession,
   type HashratePoint,
   type HashrateSnapshot,
-  type PayoutAddresses,
-  type GeneratedBtcEntry,
+  type PayoutQuery,
+  type PayoutRecord,
   type WatcherLink,
+  type CreatedWatcherLink,
   type RequestOptions,
   type SignupInput,
   type Subaccount,
@@ -20,6 +24,7 @@ import {
   type Worker,
   type WorkersResponse,
 } from './types';
+import { fetchHashrateHistory } from './hashrateHistory';
 import { API_ERROR_MESSAGES } from './errorMessages';
 import { decodePplnsProjection, pplnsProjectionMatchesAccount } from './pplnsProjection';
 
@@ -136,44 +141,25 @@ async function readErrorMessage(response: Response): Promise<string | undefined>
   }
 }
 
-// The server responds "no projection for this boundary yet" with a 404
-const PPLNS_PROJECTION_MISSING_MESSAGES = ['pplns projection is not available', 'projection-not-found'];
-
-/** Whether a failed projection request means the cache simply has nothing yet. */
-export function isPplnsProjectionMissing(status: number | undefined, message: string): boolean {
-  if (status === 401 || status === 403) return false;
-  if (status === 404) return true;
-  const lower = message.toLowerCase();
-  return PPLNS_PROJECTION_MISSING_MESSAGES.some((phrase) => lower.includes(phrase));
-}
-
 interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   path: string;
   body?: unknown;
   /** Broker endpoints are a separate tree and must not carry the miner X-Account-ID header. */
   omitAccountId?: boolean;
+  /** A 401 may reject the second factor while the session remains valid. */
+  stepUp?: boolean;
   /** Per-call timeout override (ms). Dense responses (the historical series) need more than the interactive default. */
   timeoutMs?: number;
   /** Per-call retry override. Stateful requests should not be replayed automatically. */
   maxAttempts?: number;
+  /** An auth failure is expected while probing for an optional account session. */
+  suppressAuthRejection?: boolean;
 }
 
-// /api/broker/log returns `referenceCode`, /api/brokers returns `reference_code`;
-// normalizeBrokerAccount maps both to `referenceCode`.
-interface RawBrokerAccount {
-  id: string | number;
-  email: string;
-  referenceCode?: string;
-  reference_code?: string;
-}
-
-function normalizeBrokerAccount(raw: RawBrokerAccount): BrokerAccount {
-  return {
-    id: raw.id,
-    email: raw.email,
-    referenceCode: raw.referenceCode ?? raw.reference_code ?? '',
-  };
+interface PayoutPage {
+  payouts: PayoutRecord[];
+  next_cursor: string | null;
 }
 
 async function request<T>(
@@ -193,6 +179,8 @@ async function request<T>(
       headers['X-Account-ID'] = requestAccountId;
     }
 
+    if (spec.stepUp && req.totpToken) headers['X-TOTP-Token'] = req.totpToken;
+
     try {
       const response = await opts.fetchImpl(`${API_BASE}${spec.path}`, {
         method: spec.method,
@@ -205,25 +193,23 @@ async function request<T>(
       });
 
       if (response.status === 401 || response.status === 403) {
-        if (response.status === 401 && !spec.omitAccountId && requestAccountId) {
-          reportAuthRejection({ accountId: requestAccountId });
-        }
-        throw new DmndApiError(
+        const error = new DmndApiError(
           (await readErrorMessage(response)) ?? API_ERROR_MESSAGES.unauthorized,
           'unauthorized',
           response.status,
         );
+        if (response.status === 401 && !spec.suppressAuthRejection && !spec.omitAccountId && requestAccountId &&
+            !(spec.stepUp && isAuthenticatorCodeError(error))) {
+          reportAuthRejection({ accountId: requestAccountId });
+        }
+        throw error;
       }
       const serverMessage = response.ok ? undefined : await readErrorMessage(response);
-      if (response.status === 400 && serverMessage === 'Unauthorized. User ID cookie not found or invalid.') {
-        if (!spec.omitAccountId && requestAccountId) reportAuthRejection({ accountId: requestAccountId });
-        throw new DmndApiError(API_ERROR_MESSAGES.unauthorized, 'unauthorized', response.status);
-      }
       if (response.status >= 500) {
         if (serverMessage === 'Invalid referral code') {
           throw new DmndApiError("Invalid referral code", 'other');
         }
-        lastError = new DmndApiError(API_ERROR_MESSAGES.server, 'server');
+        lastError = new DmndApiError(API_ERROR_MESSAGES.server, 'server', response.status);
       } else if (!response.ok) {
         // 4xx with a server message (e.g. weak password) surfaces that message.
         throw new DmndApiError(serverMessage || 'Something went wrong. Please try again.', 'other', response.status);
@@ -248,8 +234,76 @@ async function request<T>(
   throw new DmndApiError(API_ERROR_MESSAGES.network, 'network');
 }
 
+/** Read one account's unscaled H/s history, splitting server-limited date ranges. */
+function requestRawHashrateHistory(
+  from: string,
+  to: string,
+  opts: ResolvedOptions,
+  req: RequestOptions,
+  suppressAuthRejection = false,
+): Promise<HashratePoint[]> {
+  return fetchHashrateHistory(from, to, async (start, end) => {
+    const params = new URLSearchParams({ from: start, to: end });
+    const result = await request<unknown>(
+      {
+        method: 'GET',
+        path: `/api/v1/user/hashrate/historical?${params}`,
+        timeoutMs: 20_000,
+        suppressAuthRejection,
+      },
+      opts,
+      req,
+    );
+    return requireArray<HashratePoint>(result);
+  });
+}
+
+/** Follow the cursor API so callers always receive the complete requested window. */
+async function requestAllPayouts(
+  path: string,
+  query: PayoutQuery,
+  opts: ResolvedOptions,
+  req: RequestOptions,
+): Promise<PayoutRecord[]> {
+  const payouts: PayoutRecord[] = [];
+  const seen = new Set<string>();
+  let cursor: string | null = null;
+  for (;;) {
+    const params = new URLSearchParams({ limit: '100' });
+    if (query.from) params.set('from', query.from);
+    if (query.to) params.set('to', query.to);
+    if (cursor) params.set('cursor', cursor);
+    const page = await request<PayoutPage>(
+      { method: 'GET', path: `${path}?${params.toString()}`, timeoutMs: 20_000 },
+      opts,
+      req,
+    );
+    if (!Array.isArray(page.payouts)) throw new Error('Invalid payouts response');
+    payouts.push(...page.payouts);
+    if (!page.next_cursor || page.payouts.length === 0 || seen.has(page.next_cursor)) break;
+    seen.add(page.next_cursor);
+    cursor = page.next_cursor;
+  }
+  return payouts;
+}
+
 export function createUser(options: DmndClientOptions = {}): DmndClient {
   const opts = resolveOptions(options);
+  const issueSubaccountSession = (
+    ownerToken: string,
+    subaccountToken: string,
+    req: RequestOptions = {},
+  ) => request<DmndSession>(
+    {
+      method: 'POST',
+      path: '/api/log_subaccount',
+      body: { owner_token: ownerToken, subaccount_token: subaccountToken },
+      maxAttempts: 1,
+    },
+    opts,
+    req,
+  );
+
   return {
     signup(input: SignupInput, req) {
       // The endpoint wants the fields nested under `register` with `language`
@@ -270,7 +324,7 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
       return request<void>({ method: 'POST', path: '/api/users', body }, opts, req);
     },
     login(email, password, totpToken, req) {
-      // The live endpoint requires `language` (the dashboard hardcodes "En");
+      // The endpoint requires `language` (the dashboard hardcodes "En");
       // without it Rocket fails to deserialize the body and returns 422.
       return request<DmndSession>(
         {
@@ -293,17 +347,14 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
       return request<void>({ method: 'POST', path: '/api/logout' }, opts, req);
     },
     checkAuth(req) {
-      // Validates the session cookie on app startup. The session no longer stores
-      // a token, so this call (cookie + X-Account-ID header) is how we confirm
-      // the user is still logged in; it throws on 401, which the auth layer
-      // treats as signed out.
+      // Validate the selected dashboard session on startup and profile refresh.
       return request<DmndSession>({ method: 'GET', path: '/api/check_auth' }, opts, req);
     },
     forgotPassword(email, req) {
       return request<void>({ method: 'POST', path: '/api/forgot_password', body: { email } }, opts, req);
     },
     resetPassword(email, code, twoFaCode, newPassword, req) {
-      // Snake_case keys (verified live); `code` comes from the email link, the
+      // Recovery fields: `code` comes from the email link, the
       // two_fa_token from the authenticator, new_password from the form.
       return request<void>(
         {
@@ -317,40 +368,43 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
     },
     activate2fa(code, req) {
       // The body field is literally `token` and holds the 6-digit CODE (the
-      // session rides in the cookie + X-Account-ID header). Verified live.
-      return request<void>({ method: 'PUT', path: '/api/activate_2fa', body: { token: code } }, opts, req);
+      // session rides in the cookie + X-Account-ID header).
+      return request<DmndSession>(
+        { method: 'PUT', path: '/api/activate_2fa', body: { token: code }, stepUp: true, maxAttempts: 1 },
+        opts,
+        req,
+      );
     },
     newTwoFactor(req) {
-      // Returns a session-shaped object carrying a FRESH `two_factor_secret` to
-      // re-provision 2FA, even when it is already active (unlike check_auth, which
-      // hides the secret once enabled). A GET, so it is safe to call without
-      // committing anything; activate2fa is what overwrites the live secret.
-      // Verified live: GET /api/new_2fa returns the user object with a 32-char secret.
-      return request<DmndSession>({ method: 'GET', path: '/api/new_2fa' }, opts, req);
+      // Fetch one pending secret; activation confirms it using the new factor's code.
+      return request<DmndSession>(
+        { method: 'GET', path: '/api/new_2fa', stepUp: true, maxAttempts: 1 }, opts, req,
+      );
     },
     setBitcoinAddress(address, twoFaToken, req) {
-      // Snake_case body (bundle-verified); sub_account_id is null for the master
+      // For the selected session, sub_account_id is null for the master
       // account. The API rejects an empty/missing two_fa_token with a
       // 2FA-required error, which the Bitcoin step uses to prompt for the code.
       return request<void>(
         {
           method: 'POST',
           path: '/api/bitcoin_address',
+          stepUp: true,
+          maxAttempts: 1,
           body: { bitcoin_address: address, two_fa_token: twoFaToken, sub_account_id: null },
         },
         opts,
         req,
       );
     },
-    async brokerLogin(email, password, req): Promise<BrokerAccount> {
-      const raw = await request<RawBrokerAccount>(
+    brokerLogin(email, password, req) {
+      return request<BrokerAccount>(
         { method: 'POST', path: '/api/broker/log', body: { email, password }, omitAccountId: true },
         opts,
         req,
       );
-      return normalizeBrokerAccount(raw);
     },
-    async brokerMiners(fromBlockHeight: number, req): Promise<BrokerMiner[]> {
+    brokerMiners(fromBlockHeight, req) {
       // Broker calls are cookie-authenticated and must never carry the miner
       // account header. Omitting the height makes the server fail with
       // "from_block_height is required".
@@ -364,8 +418,8 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
         req,
       );
     },
-    async brokerSignup(input: BrokerSignupInput, req): Promise<BrokerAccount> {
-      const raw = await request<RawBrokerAccount>(
+    brokerSignup(input: BrokerSignupInput, req) {
+      return request<BrokerAccount>(
         {
           method: 'POST',
           path: '/api/brokers',
@@ -382,34 +436,41 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
         opts,
         req,
       );
-      return normalizeBrokerAccount(raw);
     },
     getHashrate(req) {
       return request<HashrateSnapshot>({ method: 'GET', path: '/api/user/hashrate' }, opts, req);
     },
-    async getHashrateHistory(from, to, req) {
-      // /api/user/hashrate/historical returns a dense array (a month is ~16k points),
-      // which legitimately takes longer than the interactive default, so give it a
-      // wider timeout. Tolerate a non-array (e.g. a scalar for a brand-new account)
-      // by collapsing to [] so the chart shows its empty state.
-      const params = new URLSearchParams({ from, to });
-      const result = await request<unknown>(
-        { method: 'GET', path: `/api/user/hashrate/historical?${params.toString()}`, timeoutMs: 20_000 },
+    getHashrateHistory(from, to, req) {
+      return requestRawHashrateHistory(from, to, opts, req ?? {});
+    },
+    async getSubaccountHashrateHistory(id, from, to, ownerToken, subaccountToken, req) {
+      const ownerRequest = req ?? {};
+      try {
+        // A previously opened subaccount already has its own HttpOnly cookie. Probe it
+        // first so chart polling and page reloads do not rotate sessions unnecessarily.
+        return await requestRawHashrateHistory(
+          from,
+          to,
+          opts,
+          { ...ownerRequest, accountId: id },
+          true,
+        );
+      } catch (error) {
+        if (!(error instanceof DmndApiError) || error.status !== 401) throw error;
+      }
+
+      // The master-authorized account switch flow issues the missing subaccount cookie.
+      // Its returned id is authoritative for the cookie name and subsequent header.
+      const subaccountSession = await issueSubaccountSession(ownerToken, subaccountToken, ownerRequest);
+      return requestRawHashrateHistory(
+        from,
+        to,
         opts,
-        req,
+        { ...ownerRequest, accountId: String(subaccountSession.id) },
       );
-      return Array.isArray(result) ? (result as HashratePoint[]) : [];
     },
-    async getShareStats(req) {
-      // The account's own counterpart to a subaccount's summary.share_stats, so a
-      // combined rejection rate can be computed over the same 24h window for every
-      // account rather than mixing windows.
-      const result = await request<unknown>({ method: 'GET', path: '/api/user/share_stats' }, opts, req);
-      return result && typeof result === 'object' ? (result as SubaccountShareStats) : null;
-    },
-    getWorkers(from, to, req) {
-      const query = new URLSearchParams({ from, to }).toString();
-      return request<WorkersResponse>({ method: 'GET', path: `/api/workers?${query}` }, opts, req);
+    getShareStats(req) {
+      return request<SubaccountShareStats>({ method: 'GET', path: '/api/user/share_stats' }, opts, req);
     },
     async getAllWorkers(req) {
       // The roster is paginated (default 200, max 1000). Follow next_cursor to the end
@@ -433,15 +494,14 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
       }
       return all;
     },
-    getPayoutAddresses(req) {
-      return request<PayoutAddresses>({ method: 'GET', path: '/api/payouts/addresses' }, opts, req);
+    getPayouts(query = {}, req = {}) {
+      return requestAllPayouts('/api/v1/user/payouts', query, opts, req);
     },
     async getGeneratedBtc(req) {
-      // The daily generated-BTC list is a bare array (empty account -> []). Tolerate a
-      // non-array response (e.g. an error object) by collapsing to [] so the page shows
-      // its empty state instead of throwing.
-      const result = await request<unknown>({ method: 'GET', path: '/api/generated_btc' }, opts, req);
-      return Array.isArray(result) ? (result as GeneratedBtcEntry[]) : [];
+      const result = await request<unknown>(
+        { method: 'GET', path: '/api/generated_btc', timeoutMs: 20_000 }, opts, req,
+      );
+      return decodeGeneratedBtc(result);
     },
     getSubaccounts(req) {
       return request<Subaccount[]>({ method: 'GET', path: '/api/user/sub_account' }, opts, req);
@@ -476,30 +536,36 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
       return { workers, next_cursor: null };
     },
     async getSubaccountGeneratedBtc(id, req) {
-      // Bare array like the main /api/generated_btc; the same non-array collapse guards
-      // against an error body ever reaching the page as if it were data.
       const result = await request<unknown>(
-        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc` },
+        { method: 'GET', path: `/api/user/sub_account/${encodeURIComponent(id)}/generated_btc`, timeoutMs: 20_000 },
         opts,
         req,
       );
-      return Array.isArray(result) ? (result as GeneratedBtcEntry[]) : [];
+      return decodeGeneratedBtc(result);
+    },
+    getSubaccountPayouts(id, query = {}, req = {}) {
+      return requestAllPayouts(
+        `/api/v1/user/sub_account/${encodeURIComponent(id)}/payouts`,
+        query,
+        opts,
+        req,
+      );
     },
     getPermissions(req) {
       return request<AccountPermissions>({ method: 'GET', path: '/api/user/permissions' }, opts, req);
     },
     async getWatcherLinks(req) {
-      // A bare array (empty account -> []). Tolerate a non-array response by
-      // collapsing to [] so the page shows its empty state instead of throwing.
       const result = await request<unknown>({ method: 'GET', path: '/api/api-tokens' }, opts, req);
-      return Array.isArray(result) ? (result as WatcherLink[]) : [];
+      return requireArray<WatcherLink>(result);
     },
     createWatcherLink(input, req) {
       // Snake_case body: the account the link may read, plus the scopes it grants.
-      return request<WatcherLink>(
+      return request<CreatedWatcherLink>(
         {
           method: 'POST',
           path: '/api/api-tokens',
+          stepUp: true,
+          maxAttempts: 1,
           body: { target_user_id: input.targetUserId, scopes: input.scopes },
         },
         opts,
@@ -508,13 +574,13 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
     },
     revokeWatcherLink(id, req) {
       return request<void>(
-        { method: 'DELETE', path: `/api/api-tokens/${encodeURIComponent(id)}` },
+        { method: 'DELETE', path: `/api/api-tokens/${encodeURIComponent(id)}`, stepUp: true, maxAttempts: 1 },
         opts,
         req,
       );
     },
     createSubaccount(input: CreateSubaccountInput, req) {
-      // Snake_case body (bundle-verified). The create endpoint takes only the name
+      // The request uses snake_case fields. The create endpoint takes only the name
       // and payout address; unlike the standalone /api/bitcoin_address it does not
       // require a 2FA token.
       return request<void>(
@@ -529,16 +595,8 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
     },
     logSubaccount(ownerToken, subaccountToken, req) {
       // Issues a subaccount session for the "open in a new logged-in tab" flow.
-      // owner_token = the master session token; subaccount_token = the row's token.
-      return request<DmndSession>(
-        {
-          method: 'POST',
-          path: '/api/log_subaccount',
-          body: { owner_token: ownerToken, subaccount_token: subaccountToken },
-        },
-        opts,
-        req,
-      );
+      // The server requires the owner session; the body fields are mining credentials.
+      return issueSubaccountSession(ownerToken, subaccountToken, req);
     },
     async getPplnsProjection(id, req) {
       try {
@@ -553,11 +611,7 @@ export function createUser(options: DmndClientOptions = {}): DmndClient {
         }
         return projection;
       } catch (err) {
-        const missing =
-          err instanceof DmndApiError &&
-          err.code !== 'unauthorized' &&
-          isPplnsProjectionMissing(err.status, err.message);
-        if (missing) return null;
+        if (err instanceof DmndApiError && err.status === 404) return null;
         throw err;
       }
     },

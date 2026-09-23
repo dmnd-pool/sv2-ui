@@ -21,19 +21,19 @@ const pplnsProjectionHorizonSchema = z.object({
 });
 
 const pplnsProjectionSchema = z.object({
-  generation_id: z.number().optional(),
+  generation_id: z.number(),
   subaccount_id: z.string(),
-  calculated_at: z.iso.datetime(),
-  source_snapshot_at: z.iso.datetime(),
-  source_max_share_idx: z.number().optional(),
-  source_job_id: z.number().optional(),
+  calculated_at: z.iso.datetime({ offset: true }),
+  source_snapshot_at: z.iso.datetime({ offset: true }),
+  source_max_share_idx: z.number(),
+  source_job_id: z.number(),
   source_block_height: z.number().int(),
   last_pool_block_height: z.number().int(),
   pool_work_since_last_block: z.number(),
   synthetic_fill_difficulty: z.number(),
   network_difficulty: z.number(),
   block_subsidy_sats: z.number().int(),
-  model_version: z.union([z.literal(3), z.literal(4)]),
+  model_version: z.literal(4),
   earned_history_complete_from_day: z.iso.date(),
   daily_work: z.array(pplnsProjectionDailyWorkSchema),
   horizons: z.array(pplnsProjectionHorizonSchema),
@@ -43,7 +43,7 @@ export type PplnsProjectionDailyWork = z.infer<typeof pplnsProjectionDailyWorkSc
 export type PplnsProjectionHorizon = z.infer<typeof pplnsProjectionHorizonSchema>;
 export type PplnsProjection = z.infer<typeof pplnsProjectionSchema>;
 
-/** Decode the common model-3/model-4 response used during the rolling deployment. */
+/** Decode the current model-4 response. */
 export function decodePplnsProjection(payload: unknown): PplnsProjection {
   const result = pplnsProjectionSchema.safeParse(payload);
   if (!result.success) throw new Error('Invalid or unsupported PPLNS projection response');
