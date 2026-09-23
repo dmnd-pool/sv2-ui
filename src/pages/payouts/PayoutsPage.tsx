@@ -42,7 +42,7 @@ function downloadCsv(content: string): void {
 /** The Payouts page: on-chain payout history with search, filter, pagination, and CSV export. */
 export function PayoutsPage() {
   const { aggregated } = useAggregatedModeContext();
-  const single = usePayouts();
+  const single = usePayouts(!aggregated);
   // Aggregated mode reads payouts across every account, tagged with their owner; the
   // two queries have separate cache entries so toggling never serves the wrong set.
   const agg = useAggregatedPayouts(aggregated);

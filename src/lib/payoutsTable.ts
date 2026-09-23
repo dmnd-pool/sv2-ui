@@ -1,12 +1,11 @@
-import type { BlockstreamTx } from '@/lib/blockstream';
+import type { PayoutRecord } from '@/api/types';
 
 export type PayoutMode = 'pplns' | 'fpps';
 
 /**
- * One payout row, assembled client-side from a pool payout wallet's on-chain
- * transactions. `date` is the block time (unix seconds), `amountSats` is the sum of
- * the tx outputs paying the user, `mode` is which pool wallet it came from,
- * `fromAddress` is that wallet, and `toAddress` is the user's address that was paid.
+ * One confirmed payout output adapted from the dashboard API for the table.
+ * `date` is the confirmation time in unix seconds and `outputIndex` keeps separate
+ * outputs from the same transaction independently selectable.
  */
 export interface Payout {
   date: number;
@@ -14,6 +13,8 @@ export interface Payout {
   amountSats: number;
   mode: PayoutMode;
   toAddress: string;
+  outputIndex: number;
+  /** Kept for the existing CSV schema; the payout API does not expose its source address. */
   fromAddress: string;
   // Which account was paid, shown only in aggregated mode where rows span accounts.
   account?: string;
@@ -36,11 +37,8 @@ export const MAIN_ACCOUNT_LABEL = 'Main account';
  * so callers list the main account first rather than inventing a split. Returns null
  * when no account owns the address.
  *
- * Same limit applies one level up: buildPayouts sums every output a tx pays to ANY
- * of the caller's addresses into one row, so a tx that pays two different owners'
- * addresses is credited whole to whichever owner this function picks first, same as
- * the shared-address case above. On-chain attribution can't split a single tx
- * further than that without guessing.
+ * If an address is shared within the account tree, the first matching owner wins;
+ * callers list the main account first to keep that choice stable.
  */
 export function accountForAddress(address: string, owners: PayoutAccount[]): string | null {
   for (const owner of owners) {
@@ -142,46 +140,27 @@ export function isPayoutFilterActive(f: PayoutFilter): boolean {
   return f.modes.length > 0 || f.sinceSec !== null;
 }
 
-/**
- * Turn one wallet's confirmed transactions into payout rows: one row per tx that
- * pays the user, with the amount summed across that tx's outputs to the user's
- * addresses. Unconfirmed txs (no block_time) and txs that pay no user address are
- * skipped. The first matched user address becomes the row's `toAddress`.
- */
-export function buildPayouts(
-  txs: BlockstreamTx[],
-  mode: PayoutMode,
-  fromWallet: string,
-  userAddresses: Set<string>,
-): Payout[] {
-  const rows: Payout[] = [];
-  for (const tx of txs) {
-    const blockTime = tx.status?.block_time;
-    if (typeof blockTime !== 'number') continue;
-    let sats = 0;
-    let to = '';
-    for (const vout of tx.vout ?? []) {
-      const addr = vout.scriptpubkey_address;
-      if (addr && userAddresses.has(addr)) {
-        sats += vout.value ?? 0;
-        if (!to) to = addr;
-      }
-    }
-    if (sats > 0) {
-      rows.push({ date: blockTime, txid: tx.txid, amountSats: sats, mode, toAddress: to, fromAddress: fromWallet });
-    }
-  }
-  return rows;
+/** Adapt the payout endpoint's snake_case record to the table's view model. */
+export function payoutFromApi(row: PayoutRecord): Payout {
+  return {
+    date: row.confirmed_at,
+    txid: row.txid,
+    amountSats: row.amount_sats,
+    mode: row.kind,
+    toAddress: row.address,
+    outputIndex: row.output_index,
+    fromAddress: '',
+  };
 }
 
 /**
  * A stable identity for one payout row, used as the React key and as the selection key
  * so the two can never disagree. A single transaction can pay more than one of the
- * user's addresses, and in aggregated mode the same transaction can appear under
- * different accounts, so all three parts are needed to tell rows apart.
+ * user's addresses or multiple outputs to the same address, so the output index is
+ * part of the identity.
  */
 export function payoutRowId(p: Payout): string {
-  return `${p.txid}-${p.toAddress}-${p.account ?? ''}`;
+  return `${p.txid}-${p.outputIndex}-${p.toAddress}-${p.account ?? ''}`;
 }
 
 /** Newest payout first. */
