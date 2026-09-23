@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { BlockstreamTx } from '@/lib/blockstream';
 import {
-  buildPayouts,
+  payoutFromApi,
   sortPayoutsByDateDesc,
   searchPayouts,
   filterPayouts,
@@ -28,42 +27,32 @@ import {
   payoutRowId,
 } from '@/lib/payoutsTable';
 
-const USER = new Set(['bc1quser', 'bc1qalt']);
 const WALLET = 'bc1qpool';
 
-function tx(over: Partial<BlockstreamTx> & { txid: string }): BlockstreamTx {
-  return {
-    status: { confirmed: true, block_time: 1_718_000_000 },
-    vout: [],
-    ...over,
-  };
-}
 function payout(over: Partial<Payout> = {}): Payout {
-  return { date: 1_718_000_000, txid: 't', amountSats: 1000, mode: 'pplns', toAddress: 'bc1quser', fromAddress: WALLET, ...over };
+  return { date: 1_718_000_000, txid: 't', amountSats: 1000, mode: 'pplns', toAddress: 'bc1quser', outputIndex: 0, fromAddress: WALLET, ...over };
 }
 
-test('buildPayouts: one row per tx that pays the user, summing the user outputs', () => {
-  const txs: BlockstreamTx[] = [
-    tx({ txid: 'a', vout: [{ scriptpubkey_address: 'bc1quser', value: 200 }, { scriptpubkey_address: 'bc1qother', value: 5 }] }),
-    tx({ txid: 'b', vout: [{ scriptpubkey_address: 'bc1quser', value: 100 }, { scriptpubkey_address: 'bc1qalt', value: 50 }] }), // two user outputs -> summed
-    tx({ txid: 'c', vout: [{ scriptpubkey_address: 'bc1qother', value: 999 }] }), // pays no user address -> excluded
-  ];
-  const rows = buildPayouts(txs, 'pplns', WALLET, USER);
-  assert.equal(rows.length, 2);
+test('payoutFromApi adapts a confirmed server output for the table', () => {
   assert.deepEqual(
-    rows.map((r) => [r.txid, r.amountSats, r.mode, r.toAddress, r.fromAddress]),
-    [
-      ['a', 200, 'pplns', 'bc1quser', WALLET],
-      ['b', 150, 'pplns', 'bc1quser', WALLET], // first matched user address wins for the column
-    ],
+    payoutFromApi({
+      txid: 'a',
+      output_index: 3,
+      kind: 'fpps',
+      address: 'bc1quser',
+      amount_sats: 250,
+      confirmed_at: 1_718_000_000,
+    }),
+    {
+      date: 1_718_000_000,
+      txid: 'a',
+      amountSats: 250,
+      mode: 'fpps',
+      toAddress: 'bc1quser',
+      outputIndex: 3,
+      fromAddress: '',
+    },
   );
-});
-
-test('buildPayouts: skips unconfirmed txs (no block_time)', () => {
-  const txs: BlockstreamTx[] = [
-    tx({ txid: 'u', status: { confirmed: false }, vout: [{ scriptpubkey_address: 'bc1quser', value: 500 }] }),
-  ];
-  assert.equal(buildPayouts(txs, 'fpps', WALLET, USER).length, 0);
 });
 
 test('sortPayoutsByDateDesc orders newest first', () => {
@@ -212,8 +201,8 @@ test('accountForAddress prefers the first owner when accounts share one address'
 
 test('filterPayoutsByAccount keeps only the chosen accounts; empty keeps all', () => {
   const rows = [
-    { date: 3, txid: 'a', amountSats: 1, mode: 'pplns' as const, toAddress: 'x', fromAddress: 'w', account: 'Main account' },
-    { date: 2, txid: 'b', amountSats: 1, mode: 'pplns' as const, toAddress: 'y', fromAddress: 'w', account: 'Client Alpha' },
+    { date: 3, txid: 'a', amountSats: 1, mode: 'pplns' as const, toAddress: 'x', outputIndex: 0, fromAddress: 'w', account: 'Main account' },
+    { date: 2, txid: 'b', amountSats: 1, mode: 'pplns' as const, toAddress: 'y', outputIndex: 0, fromAddress: 'w', account: 'Client Alpha' },
   ];
   assert.equal(filterPayoutsByAccount(rows, []).length, 2);
   assert.deepEqual(filterPayoutsByAccount(rows, ['Client Alpha']).map((p) => p.txid), ['b']);
@@ -270,11 +259,12 @@ test('filterPayouts applies the mode and date bounds together', () => {
 });
 
 test('payoutRowId distinguishes rows that share a txid', () => {
-  // One transaction can pay two addresses, and in aggregated mode the same row can be
-  // tagged to different accounts, so the id has to carry all three parts.
+  // One transaction can pay the same address more than once, so the output index is
+  // needed in addition to its address and optional account label.
   const a = payout({ txid: 'tx1', toAddress: 'bc1qA' });
   const b = payout({ txid: 'tx1', toAddress: 'bc1qB' });
   assert.notEqual(payoutRowId(a), payoutRowId(b));
+  assert.notEqual(payoutRowId(a), payoutRowId({ ...a, outputIndex: 1 }));
   assert.notEqual(payoutRowId({ ...a, account: 'Main account' }), payoutRowId({ ...a, account: 'Farm' }));
   assert.equal(payoutRowId(a), payoutRowId({ ...a }));
 });

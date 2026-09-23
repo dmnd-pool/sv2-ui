@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { getUser } from '@/api';
 import { useAuth } from '@/auth';
-import { fetchConfirmedTxsSince } from '@/lib/blockstream';
 import {
   accountForAddress,
-  buildPayouts,
+  payoutFromApi,
   sortPayoutsByDateDesc,
   MAIN_ACCOUNT_LABEL,
   type Payout,
@@ -13,58 +12,33 @@ import {
 import { useAccountProfile, userBitcoinAddresses } from '@/hooks/useAccountData';
 import { useSubaccountList } from '@/hooks/useSubaccounts';
 import { subaccountName } from '@/lib/subaccountsTable';
-import { useActiveAccountId } from './useActiveAccountId';
 
 const PAYOUTS_POLL_MS = 15 * 60 * 1000;
-// Cap how far back and how many pages we scan per wallet so a high-volume wallet
-// can't loop unbounded.
-const WINDOW_DAYS = 90;
-const MAX_PAGES = 25;
 
 /**
- * Assemble payouts on-chain: for each pool payout wallet (fpps + pplns), page its
- * recent confirmed transactions and keep the ones paying an address in `matchAddrs`,
- * one row per tx, newest first. Shared by the single-account and aggregated hooks so
- * both scan the pool wallets the same way; only which addresses count differs.
+ * Confirmed payouts for the selected account. The user endpoint returns the owner's
+ * complete account tree, so main-account view keeps only the main profile's addresses;
+ * a drilled-in subaccount uses the backend's exact per-subaccount endpoint.
  */
-async function fetchPayouts(
-  matchAddrs: Set<string>,
-  signal: AbortSignal | undefined,
-  accountId?: string,
-): Promise<Payout[]> {
-  if (matchAddrs.size === 0) return []; // no receiving address set -> no payouts to show
-  const payout = await getUser().getPayoutAddresses({ signal, accountId });
-  const wallets: { addr: string; mode: 'fpps' | 'pplns' }[] = [];
-  if (payout.fpps_payout_address) wallets.push({ addr: payout.fpps_payout_address, mode: 'fpps' });
-  if (payout.pplns_payout_address && payout.pplns_payout_address !== payout.fpps_payout_address) {
-    wallets.push({ addr: payout.pplns_payout_address, mode: 'pplns' });
-  }
-  if (wallets.length === 0) return [];
-  const since = Math.floor(Date.now() / 1000) - WINDOW_DAYS * 24 * 60 * 60;
-  const perWallet = await Promise.all(
-    wallets.map(({ addr, mode }) =>
-      fetchConfirmedTxsSince(addr, since, { signal, maxPages: MAX_PAGES }).then((txs) =>
-        buildPayouts(txs, mode, addr, matchAddrs),
-      ),
-    ),
-  );
-  return sortPayoutsByDateDesc(perWallet.flat());
-}
-
-/**
- * The account's payouts, matched against the user's own receiving addresses. A failed
- * wallet fetch rejects the query (the page shows an error) rather than a misleadingly
- * partial list.
- */
-export function usePayouts() {
-  const { session } = useAuth();
-  const accountId = useActiveAccountId();
+export function usePayouts(enabled = true) {
+  const { session, viewingAccountId } = useAuth();
+  const ownerAccountId = session?.accountId ?? null;
   const { data: profile } = useAccountProfile();
   return useQuery({
-    queryKey: ['account', 'payouts', accountId],
-    queryFn: ({ signal }): Promise<Payout[]> =>
-      fetchPayouts(userBitcoinAddresses(profile), signal, accountId ?? undefined),
-    enabled: !!session && !!profile,
+    queryKey: ['account', 'payouts', viewingAccountId ?? ownerAccountId],
+    queryFn: async ({ signal }): Promise<Payout[]> => {
+      const client = getUser();
+      const req = { signal, accountId: ownerAccountId ?? undefined };
+      const records = viewingAccountId
+        ? await client.getSubaccountPayouts(viewingAccountId, {}, req)
+        : await client.getPayouts({}, req);
+      const mainAddresses = userBitcoinAddresses(profile);
+      const scoped = viewingAccountId
+        ? records
+        : records.filter((row) => mainAddresses.has(row.address));
+      return sortPayoutsByDateDesc(scoped.map(payoutFromApi));
+    },
+    enabled: enabled && !!session && (viewingAccountId !== null || !!profile),
     refetchInterval: PAYOUTS_POLL_MS,
     staleTime: PAYOUTS_POLL_MS,
     refetchOnWindowFocus: false,
@@ -73,12 +47,9 @@ export function usePayouts() {
 }
 
 /**
- * Payouts across the main account and every subaccount, each row tagged with the
- * account it was paid to. Scans the same pool wallets but matches against the union of
- * every account's receiving addresses; attribution lists the main account first, so a
- * receiving address shared across accounts is credited to the main account rather than
- * guessing a split. Its own cache entry keeps it from mixing with the single-account
- * query when a miner toggles aggregated mode.
+ * Confirmed payouts across the main account and every subaccount. The backend returns
+ * the account tree in one paginated response; local address ownership is used only to
+ * supply the account label required by the existing table and filter.
  */
 export function useAggregatedPayouts(enabled = true) {
   const { session } = useAuth();
@@ -92,13 +63,19 @@ export function useAggregatedPayouts(enabled = true) {
         { name: MAIN_ACCOUNT_LABEL, addresses: userBitcoinAddresses(profile) },
         ...(subs ?? []).map((s) => ({
           name: subaccountName(s),
-          addresses: new Set(Object.keys(s.bitcoin_addresses ?? {})),
+          addresses: new Set(Object.keys(s.bitcoin_addresses ?? {}).filter(Boolean)),
         })),
       ];
-      const union = new Set<string>();
-      for (const owner of owners) for (const addr of owner.addresses) union.add(addr);
-      const rows = await fetchPayouts(union, signal, ownerAccountId ?? undefined);
-      return rows.map((row) => ({ ...row, account: accountForAddress(row.toAddress, owners) ?? undefined }));
+      const records = await getUser().getPayouts({}, {
+        signal,
+        accountId: ownerAccountId ?? undefined,
+      });
+      return sortPayoutsByDateDesc(
+        records.map((record) => ({
+          ...payoutFromApi(record),
+          account: accountForAddress(record.address, owners) ?? undefined,
+        })),
+      );
     },
     enabled: enabled && !!session && !!profile && subs !== undefined,
     refetchInterval: PAYOUTS_POLL_MS,
