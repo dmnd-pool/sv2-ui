@@ -1,4 +1,4 @@
-export { DmndApiError } from './types';
+export { DmndApiError, isAuthenticatorCodeError } from './types';
 export type {
   BrokerAccount,
   BrokerSignupInput,
@@ -8,6 +8,8 @@ export type {
   PplnsProjection,
   PplnsProjectionDailyWork,
   PplnsProjectionHorizon,
+  PayoutQuery,
+  PayoutRecord,
   RequestOptions,
   SignupInput,
 } from './types';

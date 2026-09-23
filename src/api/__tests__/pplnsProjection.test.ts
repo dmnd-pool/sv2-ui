@@ -3,18 +3,17 @@ import assert from 'node:assert/strict';
 import { decodePplnsProjection, pplnsProjectionMatchesAccount } from '../pplnsProjection';
 import { pplnsProjectionFixture } from './pplnsProjectionFixture';
 
-test('models 3 and 4 remain readable during a rolling deployment', () => {
-  assert.equal(decodePplnsProjection(pplnsProjectionFixture(3)).model_version, 3);
-  assert.equal(decodePplnsProjection(pplnsProjectionFixture(4)).model_version, 4);
+test('the current model 4 is readable', () => {
+  assert.equal(decodePplnsProjection(pplnsProjectionFixture()).model_version, 4);
 });
 
 test('older and unknown future models fail closed', () => {
-  for (const model_version of [2, 5]) {
+  for (const model_version of [2, 3, 5]) {
     assert.throws(() => decodePplnsProjection({ ...pplnsProjectionFixture(), model_version }));
   }
 });
 
-test('the complete response, including optional diagnostics, is retained', () => {
+test('the complete response, including required diagnostics, is retained', () => {
   assert.deepEqual(decodePplnsProjection(pplnsProjectionFixture()), pplnsProjectionFixture());
 });
 

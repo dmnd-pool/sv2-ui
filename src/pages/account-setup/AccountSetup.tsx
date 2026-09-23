@@ -12,7 +12,7 @@ import { authErrorMessage } from '@/components/auth/authError';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/auth';
 import { buildOtpAuthUri } from '@/auth/otpauth';
-import { isTwoFactorRequiredError } from '@/auth/resetErrors';
+import { isAuthenticatorCodeError } from '@/api';
 import { getUser } from '@/api';
 import type { DmndSession } from '@/api/types';
 import { getBitcoinAddressError } from '@/lib/utils';
@@ -259,7 +259,7 @@ function BitcoinStep({ onDone }: { onDone: () => void }) {
     } catch (e) {
       // A bad/expired code comes back as the 2FA-token error; anything else is
       // an address/server problem, so don't blame the code field for it.
-      if (isTwoFactorRequiredError(e)) {
+      if (isAuthenticatorCodeError(e)) {
         setCodeError(true);
         setCode('');
         toast({ type: 'error', message: "That code didn't match. Try again." });

@@ -34,12 +34,12 @@ export function averageBrokerFee(miners: BrokerMiner[]): number | null {
 /** `2%` / `1.5%`, matching the frames, which never draw a trailing zero. */
 export function formatBrokerFee(fee: number | null | undefined): string {
   if (fee == null || !Number.isFinite(fee)) return '--';
-  return `${Number(fee.toFixed(2))}%`;
+  return `${Number((fee * 100).toFixed(2))}%`;
 }
 
-/** Stable row key: the id when the API sends one, else the name. */
+/** Stable row key from the server account ID. */
 export function brokerMinerRowId(miner: BrokerMiner): string {
-  return miner.id ?? miner.name;
+  return miner.id;
 }
 
 /**
