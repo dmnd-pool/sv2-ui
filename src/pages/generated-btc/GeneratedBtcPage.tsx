@@ -51,7 +51,7 @@ function downloadCsv(content: string): void {
  */
 export function GeneratedBtcPage() {
   const { aggregated } = useAggregatedModeContext();
-  const single = useGeneratedBtc();
+  const single = useGeneratedBtc(!aggregated);
   // Aggregated mode reads generated-BTC entries across every account, tagged with
   // their owner; the two queries have separate cache entries so toggling never serves
   // the wrong set (same pattern as Payouts/Workers).

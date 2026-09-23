@@ -24,7 +24,7 @@ export function formatGeneratedDate(entryDay: string): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}, ${d.getUTCFullYear()}`;
 }
 
-/** Sum of gross BTC generated across the entries; 0 when empty. */
+/** Sum of generated FPPS BTC and projected PPLNS BTC across the entries; 0 when empty. */
 export function sumGenerated(entries: GeneratedBtcEntry[]): number {
   return entries.reduce((total, e) => total + e.btc_generated, 0);
 }
@@ -100,16 +100,12 @@ export function filterGeneratedBtc(entries: GeneratedBtcEntry[], filter: Generat
   });
 }
 
-/**
- * BTC for display: clamps to 8 dp and trims float noise + trailing zeros. A missing
- * amount reads as "--", not "0" — the API returns null for a day it has no figure for,
- * and on a money page an unknown amount must never be shown as a confident zero.
- */
+/** BTC display precision with trailing zeros removed. */
 export function formatBtc(n: number): string {
   return n.toFixed(BTC_DISPLAY_DP).replace(/0+$/, '').replace(/\.$/, '');
 }
 
-const CSV_HEADER = 'entry_day,hashrate,btc_generated';
+const CSV_HEADER = 'entry_day,hashrate,pplns_hashrate,fpps_btc_generated,pplns_btc_generated,btc_generated';
 
 function csvCell(value: string): string {
   // Guard against spreadsheet formula injection, then quote when the value holds a
@@ -118,12 +114,6 @@ function csvCell(value: string): string {
   return /[",\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
-/** A numeric export cell; a missing value is an empty cell, never the text "null". */
-function numCell(value: number | null | undefined): string {
-  return value == null ? '' : String(value);
-}
-
-/** CSV with the production schema `entry_day,hashrate,btc_generated`; raw values, cells guarded. */
 /**
  * A stable identity for one generated-BTC row, used as the React key and as the
  * selection key so the two can never disagree. In aggregated mode the same calendar
@@ -134,7 +124,14 @@ export function generatedBtcRowId(e: { entry_day: string; account?: string }): s
 }
 
 export function generatedBtcToCsv(entries: GeneratedBtcEntry[]): string {
-  const rows = entries.map((e) => [e.entry_day, numCell(e.hashrate), numCell(e.btc_generated)].map(csvCell));
+  const rows = entries.map((e) => [
+    e.entry_day,
+    String(e.hashrate),
+    String(e.pplns_hashrate),
+    String(e.fpps_btc_generated),
+    String(e.pplns_btc_generated),
+    String(e.btc_generated),
+  ].map(csvCell));
   return [CSV_HEADER, ...rows.map((r) => r.join(','))].join('\n');
 }
 

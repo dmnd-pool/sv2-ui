@@ -1,12 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getUser } from '@/api';
 import { useAuth } from '@/auth';
 import type { DmndSession, HashrateRange } from '@/api/types';
 import { downsampleHashrate, rangeToWindow } from '@/lib/hashrateHistory';
 import { sumHashrateSeries } from '@/lib/aggregatedHashrate';
-import { createWatcherClient } from '@/api/watcherClient';
 import { useSubaccountList } from './useSubaccounts';
-import { fetchConfirmedTxsSince, startOfUtcDaySec, sumOutputsTo } from '@/lib/blockstream';
 import { useActiveAccountId } from './useActiveAccountId';
 import { msUntilNextTick } from '@/lib/utils';
 
@@ -17,8 +15,7 @@ const CLOUD_POLL_MS = 5 * 60 * 1000;
 // the chart renders so Recharts stays smooth.
 const MAX_CHART_POINTS = 300;
 
-// Blockstream is a public third-party API (and this whole path is temporary), so
-// today's earnings polls gently and is cached, not on the 5-min cloud cadence.
+// Confirmed payout history is cached server-side, so today's earnings polls gently.
 const EARNINGS_POLL_MS = 15 * 60 * 1000;
 
 /** Live hashrate snapshot for the signed-in account (home live-hashrate card). */
@@ -41,7 +38,11 @@ export function useAccountHashrate(enabled = true) {
  * RFC3339 from/to window (recomputed each fetch so it slides with "now"), and the
  * dense response is downsampled before it reaches the chart.
  */
-export function useAccountHashrateHistory(range: HashrateRange, custom?: { from: string; to: string } | null) {
+export function useAccountHashrateHistory(
+  range: HashrateRange,
+  custom?: { from: string; to: string } | null,
+  enabled = true,
+) {
   const { session } = useAuth();
   const accountId = useActiveAccountId();
   // A custom window is a fixed span, so it does not slide with "now" and its key is
@@ -57,7 +58,7 @@ export function useAccountHashrateHistory(range: HashrateRange, custom?: { from:
       });
       return downsampleHashrate(points, MAX_CHART_POINTS);
     },
-    enabled: !!session,
+    enabled: !!session && enabled,
     // A custom (historical) window doesn't need polling; presets stay live.
     refetchInterval: custom ? false : () => msUntilNextTick(CLOUD_POLL_MS),
     staleTime: CLOUD_POLL_MS,
@@ -86,21 +87,6 @@ export function useAccountProfile() {
   });
 }
 
-/** Per-worker roster for a date range; used by the workers page. */
-export function useAccountWorkers(from: string, to: string) {
-  const { session } = useAuth();
-  const accountId = useActiveAccountId();
-  return useQuery({
-    queryKey: ['account', 'workers', from, to, accountId],
-    queryFn: ({ signal }) => getUser().getWorkers(from, to, { signal, accountId: accountId ?? undefined }),
-    enabled: !!session && !!from && !!to,
-    refetchInterval: () => msUntilNextTick(CLOUD_POLL_MS),
-    staleTime: CLOUD_POLL_MS,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
-}
-
 /**
  * The combined hashrate series across the main account and every subaccount, for the
  * chart in aggregated mode. Every account is fetched over the same window in raw H/s and
@@ -115,22 +101,39 @@ export function useAggregatedHashrateHistory(
   const { session } = useAuth();
   const ownerAccountId = session?.accountId ?? null;
   const { data: subs } = useSubaccountList();
+  const queryClient = useQueryClient();
   const key = custom ? `custom:${custom.from}:${custom.to}` : range;
   return useQuery({
     queryKey: ['account', 'hashrate-history', 'aggregated', key, ownerAccountId],
     queryFn: async ({ signal }) => {
       const owners = subs ?? [];
       const window = custom ?? rangeToWindow(range, Date.now());
-      // Each subaccount is read through the token-only client rather than the
-      // /sub_account/<id>/hashrate/historical route.
+      const client = getUser();
+      const ownerProfile = queryClient.fetchQuery({
+        queryKey: ['account', 'profile', ownerAccountId],
+        queryFn: ({ signal: profileSignal }) => client.checkAuth({
+          signal: profileSignal,
+          accountId: ownerAccountId ?? undefined,
+        }),
+        // The mining credentials used for delegation are stable for the login.
+        // Explicit profile invalidation still refreshes this cache when settings change.
+        staleTime: Infinity,
+      });
       const [mainPoints, subSeries] = await Promise.all([
-        getUser().getHashrateHistory(window.from, window.to, {
+        client.getHashrateHistory(window.from, window.to, {
           signal,
           accountId: ownerAccountId ?? undefined,
         }),
-        Promise.all(
-          owners.map((s) => createWatcherClient(s.token).getHashrateHistory(window.from, window.to, signal)),
-        ),
+        ownerProfile.then((profile) => Promise.all(
+          owners.map((s) => client.getSubaccountHashrateHistory(
+            s.id,
+            window.from,
+            window.to,
+            profile.token,
+            s.token,
+            { signal, accountId: ownerAccountId ?? undefined },
+          )),
+        )),
       ]);
       return downsampleHashrate(sumHashrateSeries([mainPoints, ...subSeries]), MAX_CHART_POINTS);
     },
@@ -188,37 +191,32 @@ export function activeBitcoinAddress(profile: DmndSession | undefined): string |
 }
 
 /**
- * Today's earnings in BTC, from on-chain payouts (temporary: a pool-wallet API will
- * replace Blockstream). The pool's FPPS/PPLNS payout wallets pay the miner's OWN
- * bitcoin address, so we page each payout wallet's confirmed txs newest-first, stop
- * at the first tx older than today (UTC), and sum the outputs paying one of the
- * user's addresses. The payout-address lookup carries the DMND session; the
- * Blockstream calls carry NO DMND auth (different origin). If any wallet fetch
- * fails the query errors so the card shows "--" instead of a false or partial 0; a
- * genuine zero (no payout today) still returns 0.
+ * Today's confirmed earnings in BTC from the payout-history API. Main-account view
+ * filters the aggregate account-tree response to the main profile's addresses; a
+ * drilled-in subaccount uses the exact per-subaccount endpoint.
  */
-export function useTodayEarnings() {
-  const { session } = useAuth();
+export function useTodayEarnings(enabled = true) {
+  const { session, viewingAccountId } = useAuth();
+  const ownerAccountId = session?.accountId ?? null;
   const accountId = useActiveAccountId();
   const { data: profile } = useAccountProfile();
   return useQuery({
     queryKey: ['account', 'today-earnings', accountId],
     queryFn: async ({ signal }) => {
-      const userAddrs = userBitcoinAddresses(profile);
-      if (userAddrs.size === 0) return 0; // no receiving address set -> nothing to receive
-      const payout = await getUser().getPayoutAddresses({ signal, accountId: accountId ?? undefined });
-      const wallets = [...new Set([payout.fpps_payout_address, payout.pplns_payout_address].filter(Boolean))];
-      if (wallets.length === 0) return 0;
-      const since = startOfUtcDaySec(Date.now());
-      const perWallet = await Promise.all(
-        wallets.map((wallet) =>
-          fetchConfirmedTxsSince(wallet, since, { signal }).then((txs) => sumOutputsTo(txs, userAddrs)),
-        ),
-      );
-      const sats = perWallet.reduce((total, s) => total + s, 0);
+      const today = new Date().toISOString().slice(0, 10);
+      const query = { from: today, to: today };
+      const req = { signal, accountId: ownerAccountId ?? undefined };
+      const records = viewingAccountId
+        ? await getUser().getSubaccountPayouts(viewingAccountId, query, req)
+        : await getUser().getPayouts(query, req);
+      const addresses = userBitcoinAddresses(profile);
+      const scoped = viewingAccountId
+        ? records
+        : records.filter((row) => addresses.has(row.address));
+      const sats = scoped.reduce((total, row) => total + row.amount_sats, 0);
       return sats / 1e8;
     },
-    enabled: !!session && !!profile,
+    enabled: enabled && !!session && !!profile,
     refetchInterval: EARNINGS_POLL_MS,
     staleTime: EARNINGS_POLL_MS,
     refetchOnWindowFocus: false,

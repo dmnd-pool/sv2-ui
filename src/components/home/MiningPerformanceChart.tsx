@@ -63,7 +63,9 @@ export function MiningPerformanceChart() {
   // from the aggregated series; the two queries are cached separately so toggling never
   // shows one account's history under the combined heading.
   const { aggregated } = useAggregatedModeContext();
-  const single = useAccountHashrateHistory(range, customWindow);
+  // Only the selected query runs. In aggregated mode the combined query already
+  // fetches the main series, so keeping this one enabled would request it twice.
+  const single = useAccountHashrateHistory(range, customWindow, !aggregated);
   const combined = useAggregatedHashrateHistory(range, customWindow, aggregated);
   const { data, isLoading } = aggregated ? combined : single;
   const points: HashratePoint[] = data ?? [];

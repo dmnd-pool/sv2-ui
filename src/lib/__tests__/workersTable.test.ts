@@ -373,3 +373,14 @@ test('isWorkerFilterActive counts a chosen account as an active facet', () => {
   assert.equal(isWorkerFilterActive(EMPTY_WORKER_FILTER), false);
   assert.equal(isWorkerFilterActive({ ...EMPTY_WORKER_FILTER, accounts: ['Main Farm'] }), true);
 });
+
+test('a worker with both payment modes keeps both rates and matches either filter', () => {
+  const mixed = worker({ hashrate: 2e12, fpps_hashrate: 3e12, total_shares: 10, fpps_total_shares: 20, rejected_shares: 1, fpps_rejected_shares: 2 });
+  assert.equal(workerHashrate(mixed), 5e12);
+  assert.equal(workerMode(mixed), 'PPLNS + FPPS');
+  assert.deepEqual(filterWorkersByMode([mixed], 'pplns'), [mixed]);
+  assert.deepEqual(filterWorkersByMode([mixed], 'fpps'), [mixed]);
+  assert.deepEqual(applyWorkerFilter([mixed], { ...EMPTY_WORKER_FILTER, mode: ['PPLNS'] }), [mixed]);
+  assert.deepEqual(applyWorkerFilter([mixed], { ...EMPTY_WORKER_FILTER, mode: ['FPPS'] }), [mixed]);
+  assert.match(workersToCsv([mixed]), /both,5.00 TH\/s,30,3,true/);
+});

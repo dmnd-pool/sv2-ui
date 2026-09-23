@@ -9,7 +9,7 @@ const RANGE_MS: Record<HashrateRange, number> = {
 
 /**
  * Maps a chart range to the RFC3339 `{from,to}` window the historical endpoint
- * expects (`/api/user/hashrate/historical?from=&to=`). `to` is now; `from` is the
+ * expects (`/api/v1/user/hashrate/historical?from=&to=`). `to` is now; `from` is the
  * range earlier.
  */
 export function rangeToWindow(range: HashrateRange, nowMs: number): { from: string; to: string } {
