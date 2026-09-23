@@ -9,7 +9,7 @@ import {
   type Payout,
   type PayoutAccount,
 } from '@/lib/payoutsTable';
-import { useAccountProfile, userBitcoinAddresses } from '@/hooks/useAccountData';
+import { useAccountProfile, userBitcoinAddresses, userBitcoinAddressesKey } from '@/hooks/useAccountData';
 import { useSubaccountList } from '@/hooks/useSubaccounts';
 import { subaccountName } from '@/lib/subaccountsTable';
 
@@ -24,8 +24,9 @@ export function usePayouts(enabled = true) {
   const { session, viewingAccountId } = useAuth();
   const ownerAccountId = session?.accountId ?? null;
   const { data: profile } = useAccountProfile();
+  const addressKey = viewingAccountId === null ? userBitcoinAddressesKey(profile) : 'exact-subaccount';
   return useQuery({
-    queryKey: ['account', 'payouts', viewingAccountId ?? ownerAccountId],
+    queryKey: ['account', 'payouts', viewingAccountId ?? ownerAccountId, addressKey],
     queryFn: async ({ signal }): Promise<Payout[]> => {
       const client = getUser();
       const req = { signal, accountId: ownerAccountId ?? undefined };
@@ -56,8 +57,19 @@ export function useAggregatedPayouts(enabled = true) {
   const ownerAccountId = session?.accountId ?? null;
   const { data: profile } = useAccountProfile();
   const { data: subs } = useSubaccountList();
+  // Attribution happens inside the query function, so every input to that transform
+  // belongs in the key. Otherwise a renamed/new subaccount or changed address roster
+  // can leave cached rows carrying stale account labels until the polling interval.
+  const ownershipKey = JSON.stringify([
+    [ownerAccountId, MAIN_ACCOUNT_LABEL, [...userBitcoinAddresses(profile)].sort()],
+    ...(subs ?? []).map((s) => [
+      s.id,
+      subaccountName(s),
+      Object.keys(s.bitcoin_addresses ?? {}).filter(Boolean).sort(),
+    ]),
+  ]);
   return useQuery({
-    queryKey: ['account', 'payouts', 'aggregated', ownerAccountId],
+    queryKey: ['account', 'payouts', 'aggregated', ownerAccountId, ownershipKey],
     queryFn: async ({ signal }): Promise<Payout[]> => {
       const owners: PayoutAccount[] = [
         { name: MAIN_ACCOUNT_LABEL, addresses: userBitcoinAddresses(profile) },

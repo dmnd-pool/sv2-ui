@@ -18,6 +18,8 @@ function link(over: Partial<WatcherLink> = {}): WatcherLink {
     id: '1',
     user_id: 'acct-1',
     token: 'TOK1',
+    token_prefix: 'sha256:test',
+    last_used_at: null,
     owner_email: 'm@x.io',
     owner_first_name: 'A',
     scopes: ['hashrate_read'],
@@ -98,4 +100,11 @@ test('parseMultiwatcherPath reads back the mode and the user/token pairs', () =>
   assert.equal(parseMultiwatcherPath(['9', 'x', 'y']), null);
   assert.equal(parseMultiwatcherPath(['2']), null);
   assert.equal(parseMultiwatcherPath([]), null);
+});
+
+test('keys without recoverable secrets cannot produce multiwatcher links', () => {
+  const unavailable = link({ token: null, scopes: ['hashrate_read', 'earnings_read'] });
+  assert.equal(isLinkEligible(unavailable, 'both'), false);
+  assert.deepEqual(highestPerAccount([unavailable]), []);
+  assert.throws(() => multiwatcherUrl('https://dash.example.com', 'both', [unavailable]));
 });

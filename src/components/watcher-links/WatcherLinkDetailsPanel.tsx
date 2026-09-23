@@ -58,7 +58,7 @@ export function WatcherLinkDetailsPanel({
   subaccounts: Subaccount[];
   origin: string;
   onClose: () => void;
-  onRevoke: (id: string) => Promise<void>;
+  onRevoke: (id: string, totpToken?: string) => Promise<void>;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -77,8 +77,8 @@ export function WatcherLinkDetailsPanel({
     return (
       <RevokeWatcherLinkConfirm
         onCancel={() => setConfirming(false)}
-        onConfirm={async () => {
-          await onRevoke(link.id);
+        onConfirm={async (totpToken) => {
+          await onRevoke(link.id, totpToken);
           onClose();
         }}
       />
@@ -128,12 +128,22 @@ export function WatcherLinkDetailsPanel({
             </span>
           </div>
 
-          <DetailRow label="Token" value={truncateToken(link.token)} copyValue={link.token} />
-          <DetailRow label="URL" value={watcherUrlLabel(origin, link.token)} copyValue={url} href={url} />
+          {link.token ? <>
+            <DetailRow label="Token" value={truncateToken(link.token)} copyValue={link.token} />
+            <DetailRow label="URL" value={watcherUrlLabel(origin, link.token)} copyValue={url} href={url} />
+          </> : <p className="text-sm text-body-alt">This key's secret is unavailable. Create a new link to share access. Fingerprint: {link.token_prefix}</p>}
+          <div className="text-sm text-body-alt">Expires: {link.expires_at ? formatWatcherDateTime(link.expires_at) : 'Never'}</div>
 
           <div className="flex flex-col gap-2">
             <span className="text-xs text-body-alt">Created</span>
             <span className="text-sm text-foreground">{formatWatcherDateTime(link.created_at)}</span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-body-alt">Last used</span>
+            <span className="text-sm text-foreground">
+              {link.last_used_at ? formatWatcherDateTime(link.last_used_at) : 'Never'}
+            </span>
           </div>
         </div>
 

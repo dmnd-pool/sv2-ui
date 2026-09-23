@@ -35,7 +35,7 @@ export function eligibleScopes(mode: MultiwatcherMode): WatcherScope[] {
 
 /** A link qualifies for a mode when it grants every scope that mode enforces. */
 export function isLinkEligible(link: WatcherLink, mode: MultiwatcherMode): boolean {
-  return eligibleScopes(mode).every((s) => link.scopes.includes(s));
+  return !!link.token && eligibleScopes(mode).every((s) => link.scopes.includes(s));
 }
 
 /** The links usable under a mode. */
@@ -51,6 +51,7 @@ export function eligibleLinks(links: WatcherLink[], mode: MultiwatcherMode): Wat
 export function highestPerAccount(links: WatcherLink[]): WatcherLink[] {
   const best = new Map<string, WatcherLink>();
   for (const l of links) {
+    if (!l.token) continue;
     const cur = best.get(l.user_id);
     if (!cur || l.scopes.length > cur.scopes.length) best.set(l.user_id, l);
   }
@@ -60,6 +61,7 @@ export function highestPerAccount(links: WatcherLink[]): WatcherLink[] {
 /** The shareable multiwatcher URL: /login/multiwatcher/{mode}/{userId}/{token}/... */
 export function multiwatcherUrl(origin: string, mode: MultiwatcherMode, links: WatcherLink[]): string {
   const base = origin.replace(/\/+$/, '');
+  if (links.some((link) => !link.token)) throw new Error('A watcher key has no recoverable secret');
   const pairs = links.flatMap((l) => [l.user_id, l.token]);
   return `${base}/login/multiwatcher/${MODE_TO_NUM[mode]}/${pairs.join('/')}`;
 }

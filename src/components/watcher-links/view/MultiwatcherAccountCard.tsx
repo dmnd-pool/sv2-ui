@@ -13,16 +13,18 @@ function isUnauthorized(error: unknown): boolean {
  * for lack of scope is quietly dropped, so the card never claims data it cannot read.
  */
 export function MultiwatcherAccountCard({
+  accountId,
   token,
   showHashrate,
   showGenerated,
 }: {
   token: string;
+  accountId: string;
   showHashrate: boolean;
   showGenerated: boolean;
 }) {
   const hashrate = useWatcherHashrate(token);
-  const generated = useWatcherGeneratedBtc(token, showGenerated);
+  const generated = useWatcherGeneratedBtc(token, showGenerated, accountId);
 
   const hashrateOk = showHashrate && !(hashrate.isError && isUnauthorized(hashrate.error));
   const generatedOk = showGenerated && !(generated.isError && isUnauthorized(generated.error));
@@ -48,7 +50,7 @@ export function MultiwatcherAccountCard({
               <span className="ml-1 text-base font-normal text-body-alt">BTC</span>
             </p>
           )}
-          <p className="mt-1 text-xs text-body-alt">Total Bitcoin generated</p>
+          <p className="mt-1 text-xs text-body-alt">FPPS generated plus projected PPLNS BTC</p>
         </div>
       )}
     </div>

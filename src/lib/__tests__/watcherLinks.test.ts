@@ -34,6 +34,8 @@ function link(over: Partial<WatcherLink> = {}): WatcherLink {
     id: '199',
     user_id: '-7397273660421850316',
     token: FULL_TOKEN,
+    token_prefix: 'sha256:test',
+    last_used_at: null,
     owner_email: 'm@x.io',
     owner_first_name: 'Ada',
     scopes: ['hashrate_read', 'workers_read'],
@@ -47,7 +49,6 @@ function sub(over: Partial<Subaccount> = {}): Subaccount {
     id: '-3713290779221491336',
     sub_account: 'Warehouse 01',
     token: 't',
-    api_token: 'a',
     fpps_token: null,
     hashrate: '0',
     bitcoin_addresses: {},
@@ -220,11 +221,11 @@ test('formatLastUpdated buckets the observed time, or returns null when unknown'
   assert.equal(formatLastUpdated('nonsense', NOW), null); // unparseable
 });
 
-test('formatFeePercent renders the rate verbatim to two decimals (the API sends percent)', () => {
-  assert.equal(formatFeePercent(2), '2.00'); // 2 = 2%, not 200%
-  assert.equal(formatFeePercent(0.5), '0.50');
+test('formatFeePercent converts a fractional rate to percent', () => {
+  assert.equal(formatFeePercent(0.02), '2.00'); // 0.02 = 2%
+  assert.equal(formatFeePercent(0.005), '0.50');
   assert.equal(formatFeePercent(0), '0.00');
-  assert.equal(formatFeePercent(1.2), '1.20'); // always two decimals
+  assert.equal(formatFeePercent(0.012), '1.20'); // always two decimals
   assert.equal(formatFeePercent(Number.NaN), '0.00'); // a malformed response can't show "NaN%"
 });
 

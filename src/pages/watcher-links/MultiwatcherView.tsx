@@ -51,6 +51,7 @@ export function MultiwatcherView({ rest }: { rest: string }) {
           <MultiwatcherAccountCard
             key={`${e.userId}-${e.token}`}
             token={e.token}
+            accountId={e.userId}
             showHashrate={showHashrate}
             showGenerated={showGenerated}
           />

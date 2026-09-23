@@ -30,7 +30,8 @@ export function useWatcherLinks() {
 export function useCreateWatcherLink() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateWatcherLinkInput) => getUser().createWatcherLink(input),
+    mutationFn: (input: CreateWatcherLinkInput & { totpToken?: string }) =>
+      getUser().createWatcherLink(input, { totpToken: input.totpToken }),
     retry: false,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['account', 'watcher-links'] }),
   });
@@ -40,7 +41,8 @@ export function useCreateWatcherLink() {
 export function useRevokeWatcherLink() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => getUser().revokeWatcherLink(id),
+    mutationFn: ({ id, totpToken }: { id: string; totpToken?: string }) =>
+      getUser().revokeWatcherLink(id, { totpToken }),
     retry: false,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['account', 'watcher-links'] }),
   });

@@ -3,7 +3,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { LiCloseCircle, LiAltArrowDown } from 'solar-icon-react/li';
 import { Check } from 'lucide-react';
 import { cn, overlayContainer } from '@/lib/utils';
-import type { Subaccount, WatcherLink, WatcherScope } from '@/api/types';
+import type { Subaccount, CreatedWatcherLink, WatcherScope } from '@/api/types';
 import {
   ALL_WATCHER_SCOPES,
   SCOPE_DESCRIPTIONS,
@@ -12,6 +12,8 @@ import {
   presetScopes,
   type WatcherPreset,
 } from '@/lib/watcherLinks';
+import { OtpField } from '@/components/ui/input-otp';
+import { authErrorMessage } from '@/components/auth/authError';
 import { WatcherLinkCreated } from './WatcherLinkCreated';
 
 interface AccountOption {
@@ -123,14 +125,15 @@ export function CreateWatcherLinkPanel({
   subaccounts: Subaccount[];
   origin: string;
   onClose: () => void;
-  onCreate: (input: { targetUserId: string; scopes: WatcherScope[] }) => Promise<WatcherLink>;
+  onCreate: (input: { targetUserId: string; scopes: WatcherScope[]; totpToken?: string }) => Promise<CreatedWatcherLink>;
 }) {
   const [account, setAccount] = useState<AccountOption | null>(null);
   const [preset, setPreset] = useState<WatcherPreset | null>(null);
   const [customScopes, setCustomScopes] = useState<WatcherScope[]>([]);
+  const [totpToken, setTotpToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<WatcherLink | null>(null);
+  const [created, setCreated] = useState<CreatedWatcherLink | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -142,7 +145,7 @@ export function CreateWatcherLinkPanel({
 
   const options = accountOptions(sessionAccountId, subaccounts);
   const scopes = preset === 'custom' ? customScopes : preset ? presetScopes(preset) : [];
-  const canSubmit = account !== null && scopes.length > 0 && !submitting;
+  const canSubmit = account !== null && scopes.length > 0 && (totpToken.length === 0 || totpToken.length === 6) && !submitting;
 
   const toggleScope = (s: WatcherScope) =>
     setCustomScopes((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
@@ -152,10 +155,10 @@ export function CreateWatcherLinkPanel({
     setSubmitting(true);
     setError(null);
     try {
-      const link = await onCreate({ targetUserId: account.userId, scopes });
+      const link = await onCreate({ targetUserId: account.userId, scopes, totpToken });
       setCreated(link);
-    } catch {
-      setError("We couldn't create the Watcher link. Please try again.");
+    } catch (e) {
+      setError(authErrorMessage(e, 'Enter the current 6-digit authenticator code to create this link.'));
     } finally {
       setSubmitting(false);
     }
@@ -276,6 +279,10 @@ export function CreateWatcherLinkPanel({
                 </Field>
               )}
 
+              <div className="space-y-2">
+                <p className="text-sm text-body-alt">Authenticator code (if required for your session)</p>
+                <OtpField value={totpToken} onChange={setTotpToken} disabled={submitting} ariaLabel="Current authenticator code" />
+              </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
 
