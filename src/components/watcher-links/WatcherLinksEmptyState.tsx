@@ -8,7 +8,7 @@ const WATCHER_LINKS_DOCS_URL = '';
 /** Shown when the account has no watcher links yet. */
 export function WatcherLinksEmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-6 px-8 py-8 text-center">
+    <div className="flex flex-col items-center gap-4 px-4 py-6 text-center sm:px-6">
       <LiKeyMinimalistic className="h-16 w-16 text-placeholder" />
       <div>
         {/* h3 so the heading picks up Radio Canada Big from the .dmnd-app scope. */}

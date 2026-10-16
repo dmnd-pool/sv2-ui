@@ -49,7 +49,7 @@ export function WatcherPerformanceChart({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const data = downsampleHashrate(points, 300);
   return (
-    <div className="border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="border-[0.5px] border-border bg-card p-4 lg:p-5">
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-2">
           <h3 className="text-sm font-semibold text-heading">Mining Performance</h3>
@@ -94,13 +94,13 @@ export function WatcherPerformanceChart({
       )}
 
       {isLoading ? (
-        <div className="mt-4 h-64 animate-pulse rounded-lg bg-muted" />
+        <div className="mt-3 h-56 animate-pulse rounded-lg bg-muted" />
       ) : data.length === 0 ? (
-        <div className="mt-4 flex h-64 items-center justify-center text-sm text-body-alt">
+        <div className="mt-3 flex h-56 items-center justify-center text-sm text-body-alt">
           No hashrate history to show yet.
         </div>
       ) : (
-        <div className="mt-4 h-64">
+        <div className="mt-3 h-56">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs>

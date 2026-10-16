@@ -69,7 +69,7 @@ interface TableEmpty {
 
 function EmptyRow({ empty }: { empty: TableEmpty }) {
   return (
-    <div className="px-6 py-12 text-center">
+    <div className="px-4 py-8 text-center">
       <p className="text-sm font-semibold text-foreground">{empty.title}</p>
       <p className="mt-1 text-sm text-body-alt">{empty.hint}</p>
       <button
@@ -198,7 +198,7 @@ function DailyWorkTable({ dailyWork, empty }: { dailyWork: PplnsProjectionDailyW
           <thead>
             <tr className="border-b-[0.5px] border-border bg-muted text-body-alt">
               {HEADERS.map((header) => (
-                <th key={header} className="px-6 py-4 text-left font-normal">
+                <th key={header} className="px-4 py-3 text-left font-normal">
                   {header}
                 </th>
               ))}
@@ -214,16 +214,16 @@ function DailyWorkTable({ dailyWork, empty }: { dailyWork: PplnsProjectionDailyW
             )}
             {dailyWork.map((day) => (
               <tr key={day.work_day} className="border-b-[0.5px] border-border">
-                <td className="whitespace-nowrap px-6 py-4 font-medium text-foreground">
+                <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
                   {formatPplnsWorkDay(day.work_day)}
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-foreground">
                   {formatPplnsDifficulty(day.retained_difficulty)}
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-foreground">
                   {formatPplnsAverageHashrate(day.retained_difficulty)}
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-foreground">
+                <td className="whitespace-nowrap px-4 py-3 text-foreground">
                   <BtcAmount sats={day.total_net_sats} />
                 </td>
               </tr>
@@ -279,7 +279,7 @@ function ProjectionBody({
           : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {showStats && <PplnsProjectionStatCards dailyWork={dailyWork} />}
       <div className="rounded-xl border border-border bg-card">
         <ProjectionToolbar
@@ -310,10 +310,10 @@ export function PplnsProjectionPanel({
   if (isLoading) {
     if (!showStats) return <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />;
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="h-36 animate-pulse border-[0.5px] border-border bg-muted" />
+            <div key={index} className="h-28 animate-pulse border-[0.5px] border-border bg-muted" />
           ))}
         </div>
         <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />

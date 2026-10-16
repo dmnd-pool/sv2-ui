@@ -7,6 +7,10 @@ const RANGE_MS: Record<HashrateRange, number> = {
   '7D': 7 * 24 * 60 * 60 * 1000,
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const COMPARISON_TOLERANCE_MS = 5 * 60 * 1000;
+const MAX_CURRENT_SNAPSHOT_AGE_MS = 10 * 60 * 1000;
+
 /**
  * Maps a chart range to the RFC3339 `{from,to}` window the historical endpoint
  * expects (`/api/v1/user/hashrate/historical?from=&to=`). `to` is now; `from` is the
@@ -17,6 +21,58 @@ export function rangeToWindow(range: HashrateRange, nowMs: number): { from: stri
     from: new Date(nowMs - RANGE_MS[range]).toISOString(),
     to: new Date(nowMs).toISOString(),
   };
+}
+
+function validCurrentSnapshotTime(observedAt: string | null | undefined, nowMs: number): number | null {
+  if (!observedAt || !Number.isFinite(nowMs)) return null;
+  const timestamp = Date.parse(observedAt);
+  if (!Number.isFinite(timestamp)) return null;
+
+  const age = nowMs - timestamp;
+  if (age < -COMPARISON_TOLERANCE_MS || age > MAX_CURRENT_SNAPSHOT_AGE_MS) return null;
+  return timestamp;
+}
+
+/** Narrow raw-history window around the point exactly 24 hours before a fresh snapshot. */
+export function hashrateComparisonWindow(
+  observedAt: string | null | undefined,
+  nowMs: number,
+): { from: string; to: string } | null {
+  const currentAt = validCurrentSnapshotTime(observedAt, nowMs);
+  if (currentAt === null) return null;
+
+  const target = currentAt - DAY_MS;
+  return {
+    from: new Date(target - COMPARISON_TOLERANCE_MS).toISOString(),
+    to: new Date(target + COMPARISON_TOLERANCE_MS).toISOString(),
+  };
+}
+
+/** Percentage change between comparable 10-minute snapshots separated by 24 hours. */
+export function hashrateChangeFrom24HoursAgo(
+  current: number,
+  currentObservedAt: string | null | undefined,
+  points: HashratePoint[],
+  nowMs: number,
+): number | null {
+  if (!Number.isFinite(current)) return null;
+  const currentAt = validCurrentSnapshotTime(currentObservedAt, nowMs);
+  if (currentAt === null) return null;
+
+  const target = currentAt - DAY_MS;
+  let baseline: { distance: number; hashrate: number } | null = null;
+  for (const point of points) {
+    const timestamp = Date.parse(point.observed_at);
+    if (!Number.isFinite(timestamp) || !Number.isFinite(point.total_hashrate)) continue;
+    const distance = Math.abs(timestamp - target);
+    if (baseline === null || distance < baseline.distance) {
+      baseline = { distance, hashrate: point.total_hashrate };
+    }
+  }
+
+
+  if (baseline === null || baseline.distance > COMPARISON_TOLERANCE_MS || baseline.hashrate <= 0) return null;
+  return ((current - baseline.hashrate) / baseline.hashrate) * 100;
 }
 
 /**

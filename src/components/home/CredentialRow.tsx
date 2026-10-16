@@ -12,9 +12,9 @@ function truncateMiddle(value: string): string {
  * eye toggle for secret values (the PPLNS / FPPS passwords). Secrets show a
  * truncated preview until revealed; copy always copies the full value.
  */
-/** The design's icon affordance: a 32px secondary-filled circle holding a 16px glyph. */
+/** Compact icon affordance used in the dense connection summary. */
 const ICON_BUTTON =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-[32px] bg-btn-secondary text-placeholder transition-colors hover:text-foreground';
+  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-btn-secondary text-placeholder transition-colors hover:text-foreground';
 
 export function CredentialRow({
   label,
@@ -43,7 +43,7 @@ export function CredentialRow({
   const shown = secret && !revealed ? truncateMiddle(value) : value;
 
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 py-1">
+    <div className="flex min-w-0 items-center justify-between gap-3 py-0.5">
       <span className="flex shrink-0 items-center gap-2 text-sm leading-5 text-body-alt">
         {label}
         {hint && <LiQuestionCircle className="h-4 w-4 text-placeholder" aria-label={hint} />}
@@ -61,7 +61,7 @@ export function CredentialRow({
             aria-label={revealed ? `Hide ${label}` : `Reveal ${label}`}
             className={ICON_BUTTON}
           >
-            {revealed ? <LiEyeClosed className="h-4 w-4" /> : <LiEye className="h-4 w-4" />}
+            {revealed ? <LiEyeClosed className="h-3.5 w-3.5" /> : <LiEye className="h-3.5 w-3.5" />}
           </button>
         )}
         {copyable && (
@@ -72,7 +72,7 @@ export function CredentialRow({
             disabled={loading}
             className={cn(ICON_BUTTON, 'disabled:opacity-50')}
           >
-            {copied ? <LiCheckCircle className="h-4 w-4 text-success" /> : <LiCopy className="h-4 w-4" />}
+            {copied ? <LiCheckCircle className="h-3.5 w-3.5 text-success" /> : <LiCopy className="h-3.5 w-3.5" />}
           </button>
         )}
       </div>

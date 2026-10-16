@@ -53,7 +53,7 @@ export function WatcherPayoutsSection({
   if (isLoading) return <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />;
   if (isError) {
     return (
-      <div className="rounded-xl border border-border bg-card p-10 text-center">
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
         <p className="text-base font-semibold text-foreground">Couldn&apos;t load payouts</p>
         <p className="mt-1 text-sm text-body-alt">The on-chain payout history is temporarily unavailable.</p>
       </div>

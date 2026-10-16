@@ -8,7 +8,7 @@ import { BdWalletMoney } from 'solar-icon-react/bd';
  */
 export function PayoutsEmptyState() {
   return (
-    <div className="flex flex-col items-center gap-6 border-t-[0.5px] border-border bg-card px-4 py-8 text-center sm:p-8">
+    <div className="flex flex-col items-center gap-4 border-t-[0.5px] border-border bg-card px-4 py-6 text-center sm:p-6">
       <BdWalletMoney className="h-16 w-16 text-placeholder" />
       <div>
         <p className="font-heading text-xl font-semibold leading-8 text-foreground">No payouts yet</p>

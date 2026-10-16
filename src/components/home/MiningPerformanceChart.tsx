@@ -102,7 +102,7 @@ export function MiningPerformanceChart() {
     <div
       className={cn(
         'relative flex flex-col border-[0.5px] border-border bg-card',
-        hasSamples ? 'gap-6 p-4 lg:p-8' : 'gap-10 px-4 pb-8 pt-4 lg:px-8 lg:pb-16 lg:pt-8',
+        hasSamples ? 'gap-4 p-4 lg:p-5' : 'gap-6 px-4 pb-6 pt-4 lg:px-5 lg:pb-8 lg:pt-5',
       )}
     >
       <div className={cn('flex w-full', hasSamples ? 'items-center justify-between' : 'flex-col gap-4')}>
@@ -166,7 +166,7 @@ export function MiningPerformanceChart() {
       )}
 
       {isLoading ? (
-        <div className="h-[252px] w-full animate-pulse bg-muted" />
+        <div className="h-[220px] w-full animate-pulse bg-muted" />
       ) : !hasPlot ? (
         <div className="flex flex-col items-center gap-2">
           <LiGraphUp className="h-12 w-12 opacity-[0.48]" />
@@ -196,7 +196,7 @@ export function MiningPerformanceChart() {
 
           <div className="flex w-full flex-col gap-2">
             <span className="text-sm font-medium leading-5 text-foreground">{scale.unit}</span>
-            <div className="h-[252px] w-full">
+            <div className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={points} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <defs>

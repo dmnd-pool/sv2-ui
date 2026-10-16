@@ -65,7 +65,7 @@ export interface PayoutsEmpty {
 
 function EmptyRow({ empty }: { empty: PayoutsEmpty }) {
   return (
-    <div className="px-6 py-12 text-center">
+    <div className="px-4 py-8 text-center">
       <p className="text-sm font-semibold text-foreground">{empty.title}</p>
       <p className="mt-1 text-sm text-body-alt">{empty.hint}</p>
       <button
@@ -164,7 +164,7 @@ export function PayoutsTable({
         <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
-              {selectable && <th className="w-14 px-0 py-4">
+              {selectable && <th className="w-14 px-0 py-3">
                 <CellCheckbox
                   checked={allSelected ?? false}
                   indeterminate={(someSelected ?? false) && !(allSelected ?? false)}
@@ -172,13 +172,13 @@ export function PayoutsTable({
                   label="Select all payouts"
                 />
               </th>}
-              <th className="px-6 py-4 text-left font-normal">Date</th>
-              {showAccount && <th className="px-6 py-4 text-left font-normal">Account</th>}
-              <th className="px-6 py-4 text-left font-normal">Transaction ID</th>
-              <th className="px-6 py-4 text-left font-normal">Amount</th>
-              <th className="px-6 py-4 text-left font-normal">Mode</th>
-              <th className="px-6 py-4 text-left font-normal">Payout address</th>
-              <th className="px-6 py-4 text-left font-normal">Action</th>
+              <th className="px-4 py-3 text-left font-normal">Date</th>
+              {showAccount && <th className="px-4 py-3 text-left font-normal">Account</th>}
+              <th className="px-4 py-3 text-left font-normal">Transaction ID</th>
+              <th className="px-4 py-3 text-left font-normal">Amount</th>
+              <th className="px-4 py-3 text-left font-normal">Mode</th>
+              <th className="px-4 py-3 text-left font-normal">Payout address</th>
+              <th className="px-4 py-3 text-left font-normal">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -191,29 +191,29 @@ export function PayoutsTable({
             )}
             {payouts.map((p) => (
               <tr key={payoutRowId(p)} className="border-b-[0.5px] border-border last:border-0">
-                {selectable && <td className="w-14 px-0 py-4">
+                {selectable && <td className="w-14 px-0 py-3">
                   <CellCheckbox
                     checked={selectedRows.has(payoutRowId(p))}
                     onChange={() => onToggleOne?.(payoutRowId(p))}
                     label={`Select payout ${truncateMiddle(p.txid, 6, 4)}`}
                   />
                 </td>}
-                <td className="px-6 py-4 text-foreground">{formatPayoutDate(p.date)}</td>
+                <td className="px-4 py-3 text-foreground">{formatPayoutDate(p.date)}</td>
                 {/* Plain text in the body colour, as drawn -- the design gives the account
                     no badge or chip, and no different weight from the other values. */}
-                {showAccount && <td className="px-6 py-4 text-foreground">{p.account ?? '--'}</td>}
-                <td className="px-6 py-4 text-foreground">
+                {showAccount && <td className="px-4 py-3 text-foreground">{p.account ?? '--'}</td>}
+                <td className="px-4 py-3 text-foreground">
                   <TxidCell txid={p.txid} />
                 </td>
-                <td className="px-6 py-4 text-foreground">
+                <td className="px-4 py-3 text-foreground">
                   {formatBtcFromSats(p.amountSats)}{' '}
                   <span className="text-xs leading-4 text-body-alt">BTC</span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <ModeBadge mode={p.mode} />
                 </td>
-                <td className="px-6 py-4 text-foreground">{truncateMiddle(p.toAddress, 4, 4)}</td>
-                <td className="px-8 py-4">
+                <td className="px-4 py-3 text-foreground">{truncateMiddle(p.toAddress, 4, 4)}</td>
+                <td className="px-4 py-3">
                   <a
                     href={mempoolTxUrl(p.txid)}
                     target="_blank"

@@ -40,7 +40,7 @@ export function MultiwatcherAccountCard({
         />
       )}
       {generatedOk && (
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card p-4">
           <span className="text-sm text-body-alt">Generated BTC</span>
           {generated.isLoading ? (
             <p className="mt-2 h-8 w-32 animate-pulse rounded bg-muted" />

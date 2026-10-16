@@ -26,7 +26,7 @@ function BtcAmount({ amount, unitClass }: { amount: number; unitClass: string })
 /** The empty-state block, shared by the desktop table body and the mobile card list. */
 function EmptyRow({ empty }: { empty: GeneratedBtcEmpty }) {
   return (
-    <div className="px-6 py-12 text-center">
+    <div className="px-4 py-8 text-center">
       <p className="text-sm font-semibold text-foreground">{empty.title}</p>
       <p className="mt-1 text-sm text-body-alt">{empty.hint}</p>
       <button
@@ -100,7 +100,7 @@ export function GeneratedBtcTable({
           <thead>
             <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
               {selectable && (
-                <th className="w-14 px-0 py-4">
+                <th className="w-14 px-0 py-3">
                   <CellCheckbox
                     checked={allSelected}
                     indeterminate={someSelected && !allSelected}
@@ -109,15 +109,15 @@ export function GeneratedBtcTable({
                   />
                 </th>
               )}
-              <th className="px-6 py-4 text-left font-normal">Date</th>
-              {showAccount && <th className="px-6 py-4 text-left font-normal">Account</th>}
-              <th className="px-6 py-4 text-left font-normal">
+              <th className="px-4 py-3 text-left font-normal">Date</th>
+              {showAccount && <th className="px-4 py-3 text-left font-normal">Account</th>}
+              <th className="px-4 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">
                   FPPS hashrate
                   <InfoHint text={DAILY_HASHRATE_HINT} />
                 </span>
               </th>
-              <th className="px-6 py-4 text-left font-normal">Generated BTC</th>
+              <th className="px-4 py-3 text-left font-normal">Generated BTC</th>
             </tr>
           </thead>
           <tbody>
@@ -131,7 +131,7 @@ export function GeneratedBtcTable({
             {entries.map((e) => (
               <tr key={generatedBtcRowId(e)} className="border-b-[0.5px] border-border last:border-0">
                 {selectable && (
-                  <td className="w-14 px-0 py-4">
+                  <td className="w-14 px-0 py-3">
                     <CellCheckbox
                       checked={selected?.has(generatedBtcRowId(e)) ?? false}
                       onChange={() => onToggleOne(generatedBtcRowId(e))}
@@ -139,10 +139,10 @@ export function GeneratedBtcTable({
                     />
                   </td>
                 )}
-                <td className="px-6 py-4 text-foreground">{formatGeneratedDate(e.entry_day)}</td>
-                {showAccount && <td className="px-6 py-4 text-foreground">{e.account ?? '--'}</td>}
-                <td className="px-6 py-4 text-foreground">{formatHashrate(e.hashrate)}</td>
-                <td className="px-6 py-4 text-foreground">
+                <td className="px-4 py-3 text-foreground">{formatGeneratedDate(e.entry_day)}</td>
+                {showAccount && <td className="px-4 py-3 text-foreground">{e.account ?? '--'}</td>}
+                <td className="px-4 py-3 text-foreground">{formatHashrate(e.hashrate)}</td>
+                <td className="px-4 py-3 text-foreground">
                   <BtcAmount amount={e.fpps_btc_generated} unitClass="text-xs leading-4 text-body-alt" />
                 </td>
               </tr>

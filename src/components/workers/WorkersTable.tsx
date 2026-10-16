@@ -41,7 +41,7 @@ function SortHeader({
     <th
       aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
       className={cn(
-        'px-6 py-4 font-normal',
+        'px-4 py-3 font-normal',
         align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left',
       )}
     >
@@ -138,7 +138,7 @@ export function WorkersTable({
         <table className="w-full min-w-[820px] border-collapse text-sm leading-5">
           <thead>
             <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
-              <th className="w-10 px-6 py-4">
+              <th className="w-10 px-4 py-3">
                 <CellCheckbox
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
@@ -147,9 +147,9 @@ export function WorkersTable({
                 />
               </th>
               <SortHeader label="Worker" sortKey="name" sort={sort} onSort={onSort} />
-              {showAccount && <th className="px-6 py-4 text-left font-normal">Account</th>}
+              {showAccount && <th className="px-4 py-3 text-left font-normal">Account</th>}
               <SortHeader label="Hashrate" sortKey="hashrate" sort={sort} onSort={onSort} hint={WORKER_METRICS_HINT} />
-              <th className="px-6 py-4 text-left font-normal">Mode</th>
+              <th className="px-4 py-3 text-left font-normal">Mode</th>
               <SortHeader
                 label="Rejection rate"
                 sortKey="rejection"
@@ -158,10 +158,10 @@ export function WorkersTable({
                 hint={WORKER_REJECTION_HINT}
                 align="center"
               />
-              <th className="px-6 py-4 text-left font-normal">
+              <th className="px-4 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">Status <InfoHint text={ACTIVE_WORKERS_HINT} /></span>
               </th>
-              <th className="px-6 py-4 text-left font-normal">Action</th>
+              <th className="px-4 py-3 text-left font-normal">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -178,28 +178,28 @@ export function WorkersTable({
               const rowId = workerRowId(w);
               return (
                 <tr key={rowId} className="border-b border-border last:border-0">
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <CellCheckbox
                       checked={selected.has(rowId)}
                       onChange={() => onToggleOne(rowId)}
                       label={`Select ${w.name}`}
                     />
                   </td>
-                  <td className="px-6 py-4 font-medium text-foreground">{w.name}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{w.name}</td>
                   {showAccount && (
-                    <td className="px-6 py-4 text-body-alt">{(w as TaggedWorker).subaccount ?? '--'}</td>
+                    <td className="px-4 py-3 text-body-alt">{(w as TaggedWorker).subaccount ?? '--'}</td>
                   )}
-                  <td className="px-6 py-4 font-mono text-foreground">{hr ? formatHashrate(hr) : '--'}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3 font-mono text-foreground">{hr ? formatHashrate(hr) : '--'}</td>
+                  <td className="px-4 py-3">
                     <ModeBadge mode={workerMode(w)} />
                   </td>
-                  <td className="px-6 py-4 text-center font-mono text-foreground">
+                  <td className="px-4 py-3 text-center font-mono text-foreground">
                     {rej === null ? '--' : `${(rej * 100).toFixed(1)}%`}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <StatusBadge status={classifyWorker(w)} />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <button
                       type="button"
                       onClick={() => onOpenDetails(w)}

@@ -9,7 +9,7 @@ import { BdLayersMinimalistic } from 'solar-icon-react/bd';
  */
 export function SubaccountsEmptyState({ onCreate, canCreate }: { onCreate: () => void; canCreate: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-4 border-t-[0.5px] border-border bg-card p-4 text-center lg:p-8">
+    <div className="flex flex-col items-center gap-4 border-t-[0.5px] border-border bg-card p-4 text-center lg:p-5">
       <BdLayersMinimalistic className="h-16 w-16 text-placeholder" />
       <div>
         <p className="font-heading text-xl font-semibold leading-8 text-foreground">No subaccounts yet</p>

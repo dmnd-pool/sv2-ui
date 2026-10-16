@@ -211,7 +211,7 @@ export function SubaccountsTable({
   opening: boolean;
 }) {
   const emptyRow = subaccounts.length === 0 && empty && (
-    <div className="px-4 py-12 text-center">
+    <div className="px-4 py-8 text-center">
       <p className="text-sm font-semibold text-foreground">{empty.title}</p>
       <p className="mt-1 text-sm text-body-alt">{empty.hint}</p>
       <button
@@ -230,7 +230,7 @@ export function SubaccountsTable({
         <table className="w-full min-w-[820px] border-collapse text-sm leading-5">
           <thead>
             <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
-              <th className="w-14 px-3 py-4">
+              <th className="w-14 px-3 py-3">
                 <CellCheckbox
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
@@ -238,20 +238,20 @@ export function SubaccountsTable({
                   label="Select all subaccounts"
                 />
               </th>
-              <th className="px-3 py-4 text-left font-normal">Name</th>
-              <th className="px-3 py-4 text-left font-normal">
+              <th className="px-3 py-3 text-left font-normal">Name</th>
+              <th className="px-3 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">Active Workers <InfoHint text={ACTIVE_WORKERS_HINT} /></span>
               </th>
-              <th className="px-3 py-4 text-left font-normal">Password</th>
-              <th className="px-3 py-4 text-left font-normal">
+              <th className="px-3 py-3 text-left font-normal">Password</th>
+              <th className="px-3 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">Hashrate <InfoHint text={LIVE_HASHRATE_HINT} /></span>
               </th>
-              <th className="px-3 py-4 text-left font-normal">
+              <th className="px-3 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">Rejection <InfoHint text={ACCOUNT_REJECTION_HINT} /></span>
               </th>
-              <th className="px-3 py-4 text-left font-normal">Generated BTC</th>
-              <th className="px-3 py-4 text-left font-normal">Today's earnings</th>
-              <th className="px-5 py-4 text-left font-normal">Action</th>
+              <th className="px-3 py-3 text-left font-normal">Generated BTC</th>
+              <th className="px-3 py-3 text-left font-normal">Today's earnings</th>
+              <th className="px-4 py-3 text-left font-normal">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -262,25 +262,25 @@ export function SubaccountsTable({
             )}
             {subaccounts.map((s) => (
               <tr key={s.id} className="border-b-[0.5px] border-border last:border-0">
-                <td className="px-3 py-4">
+                <td className="px-3 py-3">
                   <CellCheckbox
                     checked={selected.has(s.id)}
                     onChange={() => onToggleOne(s.id)}
                     label={`Select ${s.name}`}
                   />
                 </td>
-                <td className="px-3 py-4 font-medium text-foreground">{s.name}</td>
-                <td className="px-3 py-4 text-foreground">{s.active}</td>
-                <td className="px-3 py-4 text-foreground"><PasswordCell subaccount={s} /></td>
-                <td className="px-3 py-4 text-foreground">{formatHashrate(s.hashrate)}</td>
-                <td className="px-3 py-4 text-foreground">{rejectionText(s.rejection)}</td>
-                <td className="px-3 py-4">
+                <td className="px-3 py-3 font-medium text-foreground">{s.name}</td>
+                <td className="px-3 py-3 text-foreground">{s.active}</td>
+                <td className="px-3 py-3 text-foreground"><PasswordCell subaccount={s} /></td>
+                <td className="px-3 py-3 text-foreground">{formatHashrate(s.hashrate)}</td>
+                <td className="px-3 py-3 text-foreground">{rejectionText(s.rejection)}</td>
+                <td className="px-3 py-3">
                   <BtcCell value={s.generatedBtc} />
                 </td>
-                <td className="px-3 py-4">
+                <td className="px-3 py-3">
                   <BtcCell value={s.todayEarnings} />
                 </td>
-                <td className="px-5 py-4">
+                <td className="px-4 py-3">
                   {onOpen && (
                     <button
                       type="button"

@@ -2,9 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { HashratePoint } from '@/api/types';
-import { downsampleHashrate, rangeToWindow } from '../hashrateHistory';
+import {
+  downsampleHashrate,
+  hashrateChangeFrom24HoursAgo,
+  hashrateComparisonWindow,
+  rangeToWindow,
+} from '../hashrateHistory';
 
 const NOW = Date.UTC(2026, 5, 30, 12, 0, 0); // 2026-06-30T12:00:00Z
+const CURRENT_OBSERVED_AT = '2026-06-30T11:58:00Z';
 
 test('rangeToWindow ends at now and starts the range earlier (RFC3339)', () => {
   const { from, to } = rangeToWindow('1H', NOW);
@@ -38,4 +44,53 @@ test('downsampleHashrate buckets and averages, staying within the cap', () => {
 
 test('downsampleHashrate with maxPoints 0 yields an empty series', () => {
   assert.deepEqual(downsampleHashrate([point('a', 1, 1)], 0), []);
+});
+
+test('hashrateComparisonWindow is centred 24 hours before the live snapshot, not wall-clock now', () => {
+  assert.deepEqual(hashrateComparisonWindow(CURRENT_OBSERVED_AT, NOW), {
+    from: '2026-06-29T11:53:00.000Z',
+    to: '2026-06-29T12:03:00.000Z',
+  });
+});
+
+test('hashrateComparisonWindow is unavailable for missing, invalid, or stale snapshots', () => {
+  assert.equal(hashrateComparisonWindow(null, NOW), null);
+  assert.equal(hashrateComparisonWindow('not-a-date', NOW), null);
+  assert.equal(hashrateComparisonWindow('2026-06-30T11:49:59Z', NOW), null);
+});
+
+test('hashrateChangeFrom24HoursAgo compares with the raw sample nearest the exact target', () => {
+  const points = [
+    point('2026-06-30T12:00:00Z', 75, 75),
+    point('2026-06-29T11:58:00Z', 40, 60),
+    point('2026-06-29T12:00:00Z', 50, 70),
+  ];
+  assert.equal(hashrateChangeFrom24HoursAgo(125, CURRENT_OBSERVED_AT, points, NOW), 25);
+  assert.equal(hashrateChangeFrom24HoursAgo(75, CURRENT_OBSERVED_AT, points, NOW), -25);
+});
+
+test('hashrateChangeFrom24HoursAgo is unavailable without a usable baseline or current snapshot', () => {
+  assert.equal(hashrateChangeFrom24HoursAgo(100, CURRENT_OBSERVED_AT, [], NOW), null);
+  assert.equal(
+    hashrateChangeFrom24HoursAgo(100, CURRENT_OBSERVED_AT, [point('2026-06-29T11:58:00Z', 0, 0)], NOW),
+    null,
+  );
+  assert.equal(
+    hashrateChangeFrom24HoursAgo(Number.NaN, CURRENT_OBSERVED_AT, [point('2026-06-29T11:58:00Z', 50, 50)], NOW),
+    null,
+  );
+  assert.equal(
+    hashrateChangeFrom24HoursAgo(100, null, [point('2026-06-29T11:58:00Z', 50, 50)], NOW),
+    null,
+  );
+});
+
+test('hashrateChangeFrom24HoursAgo rejects a baseline more than five minutes from the target', () => {
+  const distant = [point('2026-06-29T12:03:01Z', 50, 50)];
+  assert.equal(hashrateChangeFrom24HoursAgo(125, CURRENT_OBSERVED_AT, distant, NOW), null);
+});
+
+test('hashrateChangeFrom24HoursAgo rejects a stale live snapshot', () => {
+  const baseline = [point('2026-06-29T11:49:59Z', 50, 50)];
+  assert.equal(hashrateChangeFrom24HoursAgo(125, '2026-06-30T11:49:59Z', baseline, NOW), null);
 });

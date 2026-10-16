@@ -28,7 +28,7 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
 
   const totalValue = (
     <span className="flex flex-col items-center gap-0.5">
-      <span className="font-heading text-3xl font-semibold leading-10 text-foreground">{totalParts.amount}</span>
+      <span className="font-heading text-2xl font-semibold leading-8 text-foreground">{totalParts.amount}</span>
       <span className="text-xs leading-4 text-secondary-label">{totalParts.unit}</span>
     </span>
   );
@@ -36,8 +36,8 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
   const hasHashrate = total > 0 && slices.length > 0;
 
   return (
-    <div className="relative flex h-full flex-col items-start gap-6 border-[0.5px] border-border bg-card p-4 lg:p-8 sm:flex-row sm:gap-12">
-      <div className="relative h-40 w-40 shrink-0 self-center sm:self-start">
+    <div className="relative flex h-full flex-col items-start gap-3 border-[0.5px] border-border bg-card p-3 lg:p-4 sm:flex-row sm:gap-6">
+      <div className="relative h-28 w-28 shrink-0 self-center sm:self-start">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -61,7 +61,7 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4 self-stretch">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 self-stretch">
         <div className="flex items-center justify-between gap-3">
           {heading}
           {hasHashrate && (
@@ -76,7 +76,7 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
         </div>
 
         {hasHashrate && (
-          <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto pr-1">
+          <ul className="flex max-h-28 flex-col gap-2 overflow-y-auto pr-1">
             {slices.map((s, i) => {
               const parts = splitHashrate(s.hashrate);
               return (

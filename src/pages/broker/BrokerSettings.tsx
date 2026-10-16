@@ -200,7 +200,7 @@ export function BrokerSettings() {
 
   return (
     <BrokerShell>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <header>
           <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Settings</h2>
           <p className="mt-1 text-sm leading-5 text-body-alt">

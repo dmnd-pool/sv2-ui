@@ -175,7 +175,7 @@ export function SubaccountsPage() {
   // instead of an empty table.
   if (permissions && !permissions.view_sub_accounts) {
     return (
-      <div className="rounded-xl border border-border bg-card p-10 text-center">
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
         <p className="text-base font-semibold text-foreground">Subaccounts aren't available</p>
         <p className="mt-1 text-sm text-body-alt">This account can't view or manage subaccounts.</p>
       </div>
@@ -183,7 +183,7 @@ export function SubaccountsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-semibold leading-9 text-heading">Subaccounts</h2>
@@ -213,15 +213,15 @@ export function SubaccountsPage() {
 
       {loading ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-muted" />
+              <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-muted" />
             ))}
           </div>
           <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />
         </div>
       ) : failed ? (
-        <div className="rounded-xl border border-border bg-card p-10 text-center">
+        <div className="rounded-xl border border-border bg-card p-6 text-center">
           <p className="text-base font-semibold text-foreground">Couldn't load subaccounts</p>
           <p className="mt-1 text-sm text-body-alt">Something went wrong fetching your subaccounts.</p>
           <button

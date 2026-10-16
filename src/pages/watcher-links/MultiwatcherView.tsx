@@ -46,7 +46,7 @@ export function MultiwatcherView({ rest }: { rest: string }) {
         </div>
       )}
 
-      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-8">
+      <div className="mx-auto max-w-5xl space-y-4 px-3 py-4 sm:px-4 lg:px-6 lg:py-5">
         {entries.map((e) => (
           <MultiwatcherAccountCard
             key={`${e.userId}-${e.token}`}

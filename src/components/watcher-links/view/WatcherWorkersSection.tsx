@@ -100,9 +100,9 @@ export function WatcherWorkersSection({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-muted" />
+            <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-muted" />
           ))}
         </div>
         <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />
@@ -112,7 +112,7 @@ export function WatcherWorkersSection({
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-border bg-card p-10 text-center">
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
         <p className="text-base font-semibold text-foreground">Couldn&apos;t load workers</p>
         <p className="mt-1 text-sm text-body-alt">Something went wrong fetching this account&apos;s worker roster.</p>
       </div>
@@ -120,7 +120,7 @@ export function WatcherWorkersSection({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <WorkersStatCards stats={stats} />
       <div className="rounded-xl border border-border bg-card">
         <WorkersToolbar

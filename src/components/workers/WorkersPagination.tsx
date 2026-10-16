@@ -27,7 +27,7 @@ export function WorkersPagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between gap-2 px-5 py-4 text-sm">
+    <div className="flex items-center justify-between gap-2 px-4 py-3 text-sm">
       <button
         type="button"
         onClick={() => onPage(page - 1)}

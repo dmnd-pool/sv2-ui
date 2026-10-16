@@ -12,7 +12,7 @@ export function ConnectWorkersCard() {
   const { data: account, isLoading } = useAccountProfile();
 
   return (
-    <div className="h-full border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="h-full border-[0.5px] border-border bg-card p-3 lg:p-4">
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-3">
         <h3 className="!font-body text-lg font-semibold leading-7 text-heading-alt">Connect workers</h3>
@@ -30,7 +30,7 @@ export function ConnectWorkersCard() {
         </div>
         <div className="h-px w-full bg-border" />
       </div>
-      <div className="mt-2 divide-y-[0.5px] divide-border">
+      <div className="mt-1.5 divide-y-[0.5px] divide-border">
         <CredentialRow label="Pool URL" value={POOL_URL} hint="Point your miner's pool / stratum URL here." />
         <CredentialRow label="Username" value={POOL_USERNAME_HINT} copyable={false} />
         <CredentialRow label="PPLNS Password" value={account?.token ?? ''} secret loading={isLoading} />

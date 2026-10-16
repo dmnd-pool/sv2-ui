@@ -91,7 +91,7 @@ export function ConnectWorkersDrawer({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Portal out of the page's `space-y-6` wrapper (whose `> * + *` margin was
+  // Portal out of the page's spacing wrapper (whose `> * + *` margin would be
   // offsetting this fixed overlay) into the themed shell, which keeps the design
   // tokens in scope. See overlayContainer.
   return createPortal(

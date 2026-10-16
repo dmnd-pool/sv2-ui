@@ -19,7 +19,7 @@ function Card({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-6 border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="flex flex-col gap-3 border-[0.5px] border-border bg-card p-4 lg:p-5">
       <span className="flex items-center gap-2 text-sm leading-5 text-body-alt">
         {title}
         {hint && <InfoHint text={hint} />}
@@ -38,9 +38,9 @@ function Card({
  */
 function Value({ value, unit }: { value: string; unit?: string }) {
   return (
-    <p className="font-heading text-2xl font-bold leading-9 tracking-[-1px] text-foreground">
+    <p className="font-heading text-xl font-bold leading-8 tracking-[-0.5px] text-foreground">
       {value}
-      {unit && <span className="!font-body ml-1 text-lg font-normal leading-7 text-body-alt">{unit}</span>}
+      {unit && <span className="!font-body ml-2 text-base font-normal leading-6 text-body-alt">{unit}</span>}
     </p>
   );
 }
@@ -64,7 +64,7 @@ export function BrokerStatCards({
   const hashrate = splitValueUnit(formatHashrate(totalHashrate));
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Card title="Total miners" sub="Miners using your referral code">
         <Value value={String(minerCount)} />
       </Card>

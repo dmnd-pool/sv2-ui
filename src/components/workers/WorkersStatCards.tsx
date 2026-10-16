@@ -30,7 +30,7 @@ function Card({
   captionTone?: 'muted' | 'strong';
 }) {
   return (
-    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-5">
       <div className="flex items-center gap-2">
         <span className="text-sm leading-5 text-body-alt">{title}</span>
         {hint && <InfoHint text={hint} />}
@@ -50,7 +50,7 @@ export function WorkersStatCards({ stats }: { stats: WorkersPageStats }) {
   const rejection = rated ? (stats.rejectionRate! * 100).toFixed(1) : '--';
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Card title="Total workers" hint={WORKER_ROSTER_HINT} caption="Seen during the last 24 hours">
         <Reading value={stats.total} />
       </Card>

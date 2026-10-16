@@ -23,7 +23,7 @@ export function WatcherGeneratedBtcSection({
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-border bg-card p-10 text-center">
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
         <p className="text-base font-semibold text-foreground">Couldn&apos;t load earnings</p>
         <p className="mt-1 text-sm text-body-alt">Something went wrong fetching this account&apos;s generated Bitcoin.</p>
       </div>
@@ -31,10 +31,10 @@ export function WatcherGeneratedBtcSection({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="space-y-4">
+      <div className="border-[0.5px] border-border bg-card p-4 lg:p-5">
         <p className="text-sm text-body-alt">Total FPPS generated</p>
-        <p className="mt-2 font-mono text-2xl font-semibold text-heading">{formatBtc(sumGenerated(entries))}</p>
+        <p className="mt-1.5 font-mono text-xl font-semibold leading-8 text-heading">{formatBtc(sumGenerated(entries))}</p>
       </div>
       <div className="rounded-xl border border-border bg-card">
         {entries.length === 0 ? (

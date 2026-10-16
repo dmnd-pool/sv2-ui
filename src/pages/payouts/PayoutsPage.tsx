@@ -141,7 +141,7 @@ export function PayoutsPage() {
           : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Payouts</h2>
@@ -166,7 +166,7 @@ export function PayoutsPage() {
       {isLoading ? (
         <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />
       ) : isError ? (
-        <div className="rounded-xl border border-border bg-card p-10 text-center">
+        <div className="rounded-xl border border-border bg-card p-6 text-center">
           <p className="text-base font-semibold text-foreground">Couldn't load payouts</p>
           <p className="mt-1 text-sm text-body-alt">Something went wrong reading your on-chain payout history.</p>
           <button

@@ -44,7 +44,7 @@ export function BrokerShell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border px-4 lg:px-8">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border px-3 sm:px-4 lg:px-6">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -58,7 +58,7 @@ export function BrokerShell({ children }: { children: ReactNode }) {
           </header>
 
           <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">{children}</div>
+            <div className="mx-auto w-full max-w-[1600px] px-2 py-4 sm:px-3 lg:px-4 lg:py-5">{children}</div>
           </main>
         </div>
       </div>

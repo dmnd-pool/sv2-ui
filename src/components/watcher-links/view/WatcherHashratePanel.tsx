@@ -16,7 +16,7 @@ function SchemeStat({ color, label, hint, value }: { color: string; label: strin
         <span className="text-sm text-body-alt">{label}</span>
         <InfoHint text={hint} />
       </span>
-      <p className="font-mono text-2xl text-foreground">
+      <p className="font-mono text-xl leading-8 text-foreground">
         {formatHashrate(value)}
       </p>
     </div>
@@ -38,10 +38,10 @@ export function WatcherHashratePanel({
   isLoading: boolean;
   isError: boolean;
 }) {
-  if (isLoading) return <div className="h-40 animate-pulse rounded-xl border border-border bg-muted" />;
+  if (isLoading) return <div className="h-32 animate-pulse rounded-xl border border-border bg-muted" />;
   if (isError) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 text-sm text-body-alt">
+      <div className="rounded-xl border border-border bg-card p-4 text-sm text-body-alt">
         Hashrate data is unavailable right now.
       </div>
     );
@@ -53,7 +53,7 @@ export function WatcherHashratePanel({
   const lastUpdated = formatLastUpdated(snapshot?.observed_at ?? undefined, Date.now());
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1 text-xs text-body-alt">
           <span className="h-1 w-1 rounded-full bg-success" /> Live hashrate
@@ -61,11 +61,11 @@ export function WatcherHashratePanel({
         {lastUpdated && <span className="text-sm text-body-alt">Last updated {lastUpdated}</span>}
       </div>
 
-      <p className="mt-4 font-mono text-3xl font-semibold text-heading">{formatHashrate(total)}</p>
+      <p className="mt-2 font-mono text-2xl font-semibold leading-8 text-heading">{formatHashrate(total)}</p>
 
-      <div className="mt-5 flex items-center justify-between border-t border-border pt-5">
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
         <SchemeStat color={PPLNS_COLOR} label="PPLNS" hint={LIVE_HASHRATE_HINT} value={pplns} />
-        <div className="h-14 w-px bg-border" />
+        <div className="h-10 w-px bg-border" />
         <SchemeStat color={FPPS_COLOR} label="FPPS" hint={LIVE_HASHRATE_HINT} value={fpps} />
       </div>
     </div>

@@ -51,15 +51,15 @@ export function BrokerMinersTable({ miners }: { miners: BrokerMiner[] }) {
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
-              <th className="px-6 py-4 text-left font-normal">Miner</th>
-              <th className="px-6 py-4 text-left font-normal">
+              <th className="px-4 py-3 text-left font-normal">Miner</th>
+              <th className="px-4 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">
                   Hashrate
                   <InfoHint text="The miner's current hashrate." />
                 </span>
               </th>
-              <th className="px-6 py-4 text-left font-normal">Estimated earnings</th>
-              <th className="px-6 py-4 text-left font-normal">
+              <th className="px-4 py-3 text-left font-normal">Estimated earnings</th>
+              <th className="px-4 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">
                   Broker fee
                   <InfoHint text="The fee you earn from this miner." />
@@ -70,12 +70,12 @@ export function BrokerMinersTable({ miners }: { miners: BrokerMiner[] }) {
           <tbody>
             {miners.map((m) => (
               <tr key={brokerMinerRowId(m)} className="border-b-[0.5px] border-border last:border-0">
-                <td className="px-6 py-4 text-foreground">{m.name}</td>
-                <td className="px-6 py-4 text-foreground">{formatHashrate(m.hashrate)}</td>
-                <td className="px-6 py-4 text-foreground">
+                <td className="px-4 py-3 text-foreground">{m.name}</td>
+                <td className="px-4 py-3 text-foreground">{formatHashrate(m.hashrate)}</td>
+                <td className="px-4 py-3 text-foreground">
                   <Earnings />
                 </td>
-                <td className="px-6 py-4 text-foreground">{formatBrokerFee(m.broker_fee)}</td>
+                <td className="px-4 py-3 text-foreground">{formatBrokerFee(m.broker_fee)}</td>
               </tr>
             ))}
           </tbody>

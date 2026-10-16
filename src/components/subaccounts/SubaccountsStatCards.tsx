@@ -22,7 +22,7 @@ function Card({
   caption: string;
 }) {
   return (
-    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-5">
       <div className="flex items-center gap-2">
         <span className="text-sm leading-5 text-body-alt">{title}</span>
         {hint && <InfoHint text={hint} />}
@@ -39,7 +39,7 @@ export function SubaccountsStatCards({ stats }: { stats: SubaccountsPageStats })
   const scale = pickHashrateScale([stats.combinedHashrate]);
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Card title="Total subaccounts" caption="Mining operations">
         <Reading value={stats.total} />
       </Card>

@@ -10,7 +10,7 @@ export function WorkersNoResults({ mode, onClear }: { mode: 'search' | 'filter';
   const Icon = search ? BdRoundedMagnifer : BdSort;
 
   return (
-    <div className="flex flex-col items-center gap-2 p-8 text-center">
+    <div className="flex flex-col items-center gap-2 p-6 text-center">
       <Icon className="h-12 w-12 text-placeholder" />
       <p className="text-lg font-medium text-foreground">
         {search ? 'No workers found' : 'No workers match this filter'}

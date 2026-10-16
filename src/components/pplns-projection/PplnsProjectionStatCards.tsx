@@ -6,7 +6,7 @@ import { formatBtcFromSats } from '@/lib/payoutsTable';
 
 function Card({ title, caption, children }: { title: string; caption: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="flex flex-col justify-between gap-2 border-[0.5px] border-border bg-card p-4 lg:p-5">
       <span className="text-sm leading-5 text-body-alt">{title}</span>
       {children}
       <p className="text-sm leading-5 text-body-alt">{caption}</p>
@@ -20,7 +20,7 @@ export function PplnsProjectionStatCards({ dailyWork }: { dailyWork: PplnsProjec
   const daysCaption = `${stats.workDays} retained work day${stats.workDays === 1 ? '' : 's'}`;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Card title="Total PPLNS value" caption="Earned plus next-block projection">
         <Reading value={formatBtcFromSats(stats.totalNetSats)} unit="BTC" />
       </Card>

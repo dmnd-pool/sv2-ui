@@ -24,14 +24,14 @@ export function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('account');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold text-heading">Settings</h1>
         <p className="mt-1 text-sm text-body-alt">Manage your account, security, and application preferences.</p>
       </header>
       <div className="h-[0.5px] w-full bg-border" />
 
-      <div className="flex flex-col gap-6 sm:flex-row sm:gap-16">
+      <div className="flex flex-col gap-4 sm:flex-row sm:gap-10">
         <nav
           aria-label="Settings sections"
           className="flex h-9 gap-2 rounded-[8px] bg-muted p-0.5 sm:h-auto sm:w-[117px] sm:shrink-0 sm:flex-col sm:bg-transparent sm:p-0"

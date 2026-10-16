@@ -174,7 +174,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar: the current section name (the design's breadcrumb), plus the
               mobile trigger for the navigation drawer. */}
-          <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-4 lg:px-8">
+          <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3 sm:px-4 lg:px-6">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -187,9 +187,9 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
           </div>
 
           <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
+            <div className="mx-auto w-full max-w-[1600px] px-2 py-4 sm:px-3 lg:px-4 lg:py-5">
               {active === 'home' && (
-                <section className="space-y-6">
+                <section className="space-y-4">
                   <div>
                     <h1 className="text-xl font-semibold text-heading">Hashrate</h1>
                     <p className="mt-1 text-sm text-body-alt">Mining data overview.</p>
@@ -214,7 +214,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
               )}
 
               {active === 'workers' && (
-                <section className="space-y-6">
+                <section className="space-y-4">
                   <div>
                     <h1 className="text-xl font-semibold text-heading">Workers</h1>
                     <p className="mt-1 text-sm text-body-alt">
@@ -230,7 +230,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
               )}
 
               {active === 'generated' && (
-                <section className="space-y-6">
+                <section className="space-y-4">
                   <div>
                     <h1 className="text-xl font-semibold text-heading">Generated BTC</h1>
                     <p className="mt-1 text-sm text-body-alt">Daily Bitcoin generated from accepted shares.</p>
@@ -244,7 +244,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
               )}
 
               {active === 'fees' && (
-                <section className="space-y-6">
+                <section className="space-y-4">
                   <div>
                     <h1 className="text-xl font-semibold text-heading">Fees</h1>
                     <p className="mt-1 text-sm text-body-alt">View the current pool fee for this account.</p>
@@ -258,7 +258,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
               )}
 
               {active === 'payouts' && (
-                <section className="space-y-6">
+                <section className="space-y-4">
                   <div>
                     <h1 className="text-xl font-semibold text-heading">Payouts</h1>
                     <p className="mt-1 text-sm text-body-alt">Confirmed on-chain payouts for this account.</p>

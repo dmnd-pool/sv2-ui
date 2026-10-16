@@ -13,7 +13,7 @@ import { GENERATED_AVG_HASHRATE_HINT } from '@/lib/metricWindows';
  */
 function Card({ title, sub, hint, children }: { title: string; sub: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col justify-between gap-6 border-[0.5px] border-border bg-card p-4 lg:p-8">
+    <div className="flex flex-col justify-between gap-3 border-[0.5px] border-border bg-card p-4 lg:p-5">
       <span className="inline-flex items-center gap-2 text-sm leading-5 text-body-alt">
         {title}
         {hint && <InfoHint text={hint} />}
@@ -40,7 +40,7 @@ export function GeneratedBtcStatCards({
   const scale = pickHashrateScale([averageHashrate]);
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <Card title="Generated BTC" sub="FPPS generated across the days listed">
         <Reading value={formatBtc(generated)} unit="BTC" unitSize="lg" />
       </Card>

@@ -261,7 +261,7 @@ export function WorkersPage() {
   const canExport = !loading && !failed && workers.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="font-heading text-2xl font-semibold leading-9 text-heading">Workers</h2>
@@ -298,15 +298,15 @@ export function WorkersPage() {
 
       {loading ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-muted" />
+              <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-muted" />
             ))}
           </div>
           <div className="h-80 animate-pulse rounded-xl border border-border bg-muted" />
         </div>
       ) : failed ? (
-        <div className="rounded-xl border border-border bg-card p-10 text-center">
+        <div className="rounded-xl border border-border bg-card p-6 text-center">
           <p className="text-base font-semibold text-foreground">Couldn't load workers</p>
           <p className="mt-1 text-sm text-body-alt">Something went wrong fetching your worker roster.</p>
           <button

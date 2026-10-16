@@ -44,7 +44,7 @@ function DashboardShellInner({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [location, navigate] = useLocation();
-  const { aggregated, setAggregated } = useAggregatedModeContext();
+  const { aggregated } = useAggregatedModeContext();
   // The banner only shows when the mode is genuinely available: on it is stored, but
   // a miner with no subaccounts (or one who has none anymore) should never see it.
   const { hasSubaccounts } = useHasSubaccounts();
@@ -68,35 +68,37 @@ function DashboardShellInner({ children }: { children: ReactNode }) {
 
   return (
     <div className="dmnd-app flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
-      {showBanner && <AggregatedBanner onExit={() => setAggregated(false)} />}
+      {showBanner && <AggregatedBanner />}
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
-      <aside className="hidden lg:block">
-        <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
-      </aside>
+        <aside className="hidden lg:block">
+          <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
+        </aside>
 
-      {/* Mobile drawer: kept mounted so it can slide rather than pop. */}
-      <div className={cn('fixed inset-0 z-50 lg:hidden', drawerOpen ? '' : 'pointer-events-none')}>
-        <div
-          className={cn('absolute inset-0 bg-black/40 backdrop-blur-[8px] transition-opacity duration-200', drawerOpen ? 'opacity-100' : 'opacity-0')}
-          onClick={() => setDrawerOpen(false)}
-          aria-hidden
-        />
-        <div
-          className={cn(
-            'absolute inset-y-0 left-0 shadow-xl transition-transform duration-200 ease-out',
-            drawerOpen ? 'translate-x-0' : '-translate-x-full',
-          )}
-        >
-          <Sidebar drawer onNavigate={() => setDrawerOpen(false)} />
+        {/* Mobile drawer: kept mounted so it can slide rather than pop. */}
+        <div className={cn('fixed inset-0 z-50 lg:hidden', drawerOpen ? '' : 'pointer-events-none')}>
+          <div
+            className={cn('absolute inset-0 bg-black/40 backdrop-blur-[8px] transition-opacity duration-200', drawerOpen ? 'opacity-100' : 'opacity-0')}
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden
+          />
+          <div
+            className={cn(
+              'absolute inset-y-0 left-0 shadow-xl transition-transform duration-200 ease-out',
+              drawerOpen ? 'translate-x-0' : '-translate-x-full',
+            )}
+          >
+            <Sidebar drawer onNavigate={() => setDrawerOpen(false)} />
+          </div>
         </div>
-      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar onMenuClick={() => setDrawerOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">{children}</div>
-        </main>
-      </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar onMenuClick={() => setDrawerOpen(true)} />
+          <main className="flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-[1600px] px-2 py-4 sm:px-3 lg:px-4 lg:py-5">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

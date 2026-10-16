@@ -156,24 +156,24 @@ export function WatcherLinksTable({
       <table className="w-full min-w-[880px] border-collapse text-sm">
         <thead>
           <tr className="border-b-[0.5px] border-border bg-muted text-sm leading-5 text-body-alt">
-            <th className="px-6 py-4 text-left font-normal">Account</th>
-            <th className="px-6 py-4 text-left font-normal">Scopes</th>
-            <th className="px-6 py-4 text-left font-normal">
+            <th className="px-4 py-3 text-left font-normal">Account</th>
+            <th className="px-4 py-3 text-left font-normal">Scopes</th>
+            <th className="px-4 py-3 text-left font-normal">
               Token
               <InfoHint label="The secret this Watcher link authenticates with. Copy it to use the link." />
             </th>
-            <th className="px-6 py-4 text-left font-normal">
+            <th className="px-4 py-3 text-left font-normal">
               URL
               <InfoHint label="Share this link to give read-only access to the scopes above." />
             </th>
-            <th className="px-6 py-4 text-left font-normal">Created</th>
-            <th className="px-6 py-4 text-left font-normal">Action</th>
+            <th className="px-4 py-3 text-left font-normal">Created</th>
+            <th className="px-4 py-3 text-left font-normal">Action</th>
           </tr>
         </thead>
         <tbody>
           {links.length === 0 && empty && (
             <tr>
-              <td colSpan={6} className="border-x-[0.5px] border-b-[0.5px] border-border p-8 text-center">
+              <td colSpan={6} className="border-x-[0.5px] border-b-[0.5px] border-border p-6 text-center">
                 <div className="flex flex-col items-center gap-2">
                   {/* The design uses the Filter glyph itself here, not a magnifier. */}
                   <BoSort className="h-12 w-12 text-placeholder" aria-hidden />
@@ -198,8 +198,8 @@ export function WatcherLinksTable({
             const url = watcherLinkUrl(origin, l.user_id, l.token);
             return (
               <tr key={l.id} className="border-b-[0.5px] border-border last:border-0">
-                <td className="whitespace-nowrap px-6 py-4 text-foreground">{account ?? '--'}</td>
-                <td className="px-6 py-4">
+                <td className="whitespace-nowrap px-4 py-3 text-foreground">{account ?? '--'}</td>
+                <td className="px-4 py-3">
                   <span className="flex items-center gap-1">
                     {chips.map((c) => (
                       <Chip key={c} label={c} />
@@ -207,13 +207,13 @@ export function WatcherLinksTable({
                     {overflow > 0 && <OverflowChip count={overflow} />}
                   </span>
                 </td>
-                <td className="group/cell px-6 py-4 text-foreground">
+                <td className="group/cell px-4 py-3 text-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-mono">{truncateToken(l.token)}</span>
                     {l.token && <CopyButton value={l.token} label="token" />}
                   </span>
                 </td>
-                <td className="group/cell px-6 py-4 text-foreground">
+                <td className="group/cell px-4 py-3 text-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-mono">{watcherUrlLabel(origin, l.token)}</span>
                     {url && <a
@@ -227,8 +227,8 @@ export function WatcherLinksTable({
                     </a>}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-foreground">{formatWatcherDate(l.created_at)}</td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3 text-foreground">{formatWatcherDate(l.created_at)}</td>
+                <td className="px-4 py-3">
                   <button
                     type="button"
                     onClick={() => onView(l)}
@@ -247,7 +247,7 @@ export function WatcherLinksTable({
       {/* Below sm the frame replaces the table with a stacked row-card list. */}
       <div className="sm:hidden">
         {links.length === 0 && empty && (
-          <div className="border-x-[0.5px] border-b-[0.5px] border-border p-8 text-center">
+          <div className="border-x-[0.5px] border-b-[0.5px] border-border p-6 text-center">
             <div className="flex flex-col items-center gap-2">
               <BoSort className="h-12 w-12 text-placeholder" aria-hidden />
               <div>

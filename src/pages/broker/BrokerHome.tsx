@@ -42,7 +42,7 @@ export function BrokerHome() {
 
   return (
     <BrokerShell>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">
@@ -67,7 +67,7 @@ export function BrokerHome() {
         {isLoading ? (
           <div className="h-80 animate-pulse border-[0.5px] border-border bg-muted" />
         ) : isError ? (
-          <div className="border-[0.5px] border-border bg-card p-10 text-center">
+          <div className="border-[0.5px] border-border bg-card p-6 text-center">
             <p className="text-base font-semibold text-foreground">Couldn't load your miners</p>
             <p className="mt-1 text-sm text-body-alt">Something went wrong reading your portfolio.</p>
             <button

@@ -92,7 +92,7 @@ function WidgetShell({
  * regular weight. Shared so the two never drift apart.
  */
 const HEADER_BUTTON =
-  'inline-flex items-center gap-2 rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 py-2 text-sm leading-5 text-foreground transition-colors hover:bg-muted';
+  'inline-flex items-center gap-2 rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-4 py-1.5 text-sm leading-5 text-foreground transition-colors hover:bg-muted';
 
 /** One widget rendered full-width (used when it isn't part of the hashrate/connect pair). */
 function widgetBlock(
@@ -196,7 +196,7 @@ export function DashboardHome() {
     if (next && isPair(id, next)) {
       const wide = isWide(id) ? id : next;
       rendered.push(
-        <div key={`${id}-${next}-row`} className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div key={`${id}-${next}-row`} className="grid grid-cols-1 gap-3 lg:grid-cols-5">
           {[id, next].map((slot) => (
             <WidgetShell
               key={slot}
@@ -224,7 +224,7 @@ export function DashboardHome() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {customizing && (
         <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2">
           <button
@@ -245,7 +245,7 @@ export function DashboardHome() {
           <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Welcome back</h2>
           <p className="text-sm leading-5 text-body-alt">Mining data and earnings overview.</p>
         </div>
-        <div className="relative flex shrink-0 items-center gap-3">
+        <div className="relative flex shrink-0 items-center gap-2">
           {!aggregated && (
             <button type="button" onClick={() => setTourOpen(true)} className={HEADER_BUTTON}>
               <LiRouting2 className="h-3.5 w-3.5" />
@@ -271,8 +271,7 @@ export function DashboardHome() {
 
       <KybNotice />
 
-      {/* The design separates the header from the body by 16px and the body rows by 8px. */}
-      <div className="space-y-2">{rendered}</div>
+      <div className="space-y-1.5">{rendered}</div>
 
       <GettingStartedCard />
       {tourOpen && <ProductTour onClose={() => setTourOpen(false)} />}

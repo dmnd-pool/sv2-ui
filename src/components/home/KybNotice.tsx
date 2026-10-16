@@ -18,7 +18,7 @@ export function KybNotice() {
   const Icon = status === 'InReview' ? BdClockCircle : BdShieldWarning;
 
   return (
-    <div className="flex items-start gap-2 rounded-xl bg-toast-warning px-4 py-3">
+    <div className="flex items-start gap-2 rounded-xl bg-toast-warning px-4 py-2">
       {/* 2px low so it lines up with the copy's cap height, matching AggregatedBanner. */}
       <Icon className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden />
       <p className="min-w-0 text-sm leading-5 text-foreground">

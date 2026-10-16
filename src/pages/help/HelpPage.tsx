@@ -58,14 +58,14 @@ const ROWS: HelpRow[] = [
  */
 export function HelpPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold text-heading">Help &amp; Support</h1>
         <p className="mt-1 text-sm text-body-alt">Need assistance? Here are a few ways to get help with DMND.</p>
       </header>
       <div className="h-[0.5px] w-full bg-border" />
 
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
         <section>
           <h2 className="!font-body text-base font-semibold leading-6 text-heading">Learn about DMND</h2>
           <p className="mt-1 text-sm text-body-alt">
@@ -83,7 +83,7 @@ export function HelpPage() {
 
         <section className="divide-y divide-border">
           {ROWS.map((row) => (
-            <div key={row.title} className="flex flex-col gap-2 py-5 first:pt-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div key={row.title} className="flex flex-col gap-2 py-4 first:pt-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
                   <row.icon className="h-6 w-6 text-[#525252]" />
