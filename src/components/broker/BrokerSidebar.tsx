@@ -83,15 +83,32 @@ export function BrokerSidebar({
         collapsed ? 'w-16' : 'w-60',
       )}
     >
-      <div className={cn('flex h-16 items-center', collapsed ? 'justify-center px-2' : 'justify-between px-5')}>
-        {!collapsed && <DmndLogo />}
+      <div className={cn('flex h-16 items-center', collapsed ? 'justify-between gap-1 px-1' : 'justify-between px-5')}>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'DMND: expand navigation' : 'DMND: collapse navigation'}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+            className={cn(
+              'flex shrink-0 items-center justify-center rounded transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              collapsed ? 'h-8 w-7 [&_img]:h-3' : 'h-8',
+            )}
+          >
+            <DmndLogo />
+          </button>
+        ) : !collapsed && <DmndLogo />}
         {onToggleCollapse && (
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-placeholder transition-colors hover:bg-muted hover:text-foreground"
+            className={cn(
+              'flex h-8 shrink-0 items-center justify-center rounded-lg text-placeholder transition-colors hover:bg-muted hover:text-foreground',
+              collapsed ? 'w-6' : 'w-8',
+            )}
           >
             <LiSidebarMinimalistic className="h-[18px] w-[18px]" />
           </button>

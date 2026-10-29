@@ -6,13 +6,12 @@ import { BLOG_URL, latestBlogQueryOptions } from '@/hooks/useAccountData';
 import type { ComponentType } from 'react';
 import { BookOpen, Shield, FileText } from 'lucide-react';
 import { LiAltArrowRight } from 'solar-icon-react/li';
-import { BdLetter, BdCodeSquare, BdQuestionCircle } from 'solar-icon-react/bd';
+import { BdLetter, BdCodeSquare } from 'solar-icon-react/bd';
 
 // Existing DMND destinations. Resources without a URL have a disabled action.
 const CLIENT_GUIDE_URL = 'https://github.com/dmnd-pool/dmnd-client/blob/master/README.md';
 const API_DOCS_URL = 'https://www.dmnd.work/api.html';
 const CONTACT_EMAIL = 'info@dmnd.work';
-const FAQ_URL = '';
 const DASHBOARD_VERSION = 'v2.0.0';
 
 interface HelpRow {
@@ -24,13 +23,13 @@ interface HelpRow {
 }
 
 const ROWS: HelpRow[] = [
-  {
-    icon: BdQuestionCircle,
-    title: 'Frequently asked questions',
-    description: 'Browse common questions about DMND and Bitcoin mining.',
-    action: 'View FAQs',
-    href: FAQ_URL,
-  },
+  // {
+  //   icon: BdQuestionCircle,
+  //   title: 'Frequently asked questions',
+  //   description: 'Browse common questions about DMND and Bitcoin mining.',
+  //   action: 'View FAQs',
+  //   href: FAQ_URL,
+  // },
   {
     icon: BdLetter,
     title: 'Contact us',
@@ -40,7 +39,7 @@ const ROWS: HelpRow[] = [
   },
   {
     icon: BdCodeSquare,
-    title: 'Client setup guide',
+    title: 'DMND Client setup guide',
     description: 'Set up and run the DMND Stratum V2 client.',
     action: 'View guide',
     href: CLIENT_GUIDE_URL,

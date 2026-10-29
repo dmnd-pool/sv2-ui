@@ -269,6 +269,12 @@ test('PPLNS projection has a persistent page heading and working selection contr
   assert.match(html, /Track your retained mining work and projected PPLNS rewards/);
   assert.match(html, /Select all PPLNS work days/);
   assert.match(html, /Select PPLNS work for 2026-08-31/);
+  const refreshing = renderToStaticMarkup(createElement(PplnsProjectionPanel, {
+    projection, isLoading: false, isError: false,
+    updateStatus: createElement('span', { role: 'status' }, 'Last updated 29 Oct 2026, 2.35 pm · Updating…'),
+  }));
+  assert.match(refreshing, /Last updated 29 Oct 2026, 2.35 pm · Updating…/);
+  assert.match(refreshing, /Select PPLNS work for 2026-08-31/);
   const loading = renderToStaticMarkup(createElement(PplnsProjectionPanel, { projection: undefined, isLoading: true, isError: false }));
   assert.match(loading, /<h2[^>]*>PPLNS projection<\/h2>/);
   const readonly = renderToStaticMarkup(createElement(PplnsProjectionPanel, { projection, isLoading: false, isError: false, selectable: false }));
@@ -343,6 +349,16 @@ test('Home puts confirmed payouts and generated FPPS BTC before mining health wi
   assert.doesNotMatch(html, /Today's earnings/);
   const watcher = renderToStaticMarkup(createElement(WorkerStatCardsView, { payout: { amountSats: 1_000_000, date: 1_700_000_000 } }));
   assert.doesNotMatch(watcher, /Today&#x27;s Generated BTC/, 'public views must explicitly grant generation visibility');
+});
+
+test('rejection captions describe the account scope even before mining starts', () => {
+  const aggregated = { totalWorkers: 0, activeWorkers: 0, offlineWorkers: 0, combinedHashrate: 0,
+    todayEarnings: 0, rejectionRate: null };
+  const single = renderToStaticMarkup(createElement(WorkerStatCardsView));
+  const combined = renderToStaticMarkup(createElement(WorkerStatCardsView, { aggregated }));
+  assert.match(single, /Rejected shares over the last 24 hours for this account\./);
+  assert.match(combined, /Rejected shares over the last 24 hours across all accounts\./);
+  assert.doesNotMatch(single + combined, /Rejected share rate will appear after mining starts/);
 });
 
 test('the generated BTC card distinguishes unavailable figures from genuine zero generation', () => {

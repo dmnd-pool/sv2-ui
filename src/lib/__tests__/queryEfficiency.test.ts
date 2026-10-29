@@ -11,6 +11,85 @@ import { loadSubaccountRows, loadSubaccountWorkerGroups, visibleSubaccountQueryO
 import { brokerMinersQueryOptions, clearBrokerQueries } from '../brokerQueries';
 import { refreshHashrateHistory } from '../hashrateHistory';
 import { watcherQueryPolicy } from '../watcherQueries';
+import { aggregatedPplnsProjectionQueryOptions, pplnsProjectionQueryOptions, PplnsReportUnavailableError } from '@/hooks/usePplnsProjection';
+import { pplnsProjectionFixture } from '@/api/__tests__/pplnsProjectionFixture';
+
+test('an incomplete PPLNS refresh preserves the complete total and its update time until recovery', async (t) => {
+  let now = Date.parse('2026-10-29T12:00:00Z');
+  t.mock.method(Date, 'now', () => now);
+  let refreshing = false;
+  let missing = false;
+  const client = { getPplnsProjection: async (id: string, request: { accountId: string }) => {
+    assert.equal(request.accountId, 'owner');
+    if (id === 'b' && missing) return null;
+    const projection = pplnsProjectionFixture();
+    const total = (id === 'a' ? 1000 : 2000) * (refreshing ? 2 : 1);
+    return { ...projection, subaccount_id: id, daily_work: [{ ...projection.daily_work[0], total_net_sats: total }] };
+  } } as unknown as DmndClient;
+  const cache = new QueryClient();
+  const options = { ...aggregatedPplnsProjectionQueryOptions(cache, client, 'owner', ['a', 'b']), retry: false as const };
+  try {
+    const original = await cache.fetchQuery(options);
+    assert.equal(original[0].total_net_sats, 3000);
+    const originalUpdatedAt = cache.getQueryState(options.queryKey)!.dataUpdatedAt;
+    now += 5 * 60_000;
+    refreshing = true;
+    missing = true;
+    await assert.rejects(cache.fetchQuery(options), PplnsReportUnavailableError);
+    assert.deepEqual(cache.getQueryData(options.queryKey), original, 'never publish the available account alone');
+    assert.equal(cache.getQueryState(options.queryKey)!.dataUpdatedAt, originalUpdatedAt);
+    const otherAccounts = aggregatedPplnsProjectionQueryOptions(cache, client, 'owner', ['b']);
+    assert.equal(cache.getQueryData(otherAccounts.queryKey), undefined, 'a changed account selection cannot inherit the previous total');
+    assert.equal(cache.getQueryData(aggregatedPplnsProjectionQueryOptions(cache, client, 'other-owner', ['a', 'b']).queryKey), undefined);
+    now += 15_000;
+    missing = false;
+    assert.equal((await cache.fetchQuery(options))[0].total_net_sats, 6000);
+    assert.equal(cache.getQueryState(options.queryKey)!.dataUpdatedAt, now);
+  } finally { cache.clear(); }
+});
+
+test('a missing single-account report retains previous data, while a confirmed empty report can replace it', async (t) => {
+  let now = Date.parse('2026-10-29T12:00:00Z');
+  t.mock.method(Date, 'now', () => now);
+  let response: ReturnType<typeof pplnsProjectionFixture> | null = pplnsProjectionFixture();
+  const client = { getPplnsProjection: async () => response } as unknown as DmndClient;
+  const cache = new QueryClient();
+  const options = { ...pplnsProjectionQueryOptions(client, '123'), retry: false as const };
+  try {
+    const original = await cache.fetchQuery(options);
+    const updatedAt = cache.getQueryState(options.queryKey)!.dataUpdatedAt;
+    now += 5 * 60_000;
+    response = null;
+    await assert.rejects(cache.fetchQuery(options), PplnsReportUnavailableError);
+    assert.deepEqual(cache.getQueryData(options.queryKey), original);
+    assert.equal(cache.getQueryState(options.queryKey)!.dataUpdatedAt, updatedAt);
+    assert.equal(options.refetchInterval({ state: { error: new PplnsReportUnavailableError() } }), 15_000);
+    const firstVisit = { ...pplnsProjectionQueryOptions(client, '456'), retry: false as const };
+    await assert.rejects(cache.fetchQuery(firstVisit), PplnsReportUnavailableError);
+    assert.equal(cache.getQueryData(firstVisit.queryKey), undefined, 'missing data is not a successful zero report');
+    response = { ...pplnsProjectionFixture(), daily_work: [] };
+    assert.deepEqual((await cache.fetchQuery(options)).daily_work, []);
+  } finally { cache.clear(); }
+});
+
+test('PPLNS retries unavailable reports automatically without retrying permission failures', async () => {
+  let calls = 0;
+  let forbidden = false;
+  const client = { getPplnsProjection: async () => {
+    calls++;
+    if (forbidden) throw new Error('Forbidden');
+    return calls < 3 ? null : pplnsProjectionFixture();
+  } } as unknown as DmndClient;
+  const cache = new QueryClient();
+  try {
+    const options = { ...pplnsProjectionQueryOptions(client, '123'), retryDelay: 0 };
+    assert.ok(await cache.fetchQuery(options));
+    assert.equal(calls, 3);
+    forbidden = true;
+    await assert.rejects(cache.fetchQuery({ ...options, staleTime: 0 }), /Forbidden/);
+    assert.equal(calls, 4);
+  } finally { cache.clear(); }
+});
 
 test('aggregate refresh reloads snapshots at the next polling boundary and reuses them within that boundary', async (t) => {
   let now = Date.parse('2026-10-21T12:04:00Z');
@@ -162,6 +241,46 @@ test('Home and payout history reuse records for ten minutes without crossing acc
     await cache.fetchQuery(options);
     assert.deepEqual(calls, ['sub', 'other', 'tree', 'sub']);
   } finally { cache.clear(); }
+});
+
+test('rate-limited payouts wait ten minutes instead of polling every second or retrying on navigation', async (t) => {
+  let now = Date.parse('2026-10-29T12:00:00Z');
+  t.mock.method(Date, 'now', () => now);
+  for (const hadData of [false, true]) {
+    let calls = 0;
+    const client = createUser({ fetchImpl: async () => {
+      calls++;
+      return Response.json({ message: 'Too many requests' }, { status: 429 });
+    } });
+    const cache = new QueryClient();
+    const options = accountPayoutQueryOptions(client, 'owner', 'owner', false);
+    let stop = () => {};
+    try {
+      assert.equal(options.refetchInterval({ state: { dataUpdatedAt: 0 } }), 10 * 60_000);
+      if (hadData) cache.setQueryData(options.queryKey, []);
+      now += 10 * 60_000;
+      await assert.rejects(cache.fetchQuery(options));
+      assert.equal(calls, 1, '429 must not be retried inside the API client');
+      const state = cache.getQueryState(options.queryKey)!;
+      assert.equal(options.refetchInterval({ state }), 10 * 60_000);
+      assert.equal(options.refetchOnMount({ state }), false);
+      assert.equal(options.refetchOnReconnect({ state }), false, 'reconnection must also respect the cooldown');
+      const observer = new QueryObserver(cache, options);
+      stop = observer.subscribe(() => {});
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(calls, 1, 'returning to Home or Payouts must respect the cooldown');
+      cache.getQueryCache().find({ queryKey: options.queryKey })!.onOnline();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(calls, 1, 'reconnecting must not send another rate-limited request');
+      now += 60_000;
+      assert.equal(options.refetchInterval({ state }), 9 * 60_000);
+      now += 9 * 60_000;
+      assert.equal(options.refetchOnMount({ state }), true, 'normal refresh resumes after the cooldown');
+      assert.equal(options.refetchOnReconnect({ state }), true);
+      await assert.rejects(cache.fetchQuery(options));
+      assert.equal(calls, 2);
+    } finally { stop(); cache.clear(); }
+  }
 });
 
 test('setup worker existence uses limit=1 and never follows a cursor', async () => {

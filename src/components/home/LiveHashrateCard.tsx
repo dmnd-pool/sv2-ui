@@ -146,7 +146,7 @@ export function LiveHashrateCardView({
           {change !== null && (
             <p className={`mt-0.5 flex items-center gap-1 text-xs leading-4 ${rising ? 'text-success-text' : 'text-destructive'}`}>
               <ChangeIcon className="h-3.5 w-3.5" />
-              <span>{formatChange(change)}% vs 24h ago</span>
+              <span>{formatChange(change)}% from 24h ago</span>
             </p>
           )}
 

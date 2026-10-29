@@ -99,7 +99,6 @@ export function useAccountProfile() {
     queryKey: ['account', 'profile', accountId],
     queryFn: ({ signal }) => getUser().checkAuth({ signal, accountId: accountId ?? undefined }),
     enabled: !!session,
-    refetchInterval: (query) => (query.state.data?.kyb_status === 'InReview' ? CLOUD_POLL_MS : false),
     staleTime: CLOUD_POLL_MS,
     refetchOnWindowFocus: false,
     retry: false,

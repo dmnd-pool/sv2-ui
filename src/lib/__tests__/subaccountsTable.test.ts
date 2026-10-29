@@ -179,7 +179,7 @@ test('searchSubaccounts matches every displayed field; blank passes all', () => 
   assert.equal(searchSubaccounts(rows, 'pplns-secret').length, 1);
   assert.equal(searchSubaccounts(rows, 'fpps-secret').length, 1);
   assert.equal(searchSubaccounts(rows, '125.00 MH/s').length, 1);
-  assert.equal(searchSubaccounts(rows, '1.2%').length, 1);
+  assert.equal(searchSubaccounts(rows, '1.20%').length, 1);
   assert.equal(searchSubaccounts(rows, '0.4 BTC').length, 0);
   assert.equal(searchSubaccounts(rows, '0.02 BTC').length, 1);
   assert.equal(searchSubaccounts(rows, '  ').length, 2);

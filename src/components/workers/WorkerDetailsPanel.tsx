@@ -99,7 +99,7 @@ export function WorkerDetailsPanel({ worker, onClose }: { worker: Worker; onClos
           <Field label="Rejected Shares">{formatNumber(workerRejectedShares(worker))}</Field>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Rejection Rate">{rej === null ? '--' : `${(rej * 100).toFixed(1)}%`}</Field>
+          <Field label="Rejection Rate">{rej === null ? '--' : `${(rej * 100).toFixed(2)}%`}</Field>
         </div>
 
         <div className="flex flex-col gap-4">

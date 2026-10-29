@@ -3,7 +3,6 @@ import { GripVertical } from 'lucide-react';
 import { LiTuning4, LiRouting2 } from 'solar-icon-react/li';
 import { DashboardHomeView } from '@/components/home/DashboardHomeView';
 import { LiveHashrateCard } from '@/components/home/LiveHashrateCard';
-import { KybNotice } from '@/components/home/KybNotice';
 import { ConnectWorkersCard } from '@/components/home/ConnectWorkersCard';
 import { WorkerStatCards } from '@/components/home/WorkerStatCards';
 import { MiningPerformanceChart } from '@/components/home/MiningPerformanceChart';
@@ -287,7 +286,7 @@ export function DashboardHome() {
           </div>
         </div>
 
-      } notice={<KybNotice />} footer={<><GettingStartedCard />{tourOpen && <ProductTour onClose={() => setTourOpen(false)} />}</>}>
+      } footer={<><GettingStartedCard />{tourOpen && <ProductTour onClose={() => setTourOpen(false)} />}</>}>
         {rendered}
       </DashboardHomeView>
     </>

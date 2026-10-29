@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'wouter';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { BdCheckCircle } from 'solar-icon-react/bd';
 import * as Popover from '@radix-ui/react-popover';
 import { cn, overlayContainer } from '@/lib/utils';
+import { clearTourProgress, readTourProgress, resumeTourIndex, saveTourProgress } from '@/lib/tourProgress';
+import { NAV_GROUPS, SETTINGS_ITEM, type NavItem } from '@/components/dashboard/nav';
+import { NavigationTourContext } from '@/components/dashboard/DashboardShell';
 import welcomeIllustration from '@/assets/tour-welcome.png';
 
-// The guided tour: a welcome modal, then five coach-mark steps anchored to real home
-// sections (matched by data-tour attributes), then a completion. Copy is taken from
-// the design's tour frames. A finished/skipped tour is remembered per browser.
+// Walk through home widgets and available navigation, then remember completion per browser.
 const SEEN_KEY = 'dmnd.tour.seen';
 
 interface Step {
   target: string; // data-tour value of the element to highlight
+  section?: 'Navigation' | 'Account controls';
   title: string;
   body: string;
   // Where the coach-mark sits relative to its target (from the design); Radix still
@@ -24,41 +25,110 @@ const STEPS: Step[] = [
   {
     target: 'hashrate',
     title: 'Your Live Hashrate',
-    body: 'Monitor your live hashrate in real time as workers begin submitting shares. Updates automatically to help you track mining performance.',
+    body: 'Shows live hashrate of your miners for this account. It is updated every 5 minutes. A drop can mean fewer workers are mining or a miner needs attention.',
     side: 'right',
     align: 'end',
   },
   {
     target: 'stats-workers',
     title: 'Workers',
-    body: 'Monitor worker activity, track offline miners, and identify issues before they impact earnings.',
+    body: 'Workers are your connected miners/devices. A worker is considered active if it has sent mining data in the last 10 minutes; the total includes all workers seen in the last 24 hours. Average hashrate shows the mining power per active worker.',
     side: 'right',
     align: 'end',
   },
   {
     target: 'stats-earnings',
-    title: 'Earnings & Performance',
-    body: 'Track daily earnings, worker health, and mining performance across your entire operation.',
+    title: 'Generated BTC & Latest Payout',
+    body: 'Today’s Generated BTC is the Bitcoin you have earned through FPPS, since midnight UTC of the current day. Latest payout is the most recent confirmed payment to your wallet in the last 30 days.',
     side: 'left',
     align: 'start',
+  },
+  {
+    target: 'stats-rejection',
+    title: 'Rejection Rate',
+    body: 'Percentage of shares rejected by the pool in the last 24 hours. Lower is better. If it rises, check your miners and their connection.',
+    side: 'left',
+    align: 'end',
   },
   {
     // The chart spans the full width, so left/right can't fit the card; place it
     // above the chart (top) where there is always room.
     target: 'performance',
     title: 'Mining Performance',
-    body: 'Once workers begin mining, performance charts help you understand trends and identify changes over time.',
+    body: 'See how your mining performance changes over time. Choose a time range to spot drops or compare recent activity. The FPPS and PPLNS lines show mining power for the two reward methods.',
     side: 'top',
     align: 'start',
   },
   {
     target: 'customize',
     title: 'Customize Dashboard',
-    body: 'Rearrange widgets and choose what information appears on your dashboard. Make DMND work the way you prefer.',
+    body: 'Choose which cards and charts appear on your dashboard, then drag them into the order you prefer. Your layout is saved in this browser.',
     side: 'bottom',
     align: 'end',
   },
 ];
+
+const ACCOUNT_STEPS: Step[] = [
+  {
+    target: 'account-switcher',
+    title: 'Switch Accounts',
+    body: 'Use this menu to choose which account you want to see. Select a subaccount to view only its miners and earnings. The name here shows your current account.',
+    section: 'Account controls',
+    side: 'right',
+    align: 'start',
+  },
+  {
+    target: 'aggregated-dashboard',
+    title: 'Aggregated Dashboard',
+    body: 'Turn this on to see the aggregated  workers, hashrate, and earnings of your main account and all subaccounts. Turn it off to see your main account alone. To see one subaccount, choose it in the account menu.',
+    section: 'Account controls',
+    side: 'bottom',
+    align: 'end',
+  },
+];
+
+/** Include only routes rendered for this account, even when the mobile drawer is closed. */
+function navigationSteps(): Step[] {
+  const describe = (item: NavItem): Step => ({
+    target: `nav:${item.href}`,
+    title: item.image ? 'Trust Center' : item.label === 'BUILD YOUR BLOCK' ? 'Build Your Block' : item.label,
+    body: item.tourDescription,
+    section: 'Navigation',
+    side: 'right',
+    align: 'start',
+  });
+  const items = [...NAV_GROUPS.flatMap((group) => group.items), SETTINGS_ITEM];
+  const steps = items
+    .filter((item) => item.href !== '/home' && document.querySelector(`[data-tour="nav:${item.href}"]`))
+    .map(describe);
+  if (document.querySelector('[data-tour="nav:/help"]')) {
+    steps.push({
+      target: 'nav:/help',
+      title: 'Help & Support',
+      body: 'Find answers about mining, rewards, and account setup. Browse common questions, follow setup guides, or contact the DMND team for help',
+      section: 'Navigation',
+      side: 'bottom',
+      align: 'end',
+    });
+  }
+  return steps;
+}
+
+function availableSteps(): Step[] {
+  return [
+    ...STEPS.filter((step) => document.querySelector(`[data-tour="${step.target}"]`)),
+    ...ACCOUNT_STEPS.filter((step) => document.querySelector(`[data-tour="${step.target}"]`)),
+    ...navigationSteps(),
+  ];
+}
+
+/** Hidden desktop navigation and the off-screen mobile drawer must not create a union ring. */
+function visibleTargets(target: string): Element[] {
+  return Array.from(document.querySelectorAll(`[data-tour="${target}"]`)).filter((el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < window.innerWidth;
+  });
+}
 
 function markSeen() {
   try {
@@ -80,23 +150,52 @@ export function hasSeenTour(): boolean {
 type Phase = 'welcome' | number | 'done';
 
 export function ProductTour({ onClose }: { onClose: () => void }) {
-  const [, navigate] = useLocation();
   const [phase, setPhase] = useState<Phase>('welcome');
+  const [savedProgress] = useState(readTourProgress);
 
-  // Only walk steps whose target is actually on the page. Customizing the dashboard can
-  // hide a widget (e.g. the worker stats), and a step pointing at a missing element would
-  // otherwise float in the middle of the screen highlighting nothing. Computed once when
-  // the tour opens; the layout doesn't change while the tour is running. The Customize
-  // button always exists, so there is always at least one step.
-  const steps = useMemo(() => {
-    const present = STEPS.filter((s) => document.querySelector(`[data-tour="${s.target}"]`));
-    return present.length > 0 ? present : STEPS;
-  }, []);
+  const [steps, setSteps] = useState<Step[]>([]);
+  const { setNavigationTourOpen } = useContext(NavigationTourContext);
+  const activeStep = typeof phase === 'number' ? steps[phase] : undefined;
+  const needsDrawer = !!activeStep?.section && activeStep.target !== 'nav:/help';
 
-  const finish = () => {
+  useEffect(() => {
+    if (!needsDrawer) return;
+    setNavigationTourOpen(true);
+    return () => setNavigationTourOpen(false);
+  }, [needsDrawer, setNavigationTourOpen]);
+
+  // Discover targets after commit and keep the welcome screen current while
+  // permissions, reports, and widgets load. Freeze the order once the tour starts.
+  useEffect(() => {
+    if (phase !== 'welcome') return;
+    const updateSteps = () => {
+      const next = availableSteps();
+      setSteps((previous) => previous.length === next.length &&
+        previous.every((step, index) => step.target === next[index].target) ? previous : next);
+    };
+    updateSteps();
+    const observer = new MutationObserver(updateSteps);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-tour'] });
+    return () => observer.disconnect();
+  }, [phase]);
+
+  const targets = useMemo(() => steps.map((step) => step.target), [steps]);
+  const resumeIndex = resumeTourIndex(savedProgress, targets);
+
+  // Save on every step, including Back, so Skip, Escape, and a page reload all resume here.
+  useEffect(() => {
+    if (typeof phase === 'number' && steps[phase]) {
+      saveTourProgress(steps[phase].target, targets);
+    } else if (phase === 'done') {
+      clearTourProgress();
+      markSeen();
+    }
+  }, [phase, steps, targets]);
+
+  const finish = useCallback(() => {
     markSeen();
     onClose();
-  };
+  }, [onClose]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -104,8 +203,7 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [finish]);
 
   if (phase === 'welcome') {
     return (
@@ -113,7 +211,7 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[8px]" onClick={finish} aria-hidden />
         <div
           role="dialog"
-          aria-label="Welcome to DMND"
+          aria-label={resumeIndex !== null ? 'Continue your tour' : 'Welcome to DMND'}
           className="relative flex w-full max-w-[447px] flex-col items-center gap-6 rounded-[32px] bg-background px-2 pb-8 pt-2 text-center"
         >
           <img
@@ -124,13 +222,16 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
             height={406}
           />
           <div className="flex flex-col gap-0.5 px-4">
-            <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">Welcome to DMND</h2>
+            <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">
+              {resumeIndex !== null ? 'Continue your tour' : 'Welcome to DMND'}
+            </h2>
             <p className="text-sm leading-5 text-body-alt">
-              Your dashboard is ready. Learn where to monitor hashrate, track workers, view earnings, and customize your
-              workspace.
+              {resumeIndex !== null
+                ? `Pick up at “${steps[resumeIndex].title}” or start again. You can skip anytime; your place is saved in this browser.`
+                : 'Learn how to check your miners, understand your earnings, and find your way around. You can skip anytime and continue later in this browser.'}
             </p>
           </div>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 px-4">
             <button
               type="button"
               onClick={finish}
@@ -140,12 +241,21 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="button"
-              onClick={() => setPhase(0)}
+              onClick={() => setPhase(steps.length ? resumeIndex ?? 0 : 'done')}
               className="rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 py-2.5 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
             >
-              Take a tour
+              {resumeIndex !== null ? 'Resume tour' : 'Take a tour'}
             </button>
           </div>
+          {resumeIndex !== null && (
+            <button
+              type="button"
+              onClick={() => setPhase(0)}
+              className="text-sm text-body-alt underline underline-offset-4 hover:text-foreground"
+            >
+              Start from the beginning
+            </button>
+          )}
         </div>
       </div>
     );
@@ -167,17 +277,14 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
             <h2 className="text-2xl font-semibold leading-9 tracking-[-1px] text-foreground">
               You&apos;re ready to go.
             </h2>
-            <p className="text-sm leading-5 text-body-alt">Connect a worker to begin tracking mining activity.</p>
+            <p className="text-sm leading-5 text-body-alt">You can return to this tour anytime from your dashboard.</p>
           </div>
           <button
             type="button"
-            onClick={() => {
-              markSeen();
-              navigate('/account-setup');
-            }}
+            onClick={finish}
             className="rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 py-2.5 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
           >
-            Start mining
+            Got it
           </button>
         </div>
       </div>
@@ -219,7 +326,7 @@ function CoachMark({
   onNext: () => void;
   onSkip: () => void;
 }) {
-  const rect = useTargetRect(step.target);
+  const rect = useTargetRect(step);
 
   // A left/right card needs ~460px of clear space beside the target (card + offset +
   // padding). A full-width widget (every widget below the lg breakpoint, and the chart
@@ -227,10 +334,9 @@ function CoachMark({
   // When neither side fits, drop the card below the target instead; Radix still flips it
   // above if the target sits near the bottom.
   const CARD_SIDE_SPACE = 460;
-  // The rendered card measures 380px tall (every step carries the 180px preview),
-  // plus the 12px side offset. Under-stating this is what let the card anchor below
-  // a target with too little room, pushing its buttons off-screen.
-  const CARD_STACK_SPACE = 392;
+  // Widget steps also include a preview. Leave room for the explanation, Skip,
+  // and footer when deciding whether an anchored card will fit vertically.
+  const CARD_STACK_SPACE = step.section ? 320 : 460;
   const wantsHorizontal = step.side === 'left' || step.side === 'right';
   const noSideRoom =
     wantsHorizontal &&
@@ -251,32 +357,44 @@ function CoachMark({
   // The card's contents, shared by the anchored and the floating placement.
   const cardBody = (
     <>
-      <StepPreview target={step.target} />
+      <div className="flex items-center justify-between gap-3 px-4 py-1">
+        <span className="text-xs font-medium text-body-alt">{step.section ?? 'Dashboard'}</span>
+        <button
+          type="button"
+          onClick={onSkip}
+          title="Save your place and close the tour"
+          className="rounded-lg px-2 py-1 text-sm text-body-alt transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          Skip tour
+        </button>
+      </div>
+      {!step.section && <StepPreview target={step.target} />}
       {/* Text and footer sit in their own 24px-inset block below the preview area. */}
       <div className="flex flex-col gap-6 px-6">
         <div className="flex flex-col gap-0.5">
           <h3 className="text-xl font-semibold leading-8 tracking-normal text-foreground">{step.title}</h3>
           <p className="text-sm leading-5 text-body-alt">{step.body}</p>
         </div>
-        <div className="flex items-center justify-between gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-2">
-            <div className="flex gap-[3px]">
-              {Array.from({ length: total }, (_, i) => (
-                <span key={i} className={cn('h-0.5 w-5 rounded', i <= index ? 'bg-foreground' : 'bg-secondary')} />
-              ))}
-            </div>
+            <progress
+              aria-label="Tour progress"
+              value={index + 1}
+              max={total}
+              className="h-1 w-24 overflow-hidden rounded [&::-webkit-progress-bar]:bg-secondary [&::-webkit-progress-value]:bg-foreground [&::-moz-progress-bar]:bg-foreground"
+            />
             <span className="block text-xs font-light leading-4 text-body-alt">
               Step {index + 1} of {total}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            {index > 0 && <button
               type="button"
-              onClick={index > 0 ? onBack : onSkip}
+              onClick={onBack}
               className="rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 py-2 text-sm leading-5 text-foreground transition-colors hover:bg-secondary"
             >
-              {index > 0 ? 'Back' : 'Skip'}
-            </button>
+              Back
+            </button>}
             <button
               type="button"
               onClick={onNext}
@@ -304,12 +422,12 @@ function CoachMark({
           aria-hidden
         />
       )}
-      {floating ? (
+      {floating || !rect ? (
         <div
           className={cn(
             'pointer-events-none fixed inset-x-0 flex justify-center px-4',
             // Sit in the roomier gap so the highlighted widget stays readable.
-            floatAtBottom ? 'bottom-4' : 'top-4',
+            !rect ? 'inset-y-0 items-center' : floatAtBottom ? 'bottom-4' : 'top-4',
           )}
         >
           <div
@@ -423,7 +541,7 @@ function StepPreview({ target }: { target: string }) {
 
   useEffect(() => {
     const box = host.current;
-    const source = document.querySelector(`[data-tour="${target}"]`);
+    const source = visibleTargets(target)[0];
     if (!box || !(source instanceof HTMLElement)) return;
     const clone = source.cloneNode(true) as HTMLElement;
     clone.removeAttribute('data-tour');
@@ -448,27 +566,29 @@ function StepPreview({ target }: { target: string }) {
 const PREVIEW_WIDTH = 431;
 const PREVIEW_INSET = 16;
 
-function useTargetRect(target: string) {
-  const selector = useMemo(() => `[data-tour="${target}"]`, [target]);
+function useTargetRect(step: Step) {
+  const { target, section } = step;
+  const { navigationTourOpen } = useContext(NavigationTourContext);
   const [rect, setRect] = useState<Box | null>(null);
   useEffect(() => {
-    const els = () => Array.from(document.querySelectorAll(selector));
+    const els = () => {
+      const primary = visibleTargets(target);
+      if (primary.length) return primary;
+      return section ? visibleTargets('navigation-menu') : [];
+    };
     const measure = () => setRect(unionRect(els()));
     // Measure IMMEDIATELY so the ring and card appear together with no lag, bring the
     // target into view, then keep the position in sync as the scroll settles and on
     // resize/scroll (the `scroll` listener re-measures every frame of the scroll).
     measure();
-    // Align to the top rather than centring: centring splits the leftover space into two
-    // gaps that are each too small for the coach mark on a short window, which forces it
-    // to overlap the very widget it is describing. Starting at the top pools the free
-    // space below the target, so the card has somewhere to sit.
-    els()[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Keep navigation scrolls small; top-align large widgets to leave room for the card.
+    els()[0]?.scrollIntoView({ behavior: 'smooth', block: section ? 'nearest' : 'start' });
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
-  }, [selector]);
+  }, [target, section, navigationTourOpen]);
   return rect;
 }

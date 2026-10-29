@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { LiCloseCircle, LiCopy, LiShieldCheck } from 'solar-icon-react/li';
+import { LiCloseCircle, LiCopy } from 'solar-icon-react/li';
 import { OtpField } from '@/components/ui/input-otp';
 import { authErrorMessage } from '@/components/auth/authError';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/auth';
-import { buildOtpAuthUri } from '@/auth/otpauth';
+import { buildResetOtpAuthUri } from '@/auth/otpauth';
 import { getUser, isAuthenticatorCodeError } from '@/api';
 import { useAccountProfile } from '@/hooks/useAccountData';
 
-type Phase = 'menu' | 'loading' | 'setup' | 'error';
+type Phase = 'menu' | 'loading' | 'setup' | 'confirm';
 
 /**
  * The "Manage 2FA" drawer for an account that already has 2FA active. There is no
@@ -26,13 +26,15 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
   const [currentCode, setCurrentCode] = useState('');
   const [resetError, setResetError] = useState<string | null>(null);
   const [secret, setSecret] = useState('');
+  const [addedAt, setAddedAt] = useState<Date | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const profile = useAccountProfile();
   const [challenged, setChallenged] = useState(false);
   const twoFaEnabled = challenged || profile.data?.two_factor_secret === null;
-  const currentCodeReady = profile.isSuccess && (!twoFaEnabled || currentCode.length === 6);
+  const currentCodeReady = profile.isSuccess && (!twoFaEnabled || /^\d{6}$/.test(currentCode));
+  const stepNumber = phase === 'confirm' ? 3 : phase === 'setup' ? 2 : 1;
 
   const startReset = async () => {
     if (!currentCodeReady || phase === 'loading') return;
@@ -43,10 +45,18 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
       if (account.two_factor_secret == null) {
         // The reset endpoint should always return a secret; if it doesn't, fail
         // visibly rather than showing an empty QR.
-        setPhase('error');
+        setResetError('Could not start the 2FA reset. Please try again.');
+        setPhase('menu');
         return;
       }
       setSecret(account.two_factor_secret);
+      setAddedAt(new Date());
+      // A profile refresh during setup must not drop the existing-factor challenge.
+      if (twoFaEnabled) setChallenged(true);
+      // Scanning takes time; do not silently reuse the code from the first request.
+      setCurrentCode('');
+      setCode('');
+      setError(false);
       setPhase('setup');
     } catch (e) {
       if (isAuthenticatorCodeError(e)) setChallenged(true);
@@ -56,22 +66,29 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
   };
 
   const uri = useMemo(
-    () => (secret ? buildOtpAuthUri(secret, session?.email ?? '') : ''),
-    [secret, session?.email],
+    () => (secret && addedAt ? buildResetOtpAuthUri(secret, session?.email ?? '', addedAt) : ''),
+    [secret, session?.email, addedAt],
   );
 
   const submit = async () => {
-    if (code.length !== 6 || submitting || !currentCodeReady) return;
+    if (!/^\d{6}$/.test(code) || submitting || !currentCodeReady) return;
     setSubmitting(true);
+    setResetError(null);
     try {
       await getUser().activate2fa(code, { totpToken: twoFaEnabled ? currentCode : undefined });
       toast({ type: 'success', message: 'Two-factor authentication updated' });
       onChanged();
       onClose();
     } catch (e) {
-      setError(true);
-      setCode('');
-      toast({ type: 'error', message: authErrorMessage(e, 'Enter a valid 6-digit code.') });
+      if (isAuthenticatorCodeError(e)) {
+        // The API uses the same rejection for either factor. Do not blame just the new code.
+        setError(true);
+        setCurrentCode('');
+        setCode('');
+        setResetError('A code is incorrect or has expired. Enter the latest code from each entry and try again.');
+      } else {
+        setResetError(authErrorMessage(e, 'Could not confirm the reset. Please try again.'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -87,11 +104,16 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
       >
         <div className="flex items-start justify-between gap-4 p-6 sm:p-8">
           <div>
-            <h2 className="text-lg font-semibold text-heading">Manage 2FA</h2>
+            <p className="mb-1 text-xs text-body-alt">Step {stepNumber} of 3</p>
+            <h2 className="text-lg font-semibold text-heading">
+              {phase === 'confirm' ? 'Confirm your new authenticator' : phase === 'setup' ? 'Add your new authenticator' : 'Reset two-factor authentication'}
+            </h2>
             <p className="mt-1 text-sm text-body-alt">
               {phase === 'setup'
-                ? 'Scan the new QR code with your authenticator app, then enter the 6-digit code.'
-                : 'Your account two-factor authentication.'}
+                ? 'Scan this QR code to add a separate DMND entry. Keep your existing entry until the reset is complete.'
+                : phase === 'confirm'
+                  ? 'Enter the codes currently shown in both entries. Your existing code approves the change; your new code confirms the setup works.'
+                  : 'First, enter the code from your existing DMND entry to confirm it’s you.'}
             </p>
           </div>
           <button
@@ -105,42 +127,31 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
         </div>
 
         <div className="flex flex-col gap-5 px-6 pb-6">
-          {twoFaEnabled && <div className="space-y-2">
-            <p className="text-sm text-body-alt">Current authenticator code</p>
-            <OtpField value={currentCode} onChange={setCurrentCode} disabled={submitting || phase === 'loading'} ariaLabel="Current authenticator code" />
-            {phase === 'setup' && <p className="text-xs text-body-alt">Refresh this code from your existing authenticator before confirming the new one.</p>}
-          </div>}
           {profile.isLoading && <p className="text-sm text-body-alt">Checking 2FA status...</p>}
           {profile.isError && <p className="text-sm text-destructive">Unable to check 2FA status. <button type="button" className="underline" onClick={() => void profile.refetch()}>Retry</button></p>}
-          {resetError && <p className="text-sm text-destructive">{resetError}</p>}
+          {resetError && <p role="alert" className="text-sm text-destructive">{resetError}</p>}
           {(phase === 'menu' || phase === 'loading') && (
             <>
-              <div className="flex items-center justify-between gap-4">
-                <span className="flex items-center gap-2">
-                  <LiShieldCheck className="h-4 w-4 text-success" />
-                  <span className="text-sm text-foreground">2FA is enabled</span>
-                </span>
-                <button
-                  type="button"
-                  disabled={phase === 'loading' || !currentCodeReady}
-                  onClick={() => void startReset()}
-                  className="inline-flex h-9 shrink-0 items-center rounded-[32px] border-[0.5px] border-black/20 bg-btn-secondary px-5 text-sm leading-5 text-foreground transition-opacity hover:opacity-80 disabled:opacity-40"
-                >
-                  {phase === 'loading' ? 'Loading...' : 'Reset 2FA'}
-                </button>
-              </div>
+              {twoFaEnabled && <div className="space-y-2">
+                <p className="text-sm text-body-alt">Current authenticator code</p>
+                <OtpField value={currentCode} onChange={setCurrentCode} disabled={phase === 'loading'} ariaLabel="Current authenticator code" autoFocus />
+              </div>}
+              <button
+                type="button"
+                disabled={phase === 'loading' || !currentCodeReady}
+                onClick={() => void startReset()}
+                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {phase === 'loading' ? 'Checking...' : 'Continue'}
+              </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-btn-secondary px-6 text-base leading-6 text-foreground transition-opacity hover:opacity-80"
               >
                 Close
               </button>
             </>
-          )}
-
-          {phase === 'error' && (
-            <p className="text-sm text-body-alt">Couldn&apos;t start the 2FA reset. Please try again.</p>
           )}
 
           {phase === 'setup' && (
@@ -167,28 +178,67 @@ export function Manage2faModal({ onClose, onChanged }: { onClose: () => void; on
                 </div>
               </div>
 
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentCode('');
+                  setCode('');
+                  setError(false);
+                  setResetError(null);
+                  setPhase('confirm');
+                }}
+                className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90"
+              >
+                I&apos;ve added the new entry
+              </button>
+            </>
+          )}
+
+          {phase === 'confirm' && (
+            <>
+              {twoFaEnabled && <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Current authenticator code</p>
+                <p className="text-xs text-body-alt">Use the latest code from the authenticator app you used before this reset.</p>
+                <OtpField
+                  value={currentCode}
+                  onChange={(value) => { setCurrentCode(value); setError(false); }}
+                  disabled={submitting}
+                  error={error}
+                  ariaLabel="Current authenticator code"
+                  autoFocus
+                />
+              </div>}
+
               <div className="space-y-2">
-                <span className="text-sm text-body-alt">Enter the 6-digit code from your app</span>
+                <p className="text-sm font-medium text-foreground">New authenticator code</p>
+                <p className="text-xs text-body-alt">Use the 6-digit code generated after scanning the QR code.</p>
                 <OtpField
                   value={code}
                   onChange={(v) => {
                     setCode(v);
                     if (error) setError(false);
                   }}
-                  onComplete={() => void submit()}
                   disabled={submitting}
                   error={error}
-                  ariaLabel="Authenticator code"
+                  ariaLabel="New authenticator code"
                 />
               </div>
 
               <button
                 type="button"
-                disabled={code.length !== 6 || submitting || !currentCodeReady}
+                disabled={!/^\d{6}$/.test(code) || submitting || !currentCodeReady}
                 onClick={() => void submit()}
                 className="inline-flex h-11 w-full items-center justify-center rounded-[32px] border border-black/20 bg-[hsl(var(--btn))] px-6 text-base leading-6 text-[hsl(var(--btn-foreground))] transition-opacity hover:opacity-90 disabled:opacity-40"
               >
-                {submitting ? 'Updating...' : 'Reset 2FA'}
+                {submitting ? 'Updating...' : 'Confirm reset'}
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => { setResetError(null); setPhase('setup'); }}
+                className="self-center text-sm text-body-alt underline underline-offset-4 hover:text-foreground disabled:opacity-40"
+              >
+                Back to QR code
               </button>
             </>
           )}

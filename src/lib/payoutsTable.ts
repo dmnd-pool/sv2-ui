@@ -295,12 +295,22 @@ export async function loadTodayPayouts(client: Pick<DmndClient, 'getPayouts' | '
 
 const PAYOUT_REFRESH_MS = 10 * 60 * 1000;
 
+type PayoutQueryState = { dataUpdatedAt: number; errorUpdatedAt?: number };
+
 /** Keep payout data fresh and available across page navigation for ten minutes. */
 export const PAYOUT_QUERY_OPTIONS = {
   staleTime: PAYOUT_REFRESH_MS,
   gcTime: 2 * PAYOUT_REFRESH_MS,
-  refetchInterval: (query: { state: { dataUpdatedAt: number } }) =>
-    Math.max(1000, PAYOUT_REFRESH_MS - (Date.now() - query.state.dataUpdatedAt)),
+  refetchInterval: (query: { state: PayoutQueryState }) => {
+    // A failed refresh must also move the deadline forward, especially after a 429.
+    const lastAttemptAt = Math.max(query.state.dataUpdatedAt, query.state.errorUpdatedAt ?? 0);
+    return lastAttemptAt ? Math.max(1000, PAYOUT_REFRESH_MS - (Date.now() - lastAttemptAt)) : PAYOUT_REFRESH_MS;
+  },
+  refetchOnMount: (query: { state: PayoutQueryState }) =>
+    !query.state.errorUpdatedAt || Date.now() - query.state.errorUpdatedAt >= PAYOUT_REFRESH_MS,
+  refetchOnReconnect: (query: { state: PayoutQueryState }) =>
+    !query.state.errorUpdatedAt || Date.now() - query.state.errorUpdatedAt >= PAYOUT_REFRESH_MS,
+  retryOnMount: false,
   refetchOnWindowFocus: false,
   retry: false,
 } as const;

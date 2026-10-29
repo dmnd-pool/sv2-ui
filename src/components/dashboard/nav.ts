@@ -34,9 +34,11 @@ export interface NavItem {
   iconActive?: IconComp;
   label: string;
   href: string;
+  /** Plain-language page explanation used by the guided tour. */
+  tourDescription: string;
   /**
    * A dropdown entry: the row expands to reveal these instead of navigating. The
-   * parent has no page of its own, so `href` is only used as a stable key.
+   * parent also links to its overview page.
    */
   children?: NavItem[];
    /* Renders the row as this image instead of icon + label.
@@ -50,33 +52,70 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Overview',
     items: [
-      { icon: LiHomeAngle, iconActive: BdHomeAngle, label: 'Home', href: '/home' },
+      {
+        icon: LiHomeAngle,
+        iconActive: BdHomeAngle,
+        label: 'Home',
+        href: '/home',
+        tourDescription: 'See your mining power, active miners, earnings, and recent performance in one place.',
+      },
       {
         icon: NodeHardwareIcon,
         label: 'BUILD YOUR BLOCK',
         href: '/build-your-block',
-        children: [
-          { icon: LiHomeAngle, label: 'Job declaration', href: '/build-your-block/job-declaration' },
-          { icon: LiHomeAngle, label: 'Merge mining', href: '/build-your-block/merge-mining' },
-          { icon: LiHomeAngle, label: 'Prioritize transactions', href: '/build-your-block/prioritize-transactions' },
-        ],
+        tourDescription: 'Get started with Job Declaration, transaction selection, and merge mining. Follow setup guides to use your own Bitcoin node, choose which transactions go into your blocks, and earn additional rewards through merge mining.',
+
       },
     ],
   },
   {
     label: 'Mining',
     items: [
-      { icon: MiningIcon, label: 'Workers', href: '/workers' },
-      { icon: LiLayersMinimalistic, iconActive: BdLayersMinimalistic, label: 'Subaccounts', href: '/subaccounts' },
-      { icon: BitcoinCircleIcon, label: 'Generated BTC', href: '/generated-bitcoin' },
-      { icon: LiChart, iconActive: BdChart, label: 'PPLNS Projection', href: PPLNS_PROJECTION_ROUTE },
-      { icon: LiWallet, iconActive: BdWallet, label: 'Payouts', href: '/payouts' },
+      {
+        icon: MiningIcon,
+        label: 'Workers',
+        href: '/workers',
+        tourDescription: 'Find a miner by name and check whether it is online, its hashrate and rejection rate.',
+      },
+      {
+        icon: LiLayersMinimalistic,
+        iconActive: BdLayersMinimalistic,
+        label: 'Subaccounts',
+        href: '/subaccounts',
+        tourDescription: 'Organize your mining sites, teams, or setups into subaccounts. Compare their workers, hashrate, and earnings, then select a subaccount to view its mining activity in detail.',
+      },
+      {
+        icon: BitcoinCircleIcon,
+        label: 'Generated BTC',
+        href: '/generated-bitcoin',
+        tourDescription: 'Track your daily FPPS Bitcoin earnings. Visit Payouts to see payments sent to your wallet',
+      },
+      {
+        icon: LiChart,
+        iconActive: BdChart,
+        label: 'PPLNS Projection',
+        href: PPLNS_PROJECTION_ROUTE,
+        tourDescription: 'PPLNS rewards depend on your recent mining work and the blocks the pool finds. See the work that still counts toward rewards, what it has earned, and an estimate for the next block. The estimate can change; it is not a payment to your wallet.',
+      },
+      {
+        icon: LiWallet,
+        iconActive: BdWallet,
+        label: 'Payouts',
+        href: '/payouts',
+        tourDescription: 'Track payments sent to your Bitcoin wallet. View each payment’s amount, date, and transaction details, along with the total you’ve been paid.',
+      },
     ],
   },
   {
     label: 'Monitoring',
     items: [
-      { icon: LiKeyMinimalistic, iconActive: BdKeyMinimalistic, label: 'Watcher links', href: '/watcher-links' },
+      {
+        icon: LiKeyMinimalistic,
+        iconActive: BdKeyMinimalistic,
+        label: 'Watcher links',
+        href: '/watcher-links',
+        tourDescription: 'Create an observer/read-only link to share your mining activity without sharing your login. Choose what each link shows, so viewers can see selected information without changing anything in your account. You can revoke a link at any time.',
+      },
     ],
   },
   {
@@ -88,6 +127,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         label: "We're a SOC 2 Type II compliant organization. Learn more at our Trust Center.",
         image: '/soc2-badge.png',
         href: TRUST_CENTER_URL,
+        tourDescription: 'Learn how DMND protects your information and read about its security checks, including the independent SOC 2 Type II audit.',
         external: true,
       },
     ],
@@ -100,6 +140,7 @@ export const SETTINGS_ITEM: NavItem = {
   iconActive: BdSettingsMinimalistic,
   label: 'Settings',
   href: '/account',
+  tourDescription: 'View your profile and update your Bitcoin payout address. Manage your password and two-factor authentication in Security, or choose your dashboard theme in Preferences. To change your payout address, password, or two-factor authentication, switch to your main account.',
 };
 
 /**

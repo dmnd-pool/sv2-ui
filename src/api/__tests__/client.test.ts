@@ -172,6 +172,48 @@ test('resetPassword posts email, code, two_fa_token and new_password (snake_case
   });
 });
 
+test('2FA reset sends the existing factor separately from the replacement code', async () => {
+  const { fetchImpl, calls } = fakeFetch(({ url }) => jsonResponse({
+    id: 'owner', two_factor_secret: url.endsWith('/api/new_2fa') ? 'PENDING_SECRET' : null,
+  }));
+  const client = createUser({ fetchImpl, backoffMs: 0 });
+  const pending = await client.newTwoFactor({ accountId: 'owner', totpToken: '123456' });
+  assert.equal(pending.two_factor_secret, 'PENDING_SECRET');
+  // The original factor changes while the user scans; confirmation must use its new code.
+  await client.activate2fa('654321', { accountId: 'owner', totpToken: '234567' });
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].url.endsWith('/api/new_2fa'));
+  assert.equal(calls[0].init.method, 'GET');
+  assert.equal(new Headers(calls[0].init.headers).get('X-TOTP-Token'), '123456');
+  assert.ok(calls[1].url.endsWith('/api/activate_2fa'));
+  assert.equal(calls[1].init.method, 'PUT');
+  assert.equal(new Headers(calls[1].init.headers).get('X-TOTP-Token'), '234567');
+  assert.equal(new Headers(calls[1].init.headers).get('X-Account-ID'), 'owner');
+  assert.equal(calls[1].init.credentials, 'include');
+  assert.deepEqual(JSON.parse(calls[1].init.body as string), { token: '654321' });
+});
+
+test('2FA reset failures neither replay enrollment nor sign out a valid session', async () => {
+  const rejected: unknown[] = [];
+  const unsubscribe = subscribeToDmndAuthRejections((event) => rejected.push(event));
+  try {
+    for (const status of [401, 429]) {
+      for (const step of ['start', 'confirm']) {
+        const { fetchImpl, calls } = fakeFetch(() => jsonResponse({
+          message: status === 401 ? 'Invalid authenticator code' : 'Too many attempts',
+        }, status));
+        const client = createUser({ fetchImpl, maxAttempts: 3, backoffMs: 0 });
+        const request = { accountId: 'owner', totpToken: '123456' };
+        await assert.rejects(() => step === 'start'
+          ? client.newTwoFactor(request) : client.activate2fa('654321', request),
+        (error: unknown) => error instanceof DmndApiError && error.status === status);
+        assert.equal(calls.length, 1);
+        assert.deepEqual(rejected, []);
+      }
+    }
+  } finally { unsubscribe(); }
+});
+
 test('updatePassword uses the authenticated endpoint with current password and optional authenticator code', async () => {
   const { fetchImpl, calls } = fakeFetch(() => new Response(null, { status: 204 }));
   const client = createUser({ fetchImpl, backoffMs: 0 });

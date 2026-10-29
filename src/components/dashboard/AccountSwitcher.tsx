@@ -109,6 +109,7 @@ export function AccountSwitcher({ collapsed = false }: { collapsed?: boolean }) 
           type="button"
           title={collapsed ? triggerName : undefined}
           aria-label={`Switch account, currently ${triggerName}`}
+          data-tour="account-switcher"
           className={cn(
             'mx-3 mb-3 flex items-center rounded-lg text-left transition-colors hover:bg-muted',
             collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-2.5 py-2',

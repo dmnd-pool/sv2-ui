@@ -281,11 +281,13 @@ function ProjectionBody({
   showStats,
   selectable,
   aggregated,
+  updateStatus,
 }: {
   dailyWork: PplnsProjectionDailyWork[];
   showStats: boolean;
   selectable: boolean;
   aggregated: boolean;
+  updateStatus?: ReactNode;
 }) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -319,7 +321,7 @@ function ProjectionBody({
 
   return (
     <div className="space-y-4">
-      <ProjectionHeader aggregated={aggregated}>
+      <ProjectionHeader aggregated={aggregated} updateStatus={updateStatus}>
         {selectable && dailyWork.length > 0 && <button type="button" disabled={visible.length === 0}
           onClick={() => {
             const checked = visible.filter((day) => selected.has(day.work_day));
@@ -353,14 +355,16 @@ interface ProjectionPanelProps {
   selectable?: boolean;
   dailyWork?: PplnsProjectionDailyWork[] | null;
   aggregated?: boolean;
+  updateStatus?: ReactNode;
 }
 
-function ProjectionHeader({ aggregated, children }: { aggregated: boolean; children?: ReactNode }) {
+function ProjectionHeader({ aggregated, children, updateStatus }: { aggregated: boolean; children?: ReactNode; updateStatus?: ReactNode }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">PPLNS projection</h2>
         <p className="mt-1 text-sm text-body-alt">{aggregated ? 'Combined PPLNS work and rewards across all accounts.' : 'Track your retained mining work and projected PPLNS rewards.'}</p>
+        {updateStatus && <p className="mt-1 text-xs text-body-alt">{updateStatus}</p>}
       </div>
       {children}
     </header>
@@ -371,7 +375,7 @@ export function PplnsProjectionPanel(props: ProjectionPanelProps) {
   const rows = props.dailyWork ?? props.projection?.daily_work;
   if (!props.isLoading && !props.isError && props.projection !== null && props.dailyWork !== null && rows) {
     return <ProjectionBody key={props.aggregated ? 'aggregated' : props.projection?.subaccount_id}
-      dailyWork={rows} showStats={props.showStats ?? false} selectable={props.selectable ?? true} aggregated={props.aggregated ?? false} />;
+      dailyWork={rows} showStats={props.showStats ?? false} selectable={props.selectable ?? true} aggregated={props.aggregated ?? false} updateStatus={props.updateStatus} />;
   }
   return (
     <div className="space-y-4">

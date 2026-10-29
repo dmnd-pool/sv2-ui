@@ -151,7 +151,7 @@ export function deriveSubaccountsPageStats(subs: EnrichedSubaccount[]): Subaccou
 
 /** Lowercased text for every value displayed in a subaccount row. */
 export function subaccountSearchText(sub: EnrichedSubaccount): string {
-  const rejection = sub.rejection === null ? '--' : `${(sub.rejection * 100).toFixed(1)}%`;
+  const rejection = sub.rejection === null ? '--' : `${(sub.rejection * 100).toFixed(2)}%`;
   return [
     sub.id,
     sub.name,

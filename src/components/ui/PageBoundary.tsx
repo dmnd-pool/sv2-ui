@@ -39,7 +39,12 @@ export function PageBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   return (
     <PageErrorBoundary resetKey={location}>
-      <Suspense fallback={<p role="status" className="p-6">Loading page…</p>}>
+      <Suspense fallback={
+        <div role="status" className="flex min-h-40 items-center justify-center p-6">
+          <span aria-hidden="true" className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary motion-reduce:animate-none" />
+          <span className="sr-only">Loading page…</span>
+        </div>
+      }>
         {children}
       </Suspense>
     </PageErrorBoundary>

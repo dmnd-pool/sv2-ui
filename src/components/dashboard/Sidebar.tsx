@@ -12,6 +12,7 @@ import { useAccountScope } from '@/hooks/useAccountScope';
 import {
   NAV_GROUPS,
   SETTINGS_ITEM,
+  PPLNS_PROJECTION_ROUTE,
   isPathActive,
   isAggregatedRestrictedRoute,
   isSubaccountRestrictedRoute,
@@ -71,7 +72,7 @@ function NavDropdown({
       {open && (
         <div className="space-y-0.5">
           {children.map((child) => (
-            <Link key={child.href} href={child.href} onClick={onNavigate}>
+            <Link key={child.href} href={child.href} onClick={onNavigate} data-tour={`nav:${child.href}`}>
               <span
                 className={cn(
                   // The drawn sub-row keeps an empty 20px slot where the parent's icon
@@ -178,11 +179,13 @@ export function SidebarNavItem({
  * collapse control. `onNavigate` lets the mobile drawer close itself after a tap.
  */
 export function Sidebar({
+  hasPplnsReport,
   collapsed = false,
   drawer = false,
   onToggleCollapse,
   onNavigate,
 }: {
+  hasPplnsReport: boolean;
   collapsed?: boolean;
   /** The mobile drawer is wider than the docked rail and pads tighter. */
   drawer?: boolean;
@@ -214,7 +217,7 @@ export function Sidebar({
         {/* The design puts the aggregated toggle in the drawer on mobile; the top bar
           carries it on desktop, where there is room for the label. */}
         {showToggle && !collapsed && (
-          <div className="mx-3 mb-3 flex items-center justify-between gap-2 px-2.5 lg:hidden">
+          <div data-tour="aggregated-dashboard" className="mx-3 mb-3 flex items-center justify-between gap-2 px-2.5 lg:hidden">
             <span className="text-sm text-foreground">Aggregated dashboard</span>
             <Switch
               checked={aggregated}
@@ -231,6 +234,7 @@ export function Sidebar({
         groups={NAV_GROUPS.map((group) => ({
           ...group, items: group.items.filter((item) =>
             (canViewSubaccounts || !isSubaccountRestrictedRoute(item.href)) &&
+            (hasPplnsReport || item.href !== PPLNS_PROJECTION_ROUTE) &&
             (!aggregated || !isAggregatedRestrictedRoute(item.href))
           )
         }))}
@@ -242,7 +246,9 @@ export function Sidebar({
       />
 
       <div className="space-y-0.5 border-t border-border px-3 py-3">
-        <SidebarNavItem item={SETTINGS_ITEM} active={location === SETTINGS_ITEM.href} collapsed={collapsed} onNavigate={onNavigate} />
+        <div data-tour={`nav:${SETTINGS_ITEM.href}`}>
+          <SidebarNavItem item={SETTINGS_ITEM} active={location === SETTINGS_ITEM.href} collapsed={collapsed} onNavigate={onNavigate} />
+        </div>
         <button
           type="button"
           onClick={() => signOut()}
@@ -276,15 +282,32 @@ export function SidebarView({ collapsed = false, drawer = false, onToggleCollaps
         drawer ? 'w-[300px]' : collapsed ? 'w-16' : 'w-[236px]',
       )}
     >
-      <div className={cn('flex h-16 items-center', collapsed ? 'justify-center px-2' : 'justify-between px-5')}>
-        {!collapsed && <DmndLogo />}
+      <div className={cn('flex h-16 items-center', collapsed ? 'justify-between gap-1 px-1' : 'justify-between px-5')}>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'DMND: expand navigation' : 'DMND: collapse navigation'}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+            className={cn(
+              'flex shrink-0 items-center justify-center rounded transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              collapsed ? 'h-8 w-7 [&_img]:h-3' : 'h-8',
+            )}
+          >
+            <DmndLogo />
+          </button>
+        ) : !collapsed && <DmndLogo />}
         {onToggleCollapse && (
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-placeholder transition-colors hover:bg-muted hover:text-foreground"
+            className={cn(
+              'flex h-8 shrink-0 items-center justify-center rounded-lg text-placeholder transition-colors hover:bg-muted hover:text-foreground',
+              collapsed ? 'w-6' : 'w-8',
+            )}
           >
             <LiSidebarMinimalistic className="h-[18px] w-[18px]" />
           </button>
@@ -329,7 +352,7 @@ export function SidebarNavigation({ groups, collapsed, renderItem }: {
     {groups.filter((group) => group.items.length > 0).map((group) => (
       <div key={group.label} className="mb-5">
         {!collapsed && <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-placeholder">{group.label}</p>}
-        <div className="space-y-0.5">{group.items.map((item) => <div key={item.href}>{renderItem(item)}</div>)}</div>
+        <div className="space-y-0.5">{group.items.map((item) => <div key={item.href} data-tour={`nav:${item.href}`}>{renderItem(item)}</div>)}</div>
       </div>
     ))}
   </nav>;

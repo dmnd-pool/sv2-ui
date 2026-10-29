@@ -35,14 +35,14 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
 
   return (
     <div className="relative flex h-full flex-col items-start gap-3 border-[0.5px] border-border bg-card p-3 lg:p-4 sm:flex-row sm:gap-6">
-      <div className="relative h-28 w-28 shrink-0 self-center sm:self-start">
+      <div className="relative h-40 w-40 shrink-0 self-center sm:self-start">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={slices}
               dataKey="hashrate"
               nameKey="name"
-              innerRadius="72%"
+              innerRadius="78%"
               outerRadius="100%"
               paddingAngle={2}
               stroke="none"
@@ -65,7 +65,7 @@ export function CombinedHashrateCard({ slices, total }: { slices: DonutSlice[]; 
         </div>
 
         {hasHashrate && (
-          <ul className="flex max-h-28 flex-col gap-2 overflow-y-auto pr-1">
+          <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto pr-1">
             {slices.map((s, i) => {
               const parts = splitHashrate(s.hashrate);
               return (

@@ -18,7 +18,7 @@ export interface SubaccountsEmpty {
 
 /** A rejection rate as a percentage, or -- when the account has submitted no shares. */
 function rejectionText(rejection: number | null): string {
-  return rejection === null ? '--' : `${(rejection * 100).toFixed(1)}%`;
+  return rejection === null ? '--' : `${(rejection * 100).toFixed(2)}%`;
 }
 
 /**

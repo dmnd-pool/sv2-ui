@@ -94,7 +94,7 @@ function WorkerCard({ worker }: { worker: Worker }) {
       <div className="flex items-center gap-6">
         <div className="flex shrink-0 flex-col">
           <p className="text-xs text-body-alt">Rejection rate</p>
-          <p className="font-mono text-sm text-foreground">{rej === null ? '--' : `${(rej * 100).toFixed(1)}%`}</p>
+          <p className="font-mono text-sm text-foreground">{rej === null ? '--' : `${(rej * 100).toFixed(2)}%`}</p>
         </div>
         <div className="flex shrink-0 flex-col">
           <p className="text-xs text-body-alt">Status</p>
@@ -195,7 +195,7 @@ export function WorkersTable({
                     <ModeBadge mode={workerMode(w)} />
                   </td>
                   <td className="px-4 py-3 text-center font-mono text-foreground">
-                    {rej === null ? '--' : `${(rej * 100).toFixed(1)}%`}
+                    {rej === null ? '--' : `${(rej * 100).toFixed(2)}%`}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={classifyWorker(w)} />

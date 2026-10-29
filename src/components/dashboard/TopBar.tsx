@@ -54,7 +54,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             drawer (below the account block), where the design puts it since the mobile
             top bar has no room. */}
       {showToggle && (
-        <div className="mr-1 hidden items-center gap-1.5 lg:flex">
+        <div data-tour="aggregated-dashboard" className="mr-1 hidden items-center gap-1.5 lg:flex">
           <span className="flex items-center gap-1 text-xs text-body-alt">
             Aggregated Dashboard
             <LiQuestionCircle className="h-4 w-4 text-placeholder" aria-hidden />
@@ -69,6 +69,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       )}
       <Link
         href="/help"
+        data-tour="nav:/help"
         aria-label="Help"
         className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-body-alt transition-colors hover:text-foreground"
       >
@@ -155,7 +156,7 @@ export function TopBarView({ title, subtitle, scope, refreshIntervalMinutes = 5,
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/80 px-3 backdrop-blur-md sm:px-4 lg:px-6">
-      <button type="button" onClick={onMenuClick} aria-label="Open navigation" className="flex h-9 w-9 items-center justify-center rounded-lg text-body-alt transition-colors hover:bg-muted hover:text-foreground lg:hidden">
+      <button type="button" onClick={onMenuClick} data-tour="navigation-menu" aria-label="Open navigation" className="flex h-9 w-9 items-center justify-center rounded-lg text-body-alt transition-colors hover:bg-muted hover:text-foreground lg:hidden">
         <LiHamburgerMenu className="h-5 w-5" />
       </button>
       <div className="min-w-0 flex-1">

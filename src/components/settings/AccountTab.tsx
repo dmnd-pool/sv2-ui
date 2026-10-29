@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LiCopy, LiCheckCircle } from 'solar-icon-react/li';
-import { BdCheckCircle, BdClockCircle, BdShieldWarning } from 'solar-icon-react/bd';
-import { useAuth, type Session } from '@/auth';
+import { useAuth } from '@/auth';
 import { activeBitcoinAddress, useAccountProfile } from '@/hooks/useAccountData';
-import { KYB_VERIFICATION_URL } from '@/components/home/KybNotice';
 import { useAccountScope } from '@/hooks/useAccountScope';
 import { truncateMiddle } from '@/lib/payoutsTable';
 import { ChangeBitcoinAddressModal } from './ChangeBitcoinAddressModal';
@@ -20,45 +18,6 @@ function ReadonlyField({ label, value, children }: { label: string; value: strin
       {children}
     </div>
   );
-}
-
-function KybStatus({ status }: { status: Session['kyb_status'] }) {
-  if (status === 'NotStarted') {
-    return (
-      <span className="inline-flex items-start gap-1.5 text-sm leading-5 text-warning-text">
-        <BdShieldWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-        <span>
-          You're currently in test mode. You can still mine, but payouts are paused until{' '}
-          <a
-            href={KYB_VERIFICATION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium underline underline-offset-2"
-          >
-            KYB verification
-          </a>{' '}
-          is complete. Once verified, you'll be paid for all submitted hashrate.
-        </span>
-      </span>
-    );
-  }
-  if (status === 'InReview') {
-    return (
-      <span className="inline-flex items-start gap-1.5 text-sm leading-5 text-warning-text">
-        <BdClockCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-        Your KYB verification is under review.
-      </span>
-    );
-  }
-  if (status === 'Approved') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm leading-5 text-success-text">
-        <BdCheckCircle className="h-4 w-4 shrink-0 text-success" />
-        KYB approved. All good!
-      </span>
-    );
-  }
-  return null;
 }
 
 function CopyAddressButton({ value }: { value: string }) {
@@ -104,7 +63,6 @@ export function AccountTab() {
           <>
             {!viewingSubaccount && <ReadonlyField label="Email" value={accountDetails.email ?? ''} />}
             <ReadonlyField label="Company name" value={accountDetails.company_name?.trim() || 'Not provided'}>
-              <KybStatus status={accountDetails.kyb_status} />
             </ReadonlyField>
             <ReadonlyField
               label="Company location"

@@ -100,12 +100,14 @@ export function WorkerStatCardsView({ workers, shareStats, hashrate, payout, gen
         hint={WORKER_METRICS_HINT}
       />}
       {showRejection && <StatCard
-        tour="stats-earnings"
+        tour="stats-rejection"
         title="Rejection rate"
         value={rejection}
         unit={hasMined ? '%' : undefined}
         captionTone={hasMined ? 'strong' : 'muted'}
-        caption={hasMined ? 'Last 24 hours across all shares.' : 'Rejected share rate will appear after mining starts.'}
+        caption={aggregated !== undefined
+          ? 'Rejected shares over the last 24 hours across all accounts.'
+          : 'Rejected shares over the last 24 hours for this account.'}
         hint={ACCOUNT_REJECTION_HINT}
       />}
       {children}
@@ -138,7 +140,7 @@ export function TodayGeneratedBtcCard({ generatedBtc, aggregated = false }: {
 }) {
   const known = generatedBtc !== undefined;
   return <StatCard
-    tour="stats-generated"
+    tour="stats-earnings"
     title="Today's Generated BTC"
     value={known ? formatBtc(generatedBtc).replace(' BTC', '') : '--'}
     unit={known ? 'BTC' : undefined}

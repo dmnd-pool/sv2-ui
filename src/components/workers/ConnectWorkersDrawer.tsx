@@ -90,12 +90,15 @@ export function ConnectWorkersDrawer({ onClose }: { onClose: () => void }) {
   const [fppsWarning, setFppsWarning] = useState(false);
 
   useEffect(() => {
+    if (aggregated) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, aggregated]);
+
+  if (aggregated) return null;
 
   // Portal out of the page's spacing wrapper (whose `> * + *` margin would be
   // offsetting this fixed overlay) into the themed shell, which keeps the design

@@ -382,7 +382,7 @@ export function WorkersContent({ workers, isLoading: loading, isError: failed, o
 function WorkersStatCards({ stats }: { stats: WorkersPageStats }) {
   const hasWorkers = stats.total > 0;
   const rated = stats.rejectionRate !== null;
-  const rejection = rated ? (stats.rejectionRate! * 100).toFixed(1) : '--';
+  const rejection = rated ? (stats.rejectionRate! * 100).toFixed(2) : '--';
   const scale = pickHashrateScale([stats.hashrate10m ?? 0]);
 
   return (
@@ -424,7 +424,7 @@ function WorkersStatCards({ stats }: { stats: WorkersPageStats }) {
         title="Rejection rate"
         hint={WORKER_REJECTION_HINT}
         captionTone={rated ? 'strong' : 'muted'}
-        caption="Last 10 minutes across all workers"
+        caption="Rejection rate over the last 10 minutes across all workers"
       >
         <Reading value={rejection} unit={rated ? '%' : undefined} />
       </StatCard>
@@ -448,5 +448,5 @@ export function WorkersPage() {
     return tagWorkersBySubaccount(agg.accounts.map((a) => ({ sub: a.name, subaccountId: a.id, workers: a.workers })));
   }, [aggregated, singleAccount.data, agg.accounts]);
 
-  return <WorkersContent workers={workers} isLoading={aggregated ? agg.isLoading : singleAccount.isLoading} isError={aggregated ? agg.isError : singleAccount.isError} onRetry={aggregated ? agg.refetch : singleAccount.refetch} accounts={aggregated ? agg.accounts.map((a) => a.name) : undefined} canConnect canExport />;
+  return <WorkersContent workers={workers} isLoading={aggregated ? agg.isLoading : singleAccount.isLoading} isError={aggregated ? agg.isError : singleAccount.isError} onRetry={aggregated ? agg.refetch : singleAccount.refetch} accounts={aggregated ? agg.accounts.map((a) => a.name) : undefined} canConnect={!aggregated} canExport />;
 }

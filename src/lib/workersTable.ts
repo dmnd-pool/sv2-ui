@@ -161,7 +161,7 @@ export function workerSearchText(worker: Worker): string {
     worker.name,
     hr ? formatHashrate(hr) : '',
     workerMode(worker) ?? '',
-    rej === null ? '' : `${(rej * 100).toFixed(1)}%`,
+    rej === null ? '' : `${(rej * 100).toFixed(2)}%`,
     STATUS_LABEL[classifyWorker(worker)],
   ]
     .join(' ')

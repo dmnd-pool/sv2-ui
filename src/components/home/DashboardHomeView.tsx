@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react';
 
 /** Shared home layout; callers provide only permitted widgets and session-specific actions. */
-export function DashboardHomeView({ title = 'Welcome back', subtitle = 'Mining data and earnings overview.', actions, notice, footer, children }: {
+export function DashboardHomeView({ title = 'Welcome back', subtitle = 'Mining data and earnings overview.', actions, footer, children }: {
   title?: string;
   subtitle?: string;
   actions?: ReactNode;
-  notice?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
 }) {
@@ -18,7 +17,6 @@ export function DashboardHomeView({ title = 'Welcome back', subtitle = 'Mining d
         </div>
         {actions}
       </header>
-      {notice}
       <div className="space-y-1.5">{children}</div>
       {footer}
     </div>

@@ -15,21 +15,21 @@ export function ConnectWorkersCard() {
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="!font-body text-lg font-semibold leading-7 text-heading-alt">{!aggregated && accountName ? `Connect workers to ${accountName}` : 'Connect workers'}</h3>
-          <button
+          {!aggregated && <button
             type="button"
             onClick={() => setGuideOpen(true)}
             className="inline-flex shrink-0 items-center gap-1 text-sm leading-5 text-foreground transition-colors hover:text-body-alt"
           >
             Setup guide
             <LiAltArrowRight className="h-3.5 w-3.5" />
-          </button>
+          </button>}
         </div>
         <div className="h-px w-full bg-border" />
       </div>
       <div className="mt-2">
         <ConnectionDetails />
       </div>
-      {guideOpen && <ConnectWorkersDrawer onClose={() => setGuideOpen(false)} />}
+      {!aggregated && guideOpen && <ConnectWorkersDrawer onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }
