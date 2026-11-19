@@ -16,9 +16,8 @@ import { watcherLinkUrl } from '@/lib/watcherLinks';
  *
  * A Watcher link is normally opened directly, but a watcher who was sent the credentials
  * as text -- or who has the link in a password manager rather than a browser -- needs a
- * way to type them in. So this screen collects the same two halves the old dashboard's
- * Watcher mode did (account ID and token) and hands them to the same
- * /login/watcher/:userId/:token view the shared link opens.
+ * way to type them in. So this screen collects the account ID and token and hands them
+ * to the same /login/watcher/:userId/:token view the shared link opens.
  *
  */
 export function WatcherSignIn() {

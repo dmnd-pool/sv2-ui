@@ -1,6 +1,42 @@
 import type { Payout } from './payoutsTable';
-import type { GeneratedBtcEntry } from '@/api/types';
+import type { GeneratedBtcEntry, PplnsProjection } from '@/api/types';
 import { BTC_DISPLAY_DP, csvCell, formatHashrate, formatUtcDay } from '@/lib/utils';
+
+export type GeneratedBtcDisplayEntry = GeneratedBtcEntry & {
+  displayBtc?: number;
+  displayHashrate?: number;
+};
+
+export const generatedAmount = (entry: GeneratedBtcDisplayEntry) => entry.displayBtc ?? entry.fpps_btc_generated;
+export const generatedHashrate = (entry: GeneratedBtcDisplayEntry) => entry.displayHashrate ?? entry.hashrate;
+
+/** One account's PPLNS report and whether it is mining PPLNS right now. */
+export interface PplnsAccountState {
+  projection?: PplnsProjection | null;
+  activelyMining: boolean;
+}
+
+export function generatedBtcForScheme(
+  entries: GeneratedBtcEntry[], showFpps: boolean, projection?: PplnsProjection | null,
+  activelyMining = true, today = new Date().toISOString().slice(0, 10), aggregated = false,
+  subaccounts: PplnsAccountState[] = [],
+): GeneratedBtcDisplayEntry[] {
+  const accounts: PplnsAccountState[] = [{ projection, activelyMining }, ...subaccounts];
+  return entries.map((entry) => {
+    const own = aggregated ? accounts.find((a) => a.projection?.subaccount_id === entry.accountId) : accounts[0];
+    const hide = own && !own.activelyMining && own.projection?.calculated_at.slice(0, 10) === today &&
+      entry.entry_day === today ? own.projection : null;
+    const projectedSats = hide?.daily_work.reduce((sum, work) => sum + work.projected_net_sats, 0) ?? 0;
+    const total = hide ? Math.max(entry.fpps_btc_generated, entry.btc_generated - projectedSats / 1e8) : entry.btc_generated;
+    const work = aggregated ? undefined : projection?.daily_work.filter((day) =>
+      day.work_day === entry.entry_day && day.retained_difficulty > 0).slice(-1)[0];
+    return {
+      ...entry,
+      displayBtc: showFpps ? entry.fpps_btc_generated : Math.max(0, total - entry.fpps_btc_generated),
+      displayHashrate: showFpps ? entry.hashrate : (work?.retained_difficulty ?? 0) * 2 ** 32 / 86400,
+    };
+  });
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -11,7 +47,7 @@ function utcMidnight(ms: number): number {
 }
 
 /** UTC-midnight ms of an entry's day; NaN when the date can't be parsed. */
-export function entryDayMs(entry: GeneratedBtcEntry): number {
+export function entryDayMs(entry: GeneratedBtcDisplayEntry): number {
   const ms = Date.parse(entry.entry_day);
   return Number.isNaN(ms) ? NaN : utcMidnight(ms);
 }
@@ -19,14 +55,10 @@ export function entryDayMs(entry: GeneratedBtcEntry): number {
 /** Same long UTC date used by PPLNS Projection. */
 export const formatGeneratedDate = formatUtcDay;
 
-/** The FPPS view excludes days belonging only to PPLNS, without dropping earned FPPS BTC. */
-export function hasFppsActivity(entry: GeneratedBtcEntry): boolean {
-  return entry.hashrate > 0 || entry.fpps_btc_generated > 0;
-}
 
-/** Sum of generated FPPS BTC across the entries; 0 when empty. */
-export function sumGenerated(entries: GeneratedBtcEntry[]): number {
-  return entries.reduce((total, e) => total + e.fpps_btc_generated, 0);
+/** Sum the selected scheme, defaulting to FPPS for raw API rows. */
+export function sumGenerated(entries: GeneratedBtcDisplayEntry[]): number {
+  return entries.reduce((total, e) => total + generatedAmount(e), 0);
 }
 
 /**
@@ -35,7 +67,7 @@ export function sumGenerated(entries: GeneratedBtcEntry[]): number {
  * `YYYY-MM-DD` UTC day, so the comparison is made on that same UTC day rather than the
  * viewer's local one. Returns 0 when today has no entry yet.
  */
-export function todayGeneratedBtc(entries: GeneratedBtcEntry[], nowMs: number): number {
+export function todayGeneratedBtc(entries: GeneratedBtcDisplayEntry[], nowMs: number): number {
   const today = new Date(nowMs).toISOString().slice(0, 10);
   const entry = entries.find((e) => e.entry_day === today);
   return entry?.fpps_btc_generated ?? 0;
@@ -45,23 +77,23 @@ export function todayGeneratedBtc(entries: GeneratedBtcEntry[], nowMs: number): 
  * Mean of the daily hashrate readings in the rows shown, so the figure describes the
  * same period the table does.
  */
-export function averageEntryHashrate(entries: GeneratedBtcEntry[]): number {
+export function averageEntryHashrate(entries: GeneratedBtcDisplayEntry[]): number {
   if (entries.length === 0) return 0;
-  return entries.reduce((sum, entry) => sum + entry.hashrate, 0) / entries.length;
+  return entries.reduce((sum, entry) => sum + generatedHashrate(entry), 0) / entries.length;
 }
 
 /** The row that generated the most BTC; null when no day carries a reading. */
-export function highestEarningDay(entries: GeneratedBtcEntry[]): GeneratedBtcEntry | null {
-  let best: GeneratedBtcEntry | null = null;
+export function highestEarningDay(entries: GeneratedBtcDisplayEntry[]): GeneratedBtcDisplayEntry | null {
+  let best: GeneratedBtcDisplayEntry | null = null;
   for (const entry of entries) {
-    if (best === null || entry.fpps_btc_generated > best.fpps_btc_generated) best = entry;
+    if (best === null || generatedAmount(entry) > generatedAmount(best)) best = entry;
   }
   return best;
 }
 
 /** Newest day first; entries with an unparseable date sort last. */
-export function sortGeneratedByDateDesc(entries: GeneratedBtcEntry[]): GeneratedBtcEntry[] {
-  const key = (e: GeneratedBtcEntry): number => {
+export function sortGeneratedByDateDesc(entries: GeneratedBtcDisplayEntry[]): GeneratedBtcDisplayEntry[] {
+  const key = (e: GeneratedBtcDisplayEntry): number => {
     const ms = entryDayMs(e);
     return Number.isNaN(ms) ? -Infinity : ms;
   };
@@ -91,7 +123,7 @@ export function isGeneratedBtcFilterActive(f: GeneratedBtcFilter): boolean {
 }
 
 /** Keep entries whose day falls within [sinceMs, untilMs] (inclusive); an unparseable day is dropped once a bound is set. */
-export function filterGeneratedBtc(entries: GeneratedBtcEntry[], filter: GeneratedBtcFilter): GeneratedBtcEntry[] {
+export function filterGeneratedBtc(entries: GeneratedBtcDisplayEntry[], filter: GeneratedBtcFilter): GeneratedBtcDisplayEntry[] {
   if (filter.sinceMs === null && filter.untilMs === null) return entries;
   return entries.filter((e) => {
     const day = entryDayMs(e);
@@ -117,13 +149,13 @@ export function generatedBtcRowId(e: { entry_day: string; account?: string; acco
   return `${e.entry_day}-${e.accountId ?? e.account ?? ''}`;
 }
 
-export function generatedBtcToCsv(entries: GeneratedBtcEntry[]): string {
+export function generatedBtcToCsv(entries: GeneratedBtcDisplayEntry[], scheme?: 'fpps' | 'pplns'): string {
   const rows = entries.map((e) => [
     e.entry_day,
-    String(e.hashrate),
-    String(e.fpps_btc_generated),
+    scheme ? formatHashrate(generatedHashrate(e)) : String(generatedHashrate(e)),
+    scheme ? formatBtc(generatedAmount(e)) : String(generatedAmount(e)),
   ].map(csvCell));
-  return [CSV_HEADER, ...rows.map((r) => r.join(','))].join('\n');
+  return [scheme ? 'entry_day,hashrate,btc_generated' : CSV_HEADER, ...rows.map((r) => r.join(','))].join('\n');
 }
 
 /**
@@ -133,9 +165,9 @@ export function generatedBtcToCsv(entries: GeneratedBtcEntry[]): string {
  * repeats a day (a defensive guard against a duplicate from the server), not because two
  * different owners are compared against each other.
  */
-export function dedupeGeneratedBtc(entries: GeneratedBtcEntry[]): GeneratedBtcEntry[] {
+export function dedupeGeneratedBtc(entries: GeneratedBtcDisplayEntry[]): GeneratedBtcDisplayEntry[] {
   const seen = new Set<string>();
-  const out: GeneratedBtcEntry[] = [];
+  const out: GeneratedBtcDisplayEntry[] = [];
   for (const e of entries) {
     const key = generatedBtcRowId(e);
     if (seen.has(key)) continue;
@@ -146,27 +178,27 @@ export function dedupeGeneratedBtc(entries: GeneratedBtcEntry[]): GeneratedBtcEn
 }
 
 /** Keep entries belonging to the chosen accounts; an empty list keeps them all. */
-export function filterGeneratedBtcByAccount(entries: GeneratedBtcEntry[], accounts: string[]): GeneratedBtcEntry[] {
+export function filterGeneratedBtcByAccount(entries: GeneratedBtcDisplayEntry[], accounts: string[]): GeneratedBtcDisplayEntry[] {
   if (accounts.length === 0) return entries;
   return entries.filter((e) => e.account != null && accounts.includes(e.account));
 }
 
 /** Search displayed row values (plus ISO dates); a blank query passes all. */
-export function searchGeneratedBtc(entries: GeneratedBtcEntry[], query: string): GeneratedBtcEntry[] {
+export function searchGeneratedBtc(entries: GeneratedBtcDisplayEntry[], query: string): GeneratedBtcDisplayEntry[] {
   const q = query.trim().toLowerCase();
   if (!q) return entries;
   return entries.filter((e) => [
     e.entry_day,
     formatGeneratedDate(e.entry_day),
     e.account ?? '',
-    formatHashrate(e.hashrate),
-    `${formatBtc(e.fpps_btc_generated)} BTC`,
+    formatHashrate(generatedHashrate(e)),
+    `${formatBtc(generatedAmount(e))} BTC`,
   ].some((value) => value.toLowerCase().includes(q)));
 }
 
 /** Sum accounts within each UTC day before computing fleet averages and highest-day earnings. */
-export function combinedDailyEarnings(entries: GeneratedBtcEntry[]): GeneratedBtcEntry[] {
-  const days = new Map<string, GeneratedBtcEntry>();
+export function combinedDailyEarnings(entries: GeneratedBtcDisplayEntry[]): GeneratedBtcDisplayEntry[] {
+  const days = new Map<string, GeneratedBtcDisplayEntry>();
   for (const entry of entries) {
     const previous = days.get(entry.entry_day);
     days.set(entry.entry_day, {
@@ -176,6 +208,10 @@ export function combinedDailyEarnings(entries: GeneratedBtcEntry[]): GeneratedBt
       fpps_btc_generated: (previous?.fpps_btc_generated ?? 0) + entry.fpps_btc_generated,
       pplns_btc_generated: (previous?.pplns_btc_generated ?? 0) + entry.pplns_btc_generated,
       btc_generated: (previous?.btc_generated ?? 0) + entry.btc_generated,
+      ...(entry.displayBtc === undefined ? {} : {
+        displayBtc: (previous?.displayBtc ?? 0) + generatedAmount(entry),
+        displayHashrate: (previous?.displayHashrate ?? 0) + generatedHashrate(entry),
+      }),
     });
   }
   return [...days.values()];
@@ -184,7 +220,7 @@ export function combinedDailyEarnings(entries: GeneratedBtcEntry[]): GeneratedBt
 export const MINIMUM_PAYOUT_SATS = 500_000;
 
 /** Port of Types.Payout.unpaidBalance from user-dashboard's show-minimum-payout-progress branch. */
-export function payoutProgress(entries: GeneratedBtcEntry[], payouts: Payout[], nowMs = Date.now()) {
+export function payoutProgress(entries: GeneratedBtcDisplayEntry[], payouts: Payout[], nowMs = Date.now()) {
   const today = new Date(nowMs).toISOString().slice(0, 10);
   const start = new Date(nowMs - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const ledger = new Map<string, number>();

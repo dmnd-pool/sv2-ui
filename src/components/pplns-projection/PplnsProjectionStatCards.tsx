@@ -21,7 +21,7 @@ export function PplnsProjectionStatCards({ dailyWork, aggregated = false }: { da
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Card title="Total PPLNS value" caption={aggregated ? 'Earned + projected across all accounts' : 'Earned plus next-block projection'}>
+      <Card title="Estimated total if a block were found now" caption="Not paid yet. Final only when the pool finds a block.">
         <Reading value={formatBtcFromSats(stats.totalNetSats)} unit="BTC" />
       </Card>
 
@@ -29,7 +29,7 @@ export function PplnsProjectionStatCards({ dailyWork, aggregated = false }: { da
         <Reading value={stats.workDays > 0 ? formatPplnsAverageHashrate(stats.retainedDifficulty / stats.workDays) : '--'} />
       </Card>
 
-      <Card title="Next-block projection" caption={aggregated ? 'Next block reward across all accounts' : 'Estimated next block reward'}>
+      <Card title="Next block estimate" caption="Your potential reward, excluding earnings from earlier blocks.">
         <Reading value={formatBtcFromSats(stats.projectedNetSats)} unit="BTC" />
       </Card>
 

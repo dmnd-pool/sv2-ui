@@ -88,7 +88,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
   const section = chosen ?? 'home';
   const homeVisible = section === 'home';
   const revoked = useWatcherTokenRevoked(token);
-  const hashrate = useWatcherHashrate(token, !revoked, homeVisible);
+  const hashrate = useWatcherHashrate(token, !revoked, homeVisible || section === 'generated');
   const history = useWatcherHashrateHistory(token, range, custom, !revoked && hashrate.isSuccess && homeVisible);
   const now = Date.now();
   const comparisonWindow = hashrateComparisonWindow(hashrate.data?.observed_at, now);
@@ -103,7 +103,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
   const payouts = useWatcherPayouts(token, generated.isSuccess && !revoked, accountId, homeVisible || section === 'generated' || section === 'payouts');
   const fees = useWatcherFees(token, true, homeVisible);
   const shareStats = useWatcherShareStats(token, true, homeVisible);
-  const pplns = useWatcherPplnsProjection(accountId, token, true, section === 'pplns');
+  const pplns = useWatcherPplnsProjection(accountId, token, true, section === 'pplns' || section === 'generated');
 
   // A scope is granted unless its probe came back unauthorised; while a probe is still
   // loading we cannot yet tell, so navigation waits for it to settle before deciding
@@ -233,7 +233,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
           </DashboardHomeView>
         )}
         {active === 'workers' && <WorkersContent workers={workers.data ?? []} isLoading={workers.isLoading} isError={workers.isError} onRetry={workers.refetch} />}
-        {active === 'generated' && <GeneratedBtcContent entries={generated.data ?? []} isLoading={generated.isLoading} isError={generated.isError} onRetry={generated.refetch}
+        {active === 'generated' && <GeneratedBtcContent projection={pplns.data} activelyMining={hashrate.data ? hashrate.data.pplns_hashrate > 0 : true} earningsUpdatedAt={generated.dataUpdatedAt} entries={generated.data ?? []} isLoading={generated.isLoading} isError={generated.isError} onRetry={generated.refetch}
           payoutProgress={canViewPayouts ? { payouts: payouts.data, isLoading: payouts.isLoading, isError: payouts.isError } : undefined} />}
         {active === 'payouts' && <PayoutsContent payouts={payouts.data ?? []} isLoading={payouts.isLoading} isError={payouts.isError} onRetry={payouts.refetch} />}
         {active === 'pplns' && <PplnsProjectionPanel projection={pplns.data} isLoading={pplns.isLoading} isError={pplns.isError} showStats selectable={false} />}
