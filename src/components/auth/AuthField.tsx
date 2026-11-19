@@ -1,6 +1,24 @@
-import { forwardRef, type ComponentType, type ReactNode } from 'react';
+import { forwardRef, useEffect, useRef, type ComponentType, type ReactNode } from 'react';
+import type { ChangeHandler } from 'react-hook-form';
 import { Input, type InputProps } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+/** Report silent autofill changes through the existing form change handler. */
+export function useAutofillSync(onChange: ChangeHandler) {
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const values = new WeakMap<HTMLInputElement, string>();
+    const interval = window.setInterval(() => {
+      formRef.current?.querySelectorAll<HTMLInputElement>('input[name]').forEach((input) => {
+        const previous = values.get(input) ?? input.defaultValue;
+        values.set(input, input.value);
+        if (input.value !== previous) void onChange({ type: 'change', target: input });
+      });
+    }, 200);
+    return () => window.clearInterval(interval);
+  }, [onChange]);
+  return formRef;
+}
 
 interface FieldLabelProps {
   htmlFor?: string;
