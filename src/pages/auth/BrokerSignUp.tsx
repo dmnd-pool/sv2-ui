@@ -6,7 +6,7 @@ import { Check } from 'lucide-react';
 import { LiLetter } from 'solar-icon-react/li';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { AuthHeading } from '@/components/auth/AuthHeading';
-import { FieldLabel, IconInput, filledInputClass } from '@/components/auth/AuthField';
+import { FieldLabel, IconInput, filledInputClass, useAutofillSync } from '@/components/auth/AuthField';
 import { PasswordField } from '@/components/auth/PasswordField';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { SignupStepper } from '@/components/auth/SignupStepper';
@@ -170,7 +170,8 @@ function PasswordStep({
     defaultValues: { password: '', confirmPassword: '' },
   });
   const passwordValue = watch('password');
-  const passwordReg = register('password');
+  const passwordReg = register('password', { deps: ['confirmPassword'] });
+  const formRef = useAutofillSync(passwordReg.onChange);
   // Surface a server-side password rejection in the strength meter; clear it on edit.
   const [serverPwError, setServerPwError] = useState<string | null>(null);
   useEffect(() => setServerPwError(null), [passwordValue]);
@@ -215,7 +216,7 @@ function PasswordStep({
 
       <SignupStepper current="security" />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5" noValidate>
+      <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5" noValidate>
         <div className="space-y-1">
           <FieldLabel htmlFor="password" required>
             Password
@@ -234,7 +235,7 @@ function PasswordStep({
           <PasswordStrengthMeter
             password={passwordValue}
             show={passwordFocused || passwordValue.length > 0}
-            errorOverride={serverPwError}
+            errorOverride={serverPwError ?? errors.password?.message}
           />
         </div>
 

@@ -6,12 +6,16 @@ import { createElement } from 'react';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { pplnsProjectionFixture } from '@/api/__tests__/pplnsProjectionFixture';
+import { GeneratedBtcTable } from '@/components/generated-btc/GeneratedBtcTable';
 import type { GeneratedBtcEntry } from '@/api/types';
 import {
+  generatedBtcForScheme,
+  generatedAmount,
+  generatedHashrate,
   combinedDailyEarnings,
   averageEntryHashrate,
   sumGenerated,
-  hasFppsActivity,
   sortGeneratedByDateDesc,
   formatGeneratedDate,
   entryDayMs,
@@ -44,11 +48,15 @@ test('sumGenerated adds only FPPS-generated BTC; 0 when empty', () => {
   assert.equal(sumGenerated([]), 0);
 });
 
-test('the FPPS view excludes PPLNS-only days while retaining FPPS work or earnings', () => {
-  assert.equal(hasFppsActivity(entry({ hashrate: 0, fpps_btc_generated: 0, pplns_hashrate: 100e12, pplns_btc_generated: 1, btc_generated: 1 })), false);
-  assert.equal(hasFppsActivity(entry({ hashrate: 0, fpps_btc_generated: 0, btc_generated: 0 })), false);
-  assert.equal(hasFppsActivity(entry({ hashrate: 100e12, fpps_btc_generated: 0 })), true);
-  assert.equal(hasFppsActivity(entry({ hashrate: 0, fpps_btc_generated: 0.001 })), true);
+test('both scheme views keep every day, including days with no work in that scheme, like legacy', () => {
+  const raw = [
+    entry({ entry_day: '2026-06-21', hashrate: 0, fpps_btc_generated: 0, btc_generated: 0.002 }),
+    entry({ entry_day: '2026-06-20', hashrate: 100e12, fpps_btc_generated: 0.001, btc_generated: 0.001 }),
+  ];
+  const fpps = generatedBtcForScheme(raw, true);
+  assert.deepEqual(fpps.map((row) => row.entry_day), ['2026-06-21', '2026-06-20']);
+  assert.deepEqual(fpps.map(generatedAmount), [0, 0.001]);
+  assert.deepEqual(generatedBtcForScheme(raw, false).map(generatedAmount), [0.002, 0]);
 });
 
 test('sortGeneratedByDateDesc orders newest entry_day first', () => {
@@ -291,4 +299,72 @@ test('progress card distinguishes unknown payout data from a genuine zero balanc
   assert.match(empty, /role="progressbar"/);
   assert.match(empty, /aria-valuenow="0"/);
   assert.match(empty, /0\.005 BTC more needed/);
+});
+
+
+test('PPLNS scheme matches legacy total-minus-FPPS earnings and retained-work hashrate', () => {
+  const projection = pplnsProjectionFixture();
+  const raw = [entry({ entry_day: '2026-08-31', btc_generated: 0.003, fpps_btc_generated: 0.001,
+    pplns_btc_generated: 99, pplns_hashrate: 99 })];
+  const [pplns] = generatedBtcForScheme(raw, false, projection);
+  assert.equal(generatedAmount(pplns), 0.002);
+  assert.equal(generatedHashrate(pplns), 2 ** 32 / 86400);
+  const [fpps] = generatedBtcForScheme(raw, true, projection);
+  assert.equal(generatedAmount(fpps), 0.001);
+  assert.equal(generatedHashrate(fpps), raw[0].hashrate);
+  assert.equal(raw[0].btc_generated, 0.003);
+  assert.equal(generatedAmount(generatedBtcForScheme([entry({ btc_generated: 0 })], false)[0]), 0);
+  assert.equal(generatedHashrate(generatedBtcForScheme(raw, false)[0]), 0);
+});
+
+test('inactive PPLNS removes only today projection, preserving historical rewards and FPPS', () => {
+  const projection = pplnsProjectionFixture();
+  projection.daily_work[0].projected_net_sats = 100_000;
+  const raw = [entry({ entry_day: '2026-08-31', btc_generated: 0.003, fpps_btc_generated: 0.001 }),
+    entry({ entry_day: '2026-08-30', btc_generated: 0.003, fpps_btc_generated: 0.001 })];
+  const inactive = generatedBtcForScheme(raw, false, projection, false, '2026-08-31');
+  assert.equal(generatedAmount(inactive[0]), 0.001);
+  assert.equal(generatedAmount(inactive[1]), 0.002);
+  assert.equal(generatedAmount(generatedBtcForScheme(raw, false, projection, true, '2026-08-31')[0]), 0.002);
+  assert.equal(generatedAmount(generatedBtcForScheme(raw, false, projection, false, '2026-09-01')[0]), 0.002);
+  assert.equal(generatedAmount(generatedBtcForScheme(raw, true, projection, false, '2026-08-31')[0]), 0.001);
+  projection.daily_work[0].projected_net_sats = 999_999;
+  assert.equal(generatedAmount(generatedBtcForScheme(raw, false, projection, false, '2026-08-31')[0]), 0);
+});
+
+test('aggregate PPLNS hides each inactive account projection with its own report, like legacy', () => {
+  const report = (id: string, sats: number) => {
+    const projection = pplnsProjectionFixture();
+    projection.subaccount_id = id;
+    projection.daily_work[0].projected_net_sats = sats;
+    return projection;
+  };
+  const raw = ['123', '456', '789', '999'].map((accountId) => entry({ accountId, entry_day: '2026-08-31',
+    btc_generated: 0.003, fpps_btc_generated: 0.001 }));
+  const rows = generatedBtcForScheme(raw, false, report('123', 100_000), false, '2026-08-31', true, [
+    { projection: report('456', 50_000), activelyMining: false },
+    { projection: report('789', 100_000), activelyMining: true },
+  ]);
+  // Main and inactive subaccount lose their own projection; active and unknown accounts keep theirs.
+  assert.deepEqual(rows.map((row) => Math.round(generatedAmount(row) * 1e8)), [100_000, 150_000, 200_000, 200_000]);
+  assert.deepEqual(rows.map(generatedHashrate), [0, 0, 0, 0]);
+  const daily = combinedDailyEarnings(rows);
+  assert.equal(daily.length, 1);
+  assert.equal(Math.round(sumGenerated(daily) * 1e8), 650_000);
+});
+
+test('selected scheme drives search, summaries, desktop/mobile table and CSV', () => {
+  const rows = generatedBtcForScheme([entry({ btc_generated: 0.004, fpps_btc_generated: 0.001 }),
+    entry({ entry_day: '2026-06-20', btc_generated: 0.006, fpps_btc_generated: 0.005 })], false);
+  assert.ok(Math.abs(sumGenerated(rows) - 0.004) < 1e-12);
+  assert.equal(highestEarningDay(rows)?.entry_day, '2026-06-21');
+  assert.equal(averageEntryHashrate(rows), 0);
+  assert.equal(searchGeneratedBtc(rows, '0.003 BTC').length, 1);
+  const csv = generatedBtcToCsv(rows, 'pplns');
+  assert.match(csv, /^entry_day,hashrate,btc_generated/);
+  assert.match(csv, /2026-06-21,0 H\/s,0.003/);
+  const html = renderToStaticMarkup(createElement(GeneratedBtcTable, { entries: rows, scheme: 'PPLNS' }));
+  assert.match(html, /PPLNS hashrate/);
+  assert.doesNotMatch(html, /FPPS hashrate/);
+  assert.equal((html.match(/0.003/g) ?? []).length, 2);
 });

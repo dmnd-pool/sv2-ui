@@ -12,6 +12,7 @@ export function TableToolbar({
   filterActive,
   renderFilter,
   tabs,
+  actions,
   variant = 'plain',
 }: {
   title: string;
@@ -22,6 +23,7 @@ export function TableToolbar({
   filterActive: boolean;
   renderFilter: (onClose: () => void) => ReactNode;
   tabs?: ReactNode;
+  actions?: ReactNode;
   variant?: 'plain' | 'framed' | 'tabs';
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
@@ -36,7 +38,7 @@ export function TableToolbar({
       variant === 'tabs' ? 'p-4' : 'p-3 sm:p-4',
       !plain && 'rounded-t-3xl border-[0.5px] border-b-0 border-border bg-card',
     )}>
-      <div className={cn('flex w-full gap-3 sm:justify-end', variant === 'tabs' ? 'flex-col sm:flex-row sm:items-center' : 'items-center')}>
+      <div className={cn('flex w-full gap-3 sm:justify-end', variant === 'tabs' ? 'flex-col sm:flex-row sm:items-center' : 'items-center', actions && 'flex-wrap')}>
         {tabs}
         <div className="relative min-w-0 flex-1 sm:flex-none">
           <LiMagnifer className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2', plain ? 'left-3 h-4 w-4 text-placeholder' : 'left-4 h-3.5 w-3.5 text-body-alt')} />
@@ -75,6 +77,7 @@ export function TableToolbar({
           </button>
           {!framed && panel}
         </div>
+        {actions && <div className="flex w-full justify-end sm:w-auto">{actions}</div>}
       </div>
       {framed && panel}
     </div>

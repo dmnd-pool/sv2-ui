@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import type { GeneratedBtcEntry } from '@/api/types';
+import type { GeneratedBtcDisplayEntry } from '@/lib/generatedBtcTable';
 import { InfoHint } from '@/components/ui/InfoHint';
 import { CellCheckbox } from '@/components/ui/CellCheckbox';
 import { formatHashrate } from '@/lib/utils';
-import { formatGeneratedDate, formatBtc, generatedBtcRowId } from '@/lib/generatedBtcTable';
+import { formatGeneratedDate, formatBtc, generatedBtcRowId, generatedAmount, generatedHashrate } from '@/lib/generatedBtcTable';
 import { DAILY_HASHRATE_HINT } from '@/lib/metricWindows';
 
 /** The empty message shown in the table body when the date filter excludes every row. */
@@ -14,7 +14,7 @@ export interface GeneratedBtcEmpty {
   onClear: () => void;
 }
 
-/** One generated FPPS BTC amount from a validated earnings row. */
+/** One generated BTC amount for the selected reward scheme. */
 function BtcAmount({ amount, unitClass }: { amount: number; unitClass: string }) {
   return (
     <>
@@ -50,28 +50,29 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function GeneratedBtcCard({ entry, showAccount }: { entry: GeneratedBtcEntry; showAccount: boolean }) {
+function GeneratedBtcCard({ entry, showAccount, scheme }: { entry: GeneratedBtcDisplayEntry; showAccount: boolean; scheme: string }) {
   return (
     <div className="flex flex-col border-x-[0.5px] border-b-[0.5px] border-border px-3 py-2">
       <div className="flex min-h-[47px] items-center gap-6">
         <Field label="Date">{formatGeneratedDate(entry.entry_day)}</Field>
         {showAccount && <Field label="Account">{entry.account ?? '--'}</Field>}
-        <Field label="FPPS hashrate">{formatHashrate(entry.hashrate)}</Field>
+        <Field label={`${scheme} hashrate`}>{formatHashrate(generatedHashrate(entry))}</Field>
       </div>
       <div className="flex min-h-[47px] items-center gap-6">
         <Field label="Generated BTC">
-          <BtcAmount amount={entry.fpps_btc_generated} unitClass="text-xs leading-4 text-body-alt" />
+          <BtcAmount amount={generatedAmount(entry)} unitClass="text-xs leading-4 text-body-alt" />
         </Field>
       </div>
     </div>
   );
 }
 
-/** Daily FPPS hashrate and generated BTC. */
+/** Daily hashrate and generated BTC for the selected reward scheme. */
 export function GeneratedBtcTable({
   entries,
   empty,
   showAccount = false,
+  scheme = 'FPPS',
   selectable = true,
   selected = new Set<string>(),
   allSelected = false,
@@ -79,10 +80,11 @@ export function GeneratedBtcTable({
   onToggleAll,
   onToggleOne,
 }: {
-  entries: GeneratedBtcEntry[];
+  entries: GeneratedBtcDisplayEntry[];
   empty?: GeneratedBtcEmpty;
   /** Aggregated mode adds the owning account, since rows then span accounts. */
   showAccount?: boolean;
+  scheme?: 'FPPS' | 'PPLNS';
   selectable?: boolean;
   selected?: Set<string>;
   allSelected?: boolean;
@@ -103,8 +105,8 @@ export function GeneratedBtcTable({
               {showAccount && <th className="px-4 py-3 text-left font-normal">Account</th>}
               <th className="px-4 py-3 text-left font-normal">
                 <span className="inline-flex items-center gap-2">
-                  FPPS hashrate
-                  <InfoHint text={DAILY_HASHRATE_HINT} />
+                  {scheme} hashrate
+                  <InfoHint text={scheme === 'FPPS' ? DAILY_HASHRATE_HINT : 'Average PPLNS hashrate derived from retained work for this UTC day.'} />
                 </span>
               </th>
               <th className="px-4 py-3 text-left font-normal">Generated BTC</th>
@@ -125,9 +127,9 @@ export function GeneratedBtcTable({
                 </td>}
                 <td className="px-4 py-3 text-foreground">{formatGeneratedDate(e.entry_day)}</td>
                 {showAccount && <td className="px-4 py-3 text-foreground">{e.account ?? '--'}</td>}
-                <td className="px-4 py-3 text-foreground">{formatHashrate(e.hashrate)}</td>
+                <td className="px-4 py-3 text-foreground">{formatHashrate(generatedHashrate(e))}</td>
                 <td className="px-4 py-3 text-foreground">
-                  <BtcAmount amount={e.fpps_btc_generated} unitClass="text-xs leading-4 text-body-alt" />
+                  <BtcAmount amount={generatedAmount(e)} unitClass="text-xs leading-4 text-body-alt" />
                 </td>
               </tr>
             ))}
@@ -144,7 +146,7 @@ export function GeneratedBtcTable({
             {selectable && <div className="flex items-center px-3 pt-3">
               <CellCheckbox checked={selected.has(generatedBtcRowId(e))} onChange={() => onToggleOne?.(generatedBtcRowId(e))} label={`Select generated BTC for ${e.entry_day}${e.account ? ` (${e.account})` : ''}`} />
             </div>}
-            <GeneratedBtcCard entry={e} showAccount={showAccount} />
+            <GeneratedBtcCard entry={e} showAccount={showAccount} scheme={scheme} />
           </div>
         ))}
       </div>

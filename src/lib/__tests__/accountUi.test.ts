@@ -266,7 +266,7 @@ test('PPLNS projection has a persistent page heading and working selection contr
   const projection = pplnsProjectionFixture();
   const html = renderToStaticMarkup(createElement(PplnsProjectionPanel, { projection, isLoading: false, isError: false }));
   assert.match(html, /<h2[^>]*>PPLNS projection<\/h2>/);
-  assert.match(html, /Track your retained mining work and projected PPLNS rewards/);
+  assert.match(html, /Track your retained mining work and estimated PPLNS rewards/);
   assert.match(html, /Select all PPLNS work days/);
   assert.match(html, /Select PPLNS work for 2026-08-31/);
   const refreshing = renderToStaticMarkup(createElement(PplnsProjectionPanel, {

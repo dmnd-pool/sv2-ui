@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode, type Dispatch, type SetStateAction } from 'react';
-import { LiAltArrowDown, LiMagnifer, LiSort, LiExport } from 'solar-icon-react/li';
+import { LiAltArrowDown, LiMagnifer, LiSort, LiExport, LiDangerTriangle } from 'solar-icon-react/li';
 import {
   filterPplnsDailyWork,
   formatPplnsAverageHashrate,
@@ -32,7 +32,7 @@ function StateMessage({ title, body }: { title: string; body: string }) {
   );
 }
 
-const HEADERS = ['Work day (UTC)', 'Retained work', 'Average hashrate', 'Total PPLNS value'];
+const HEADERS = ['Work day (UTC)', 'Retained work', 'Average hashrate', 'Estimated value'];
 
 function BtcAmount({ sats }: { sats: number }) {
   return (
@@ -93,12 +93,14 @@ function ProjectionToolbar({
   filter,
   onApplyFilter,
   onResetFilter,
+  actions,
 }: {
   query: string;
   onQuery: (query: string) => void;
   filter: GbtcFilterDraft;
   onApplyFilter: (filter: GbtcFilterDraft) => void;
   onResetFilter: () => void;
+  actions?: ReactNode;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -124,7 +126,7 @@ function ProjectionToolbar({
 
   return (
     <div className="relative flex flex-col gap-3 border-b-[0.5px] border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 sm:hidden">
         <div className="flex items-center gap-2 sm:hidden">
           <button
             type="button"
@@ -149,6 +151,7 @@ function ProjectionToolbar({
             )}
           </button>
         </div>
+        {actions}
       </div>
 
       {searchOpen && <div className="sm:hidden">{searchField}</div>}
@@ -167,7 +170,7 @@ function ProjectionToolbar({
         />
       )}
 
-      <div className="hidden items-center gap-2 sm:flex">
+      <div className="hidden flex-wrap items-center justify-end gap-3 sm:ml-auto sm:flex">
         {searchField}
         <button
           type="button"
@@ -187,6 +190,7 @@ function ProjectionToolbar({
             <LiAltArrowDown className="h-3.5 w-3.5" />
           )}
         </button>
+        {actions}
       </div>
     </div>
   );
@@ -321,16 +325,7 @@ function ProjectionBody({
 
   return (
     <div className="space-y-4">
-      <ProjectionHeader aggregated={aggregated} updateStatus={updateStatus}>
-        {selectable && dailyWork.length > 0 && <button type="button" disabled={visible.length === 0}
-          onClick={() => {
-            const checked = visible.filter((day) => selected.has(day.work_day));
-            downloadCsv(pplnsDailyWorkToCsv(checked.length ? checked : visible), 'pplns_projection.csv');
-          }}
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-info px-5 text-sm text-info-foreground transition-opacity hover:opacity-90 disabled:opacity-40">
-          <LiExport className="h-3.5 w-3.5" /> Export CSV
-        </button>}
-      </ProjectionHeader>
+      <ProjectionHeader aggregated={aggregated} updateStatus={updateStatus} />
       {showStats && <PplnsProjectionStatCards dailyWork={dailyWork} aggregated={aggregated} />}
       <div className="rounded-xl border border-border bg-card">
         <ProjectionToolbar
@@ -339,6 +334,14 @@ function ProjectionBody({
           filter={filter}
           onApplyFilter={setFilter}
           onResetFilter={resetFilter}
+          actions={selectable && dailyWork.length > 0 && <button type="button" disabled={visible.length === 0}
+            onClick={() => {
+              const checked = visible.filter((day) => selected.has(day.work_day));
+              downloadCsv(pplnsDailyWorkToCsv(checked.length ? checked : visible), 'pplns_projection.csv');
+            }}
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-info px-5 text-sm text-info-foreground transition-opacity hover:opacity-90 disabled:opacity-40">
+            <LiExport className="h-3.5 w-3.5" /> Export CSV
+          </button>}
         />
         <DailyWorkTable dailyWork={visible} empty={empty} selectable={selectable} selected={selected} setSelected={setSelected} />
       </div>
@@ -358,16 +361,21 @@ interface ProjectionPanelProps {
   updateStatus?: ReactNode;
 }
 
-function ProjectionHeader({ aggregated, children, updateStatus }: { aggregated: boolean; children?: ReactNode; updateStatus?: ReactNode }) {
+function ProjectionHeader({ aggregated, updateStatus }: { aggregated: boolean; updateStatus?: ReactNode }) {
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">PPLNS projection</h2>
-        <p className="mt-1 text-sm text-body-alt">{aggregated ? 'Combined PPLNS work and rewards across all accounts.' : 'Track your retained mining work and projected PPLNS rewards.'}</p>
-        {updateStatus && <p className="mt-1 text-xs text-body-alt">{updateStatus}</p>}
+    <>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">PPLNS projection</h2>
+          <p className="mt-1 text-sm text-body-alt">{aggregated ? 'Combined PPLNS work and rewards across all accounts.' : 'Track your retained mining work and estimated PPLNS rewards.'}</p>
+          {updateStatus && <p className="mt-1 text-xs text-body-alt">{updateStatus}</p>}
+        </div>
+      </header>
+      <div role="note" aria-label="PPLNS estimate warning" className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm leading-6 text-foreground">
+        <LiDangerTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+        <p>Nothing on this page is paid or guaranteed yet. Each value is our best guess at what your work would earn if the pool found a block right now. It changes as other miners submit work.</p>
       </div>
-      {children}
-    </header>
+    </>
   );
 }
 
