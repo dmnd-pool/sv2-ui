@@ -21,6 +21,7 @@ import {
   filterWorkersByMode,
   tagWorkersBySubaccount,
   workerRowId,
+  findWorkerByRowId,
 } from '@/lib/workersTable';
 
 const NOW = Date.parse('2026-06-22T12:00:00Z'); // ms, passed as the `now` argument
@@ -365,6 +366,25 @@ test('workerRowId disambiguates by subaccount id, not by name, so two identicall
   ]);
   const ids = tagged.map(workerRowId);
   assert.equal(new Set(ids).size, 2);
+});
+
+test('findWorkerByRowId returns the refetched worker, not the one the row was opened with', () => {
+  const opened = [worker({ name: 'rig', is_connected: true, hashrate: 1e12 })];
+  const refetched = [worker({ name: 'rig', is_connected: false, hashrate: 0 })];
+  const id = workerRowId(opened[0]);
+  const live = findWorkerByRowId(refetched, id);
+  assert.equal(live, refetched[0]);
+  assert.equal(classifyWorker(live!), 'offline');
+});
+
+test('findWorkerByRowId resolves aggregated ids and is null once the worker is gone', () => {
+  const rows = tagWorkersBySubaccount([
+    { sub: 'Farm A', subaccountId: 'sub-1', workers: [worker({ name: 'rig' })] },
+    { sub: 'Farm B', subaccountId: 'sub-2', workers: [worker({ name: 'rig', hashrate: 2e12 })] },
+  ]);
+  assert.equal(findWorkerByRowId(rows, 'sub-2/rig'), rows[1]);
+  assert.equal(findWorkerByRowId(rows, 'rig'), null);
+  assert.equal(findWorkerByRowId([], 'sub-1/rig'), null);
 });
 
 test('applyWorkerFilter narrows by account, and an empty accounts list means all accounts', () => {
