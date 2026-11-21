@@ -22,6 +22,7 @@ import {
   EMPTY_WORKER_FILTER,
   filterByTab,
   filterWorkersByMode,
+  findWorkerByRowId,
   isWorkerFilterActive,
   paginate,
   searchWorkers,
@@ -162,7 +163,10 @@ export function WorkersContent({ workers, isLoading: loading, isError: failed, o
   const [page, setPage] = useState(1);
   const [connectOpen, setConnectOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [detailsWorker, setDetailsWorker] = useState<Worker | null>(null);
+  // Hold the row id, not a worker copy, so the panel shows refetched data.
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const detailsWorker = detailsId === null ? null : findWorkerByRowId(workers, detailsId);
+  if (detailsId !== null && detailsWorker === null) setDetailsId(null);
   const [exportOpen, setExportOpen] = useState(false);
   const toast = useToast();
   const { dismiss } = useToastControls();
@@ -361,7 +365,7 @@ export function WorkersContent({ workers, isLoading: loading, isError: failed, o
                   someSelected={someSelected}
                   onToggleAll={allowExport ? toggleAll : undefined}
                   onToggleOne={allowExport ? toggleOne : undefined}
-                  onOpenDetails={setDetailsWorker}
+                  onOpenDetails={(w) => setDetailsId(workerRowId(w))}
                 />
                 <WorkersPagination page={pageData.page} totalPages={pageData.totalPages} onPage={setPage} />
               </>
@@ -372,7 +376,7 @@ export function WorkersContent({ workers, isLoading: loading, isError: failed, o
 
       {canConnect && connectOpen && <ConnectWorkersDrawer onClose={() => setConnectOpen(false)} />}
       {detailsWorker && (
-        <WorkerDetailsPanel worker={detailsWorker} onClose={() => setDetailsWorker(null)} />
+        <WorkerDetailsPanel worker={detailsWorker} onClose={() => setDetailsId(null)} />
       )}
     </div>
   );

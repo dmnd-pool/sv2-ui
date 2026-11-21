@@ -318,3 +318,8 @@ export function workerRowId(worker: Worker): string {
   const id = (worker as TaggedWorker).subaccountId;
   return id ? `${id}/${worker.name}` : worker.name;
 }
+
+/** The current worker for a row id, or null once it has left the roster. */
+export function findWorkerByRowId(workers: Worker[], rowId: string): Worker | null {
+  return workers.find((w) => workerRowId(w) === rowId) ?? null;
+}

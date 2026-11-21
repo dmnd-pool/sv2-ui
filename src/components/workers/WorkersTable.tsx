@@ -78,9 +78,10 @@ function WorkerCard({ worker }: { worker: Worker }) {
   return (
     <div className="flex flex-col border-b border-border px-3 py-2 last:border-0">
       <div className="flex items-center gap-6">
-        <div className="flex shrink-0 flex-col">
+        {/* Long names wrap here instead of pushing the other columns off-screen. */}
+        <div className="flex min-w-0 flex-1 flex-col">
           <p className="text-xs text-body-alt">Worker Name</p>
-          <p className="text-sm font-medium text-foreground">{worker.name}</p>
+          <p className="break-all text-sm font-medium text-foreground">{worker.name}</p>
         </div>
         <div className="flex shrink-0 flex-col">
           <p className="text-xs text-body-alt">Current hashrate</p>
