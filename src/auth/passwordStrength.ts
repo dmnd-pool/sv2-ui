@@ -1,3 +1,13 @@
+import { zxcvbnAsync, zxcvbnOptions } from '@zxcvbn-ts/core';
+import { adjacencyGraphs, dictionary as commonDictionary } from '@zxcvbn-ts/language-common';
+import { dictionary as englishDictionary, translations } from '@zxcvbn-ts/language-en';
+
+zxcvbnOptions.setOptions({
+  dictionary: { ...commonDictionary, ...englishDictionary },
+  graphs: adjacencyGraphs,
+  translations,
+});
+
 export type PasswordStrengthLevel = 'empty' | 'weak' | 'medium' | 'strong';
 
 export interface PasswordStrength {
@@ -7,18 +17,23 @@ export interface PasswordStrength {
 }
 
 export const MIN_PASSWORD_LENGTH = 9;
+export const MAX_PASSWORD_BYTES = 4096;
+export const PASSWORD_TOO_LONG_MESSAGE = 'Password is too long.';
+
+export function passwordByteLength(password: string): number {
+  return new TextEncoder().encode(password).length;
+}
 
 const MESSAGES: Record<PasswordStrengthLevel, string> = {
-  empty: `Password should be a minimum of ${MIN_PASSWORD_LENGTH} characters`,
+  empty: 'Enter a strong password',
   weak: 'Password is weak, add letters, numbers, and symbols.',
   medium: 'Add a few more characters to strengthen your password',
   strong: 'Password looks good',
 };
 
 /**
- * zxcvbn score at/above which the password reads "strong" (green). Calibrated
- * against the live DMND API: it rejects score 2 (e.g. "Sato@123456") and accepts
- * score 3+, so green here means the server will actually take the password.
+ * Miner signup, password reset, and the meter use a zxcvbn score of at least 3 for
+ * "strong". The server independently validates on submit.
  */
 const STRONG_SCORE = 3;
 
@@ -33,50 +48,24 @@ function build(level: PasswordStrengthLevel): PasswordStrength {
 }
 
 /**
- * Instant, dependency-free read shown before the zxcvbn engine has loaded. It
+ * Instant read shown before the debounced zxcvbn score. It
  * never claims 'strong' (only zxcvbn can), so the bar can't flash a false green.
  */
 export function quickStrength(password: string): PasswordStrength {
   if (password.length === 0) return build('empty');
-  if (password.length < MIN_PASSWORD_LENGTH) return build('weak');
+  if (passwordByteLength(password) > MAX_PASSWORD_BYTES) return { level: 'weak', message: PASSWORD_TOO_LONG_MESSAGE };
   const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((re) => re.test(password)).length;
   return build(classes >= 3 ? 'medium' : 'weak');
 }
 
-// zxcvbn ships large dictionaries, so it's imported on demand and configured
-// once (common + English packs), then cached for every later check.
-let enginePromise: Promise<(pw: string) => number> | null = null;
-function loadEngine(): Promise<(pw: string) => number> {
-  if (!enginePromise) {
-    enginePromise = (async () => {
-      const [core, common, en] = await Promise.all([
-        import('@zxcvbn-ts/core'),
-        import('@zxcvbn-ts/language-common'),
-        import('@zxcvbn-ts/language-en'),
-      ]);
-      core.zxcvbnOptions.setOptions({
-        dictionary: { ...common.dictionary, ...en.dictionary },
-        graphs: common.adjacencyGraphs,
-        translations: en.translations,
-      });
-      return (pw: string) => core.zxcvbn(pw).score;
-    })();
-  }
-  return enginePromise;
-}
-
-/** Warm the zxcvbn chunk ahead of time (e.g. on password-field focus). */
-export function preloadPasswordStrength(): void {
-  void loadEngine();
-}
-
 /**
- * Full strength read: length rules first, then the zxcvbn score for the bar
- * level, matching the entropy check the server enforces on submit.
+ * Full strength read: length rules first, then zxcvbn with the account email
+ * as a user input, as in the backend miner password check. The browser and
+ * server implementations can score differently, so server validation is final.
  */
-export async function scoreStrength(password: string): Promise<PasswordStrength> {
+export async function scoreStrength(password: string, email = ''): Promise<PasswordStrength> {
   if (password.length === 0) return build('empty');
-  if (password.length < MIN_PASSWORD_LENGTH) return build('weak');
-  const score = await loadEngine();
-  return build(levelFromScore(score(password)));
+  if (passwordByteLength(password) > MAX_PASSWORD_BYTES) return { level: 'weak', message: PASSWORD_TOO_LONG_MESSAGE };
+  const { score } = await zxcvbnAsync(password, email ? [email] : []);
+  return build(levelFromScore(score));
 }

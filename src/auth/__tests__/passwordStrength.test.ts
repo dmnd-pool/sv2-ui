@@ -11,10 +11,10 @@ test('levelFromScore maps zxcvbn scores to the 3-segment levels', () => {
   assert.equal(levelFromScore(4), 'strong');
 });
 
-test('quickStrength prompts for the 9-character minimum when empty', () => {
+test('quickStrength prompts for a strong password when empty', () => {
   const s = quickStrength('');
   assert.equal(s.level, 'empty');
-  assert.equal(s.message, 'Password should be a minimum of 9 characters');
+  assert.equal(s.message, 'Enter a strong password');
 });
 
 test('quickStrength reads a short password as weak', () => {
@@ -26,9 +26,28 @@ test('quickStrength never claims strong (only zxcvbn can), so no false green', (
   assert.equal(quickStrength('Sato@123456').level, 'medium');
 });
 
-test('scoreStrength: empty and too-short skip zxcvbn', async () => {
+test('scoreStrength handles empty and weak passwords', async () => {
   assert.equal((await scoreStrength('')).level, 'empty');
   assert.equal((await scoreStrength('aA1$x')).level, 'weak');
+});
+
+test('scoreStrength scores passwords shorter than nine characters without a length gate', async () => {
+  assert.equal((await scoreStrength('vR7!qZ2@')).level, 'medium');
+});
+
+test('strength feedback rejects passwords over the UTF-8 byte limit', async () => {
+  const password = '😀'.repeat(1024) + 'x';
+  for (const result of [quickStrength(password), await scoreStrength(password)]) {
+    assert.equal(result.level, 'weak');
+    assert.equal(result.message, 'Password is too long.');
+  }
+});
+
+test('scoreStrength penalizes the account email without leaking it into later checks', async () => {
+  const email = 'qvjrptax@example.com';
+  assert.equal((await scoreStrength(email)).level, 'strong');
+  assert.notEqual((await scoreStrength(email, email)).level, 'strong');
+  assert.equal((await scoreStrength(email)).level, 'strong');
 });
 
 test('scoreStrength matches the server boundary (rejects score 2, accepts 3+)', async () => {

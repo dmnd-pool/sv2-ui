@@ -18,7 +18,7 @@ import {
   type EmailValues,
   resetTokenSchema,
   type ResetTokenValues,
-  resetPasswordSchema,
+  createResetPasswordSchema,
   type ResetPasswordValues,
 } from '@/auth/schemas';
 import { isTwoFactorRequiredError } from '@/auth/resetErrors';
@@ -222,9 +222,9 @@ function PasswordStep({ email, token, onBack, onDone, onNeedTwoFactor }: Passwor
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting, isValid, isValidating },
   } = useForm<ResetPasswordValues>({
-    resolver: zodResolver(resetPasswordSchema),
+    resolver: zodResolver(createResetPasswordSchema(email)),
     mode: 'onChange',
     defaultValues: { password: '', confirmPassword: '' },
   });
@@ -271,7 +271,7 @@ function PasswordStep({ email, token, onBack, onDone, onNeedTwoFactor }: Passwor
 
         <div className="h-px w-full bg-border" />
 
-        <AuthSubmit type="submit" loading={isSubmitting} disabled={!isValid}>
+        <AuthSubmit type="submit" loading={isSubmitting} disabled={!isValid || isValidating}>
           Reset password
         </AuthSubmit>
       </form>

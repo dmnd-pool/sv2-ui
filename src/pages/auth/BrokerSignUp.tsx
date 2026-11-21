@@ -163,7 +163,7 @@ function PasswordStep({
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting, isValid, isValidating },
   } = useForm<BrokerPasswordValues>({
     resolver: zodResolver(brokerPasswordSchema),
     mode: 'onChange',
@@ -256,7 +256,7 @@ function PasswordStep({
 
         <div className="h-px w-full bg-border" />
 
-        <AuthSubmit type="submit" loading={isSubmitting} disabled={!isValid}>
+        <AuthSubmit type="submit" loading={isSubmitting} disabled={!isValid || isValidating}>
           Create account
         </AuthSubmit>
       </form>
