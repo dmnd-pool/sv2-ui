@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  preloadPasswordStrength,
   quickStrength,
   scoreStrength,
   type PasswordStrength,
@@ -24,6 +23,7 @@ const TEXT: Record<PasswordStrengthLevel, string> = {
 
 interface PasswordStrengthMeterProps {
   password: string;
+  email?: string;
   show: boolean;
   /**
    * A server-side rejection (e.g. weak password) to show instead of the local
@@ -34,18 +34,12 @@ interface PasswordStrengthMeterProps {
 }
 
 /**
- * Scores the password with zxcvbn (lazy-loaded), debounced. Until the engine
- * loads, a synchronous read shows instantly but never claims 'strong', so the
+ * Scores the password with zxcvbn, debounced. The initial synchronous read
+ * shows instantly but never claims 'strong', so the
  * bar never flashes a false green.
  */
-function usePasswordStrength(password: string, enabled: boolean): PasswordStrength {
+function usePasswordStrength(password: string, email: string, enabled: boolean): PasswordStrength {
   const [result, setResult] = useState<PasswordStrength>(() => quickStrength(password));
-
-  // Warm the zxcvbn chunk once the meter is shown so the first real score lands
-  // quickly instead of after a visible chunk-download delay.
-  useEffect(() => {
-    if (enabled) preloadPasswordStrength();
-  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -59,7 +53,7 @@ function usePasswordStrength(password: string, enabled: boolean): PasswordStreng
     // (capped at yellow) flashed before zxcvbn upgraded it to green.
     let cancelled = false;
     const id = setTimeout(() => {
-      void scoreStrength(password).then((r) => {
+      void scoreStrength(password, email).then((r) => {
         if (!cancelled) setResult(r);
       });
     }, 200);
@@ -67,7 +61,7 @@ function usePasswordStrength(password: string, enabled: boolean): PasswordStreng
       cancelled = true;
       clearTimeout(id);
     };
-  }, [password, enabled]);
+  }, [password, email, enabled]);
 
   return result;
 }
@@ -75,11 +69,11 @@ function usePasswordStrength(password: string, enabled: boolean): PasswordStreng
 /**
  * Strength meter under the signup password field: a
  * 3-segment bar (1 red weak / 2 yellow medium / 3 green strong) plus helper
- * text, with a 9-char-minimum prompt when empty. Shown once the field is
+ * text, with a strong-password prompt when empty. Shown once the field is
  * focused or has input.
  */
-export function PasswordStrengthMeter({ password, show, errorOverride }: PasswordStrengthMeterProps) {
-  const live = usePasswordStrength(password, show);
+export function PasswordStrengthMeter({ password, email = '', show, errorOverride }: PasswordStrengthMeterProps) {
+  const live = usePasswordStrength(password, email, show);
   if (!show && !errorOverride) return null;
 
   const level: PasswordStrengthLevel = errorOverride ? 'weak' : live.level;

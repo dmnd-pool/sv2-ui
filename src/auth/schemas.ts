@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MIN_PASSWORD_LENGTH } from './passwordStrength';
+import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH, PASSWORD_TOO_LONG_MESSAGE, passwordByteLength, scoreStrength } from './passwordStrength';
 
 const email = z.string().trim().min(1, 'Enter your email').pipe(z.email('Enter a valid email'));
 
@@ -39,20 +39,32 @@ export type SignUpDetailsValues = z.infer<typeof signUpDetailsSchema>;
 const newPassword = z
   .string()
   .min(MIN_PASSWORD_LENGTH, `Password should be a minimum of ${MIN_PASSWORD_LENGTH} characters`);
+const minerPassword = (accountEmail: string) => z.string().superRefine(async (password, ctx) => {
+  if (passwordByteLength(password) > MAX_PASSWORD_BYTES) {
+    ctx.addIssue({ code: 'custom', message: PASSWORD_TOO_LONG_MESSAGE });
+  } else if (password.length === 0) {
+    ctx.addIssue({ code: 'custom', message: 'Password cannot be empty' });
+  } else if ((await scoreStrength(password, accountEmail)).level !== 'strong') {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Password is too weak. Use a mix of uppercase, lowercase, numbers, and special characters.',
+    });
+  }
+});
 const confirmPassword = z.string().min(1, 'Re-enter your password');
 const passwordsMatch = (v: { password: string; confirmPassword: string }) =>
   v.password === v.confirmPassword;
 const matchError = { message: 'Passwords do not match', path: ['confirmPassword'] };
 
-export const signUpPasswordSchema = z
-  .object({ password: newPassword, confirmPassword, referralCode: z.string().trim().optional() })
+export const createSignUpPasswordSchema = (accountEmail: string) => z
+  .object({ password: minerPassword(accountEmail), confirmPassword, referralCode: z.string().trim().optional() })
   .refine(passwordsMatch, matchError);
-export type SignUpPasswordValues = z.infer<typeof signUpPasswordSchema>;
+export type SignUpPasswordValues = z.infer<ReturnType<typeof createSignUpPasswordSchema>>;
 
-export const resetPasswordSchema = z
-  .object({ password: newPassword, confirmPassword })
+export const createResetPasswordSchema = (accountEmail: string) => z
+  .object({ password: minerPassword(accountEmail), confirmPassword })
   .refine(passwordsMatch, matchError);
-export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
+export type ResetPasswordValues = z.infer<ReturnType<typeof createResetPasswordSchema>>;
 
 // The reset token the user copies from the recovery email and types on the
 // "We sent you a code" step.

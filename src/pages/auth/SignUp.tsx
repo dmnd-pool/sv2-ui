@@ -19,7 +19,7 @@ import { useAuth } from '@/auth';
 import {
   signUpDetailsSchema,
   type SignUpDetailsValues,
-  signUpPasswordSchema,
+  createSignUpPasswordSchema,
   type SignUpPasswordValues,
 } from '@/auth/schemas';
 import { getUser } from '@/api';
@@ -160,9 +160,9 @@ function PasswordStep({
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting, isValid, isValidating },
   } = useForm<SignUpPasswordValues>({
-    resolver: zodResolver(signUpPasswordSchema),
+    resolver: zodResolver(createSignUpPasswordSchema(details.email)),
     mode: 'onChange',
     defaultValues: { password: '', confirmPassword: '', referralCode: '' },
   });
@@ -233,6 +233,7 @@ function PasswordStep({
           />
           <PasswordStrengthMeter
             password={passwordValue}
+            email={details.email}
             show={passwordFocused || passwordValue.length > 0}
             errorOverride={serverPwError ?? errors.password?.message}
           />
@@ -262,7 +263,7 @@ function PasswordStep({
 
         <div className="h-px w-full bg-border" />
 
-        <AuthSubmit type="submit" loading={isSubmitting} disabled={!isValid}>
+        <AuthSubmit type="submit" loading={isSubmitting} disabled={!isValid || isValidating}>
           Create account
         </AuthSubmit>
       </form>
