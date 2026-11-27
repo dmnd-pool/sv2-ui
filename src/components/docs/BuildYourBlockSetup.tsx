@@ -340,8 +340,9 @@ function SetupWizard({ storageKey }: { storageKey: string }) {
               </select>
             </label>
             {answers.platform.startsWith('windows') && <div role="note" className="rounded-xl border border-info/30 bg-info/5 p-4 text-base leading-6 text-heading">
-              <p className="font-semibold">Run every command inside WSL</p>
-              <p className="mt-1 text-sm text-body-alt">Open your Linux distribution’s terminal in WSL for all installation and setup steps.{docker && ' Install Docker Engine inside WSL. Docker Desktop for Windows is not tested.'}</p>
+              <p className="font-semibold">Use WSL on Windows</p>
+              <p className="mt-1 text-sm text-body-alt">Run every command in this guide in your WSL terminal (for example, Ubuntu), not in PowerShell or Command Prompt.{docker && ' Install Docker Engine inside WSL too.'}</p>
+              <p className="mt-2"><ExternalLink href="https://learn.microsoft.com/windows/wsl/install">Don’t have WSL yet? Install it</ExternalLink></p>
             </div>}
           </Instruction>
           <Instruction number={2} title="Configure your client">
@@ -374,12 +375,15 @@ function SetupWizard({ storageKey }: { storageKey: string }) {
               </Instruction>
             </div>
           </Instruction>
-          <Instruction number={4} title="Check it is connected">
-            {docker && code('docker logs -f dmnd-client')}
-            {docker || answers.headful ? <>
-              <DocText>{docker ? 'Open the dashboard in your browser' : 'When the client starts, its dashboard opens in your browser'} at http://127.0.0.1:{answers.apiPort}. Use it to check the client is connected and declaring templates.</DocText>
-              <p className="text-xs leading-5 text-body-alt">No screen on this computer? From your laptop, run <code className="break-all">ssh -L {answers.apiPort}:127.0.0.1:{answers.apiPort} you@&lt;node-computer&gt;</code>, then open http://127.0.0.1:{answers.apiPort}.</p>
-            </> : <DocText>Continue once the client declares templates.</DocText>}
+          <Instruction number={4} title="Verify your setup">
+            {docker || answers.headful ? <div className="flex flex-col gap-7">
+              <Instruction title="Client dashboard">
+                <DocText>Open the dashboard to check the client is connected and declaring templates. It may take a few seconds to show.</DocText>
+                <SetupCard href={`http://127.0.0.1:${answers.apiPort}`} title={`http://127.0.0.1:${answers.apiPort}`} icon={Monitor}
+                  description={docker ? 'DMND Client dashboard' : 'Opens on its own when the client starts.'} />
+              </Instruction>
+              {docker && <Instruction title="View logs">{code('docker logs -f dmnd-client')}</Instruction>}
+            </div> : <DocText>Continue once the client declares templates.</DocText>}
           </Instruction>
           {answers.mergeEnabled && <Instruction number={5} title="Once the client is running, start the bridge">
             <SetupCard href={`${BRIDGE_REPO}#build-and-run`} title="Install the merge-mining bridge" description="Follow the build instructions, then run this from the bridge’s folder in another terminal." />
