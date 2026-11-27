@@ -14,12 +14,12 @@ import {
 } from '@/lib/workersTable';
 import { StatusBadge } from './badges';
 
-/** One labelled cell in the details grid: muted label over the value. */
+/** One labelled cell in the details grid; long values wrap inside the cell. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-[3px]">
+    <div className="flex min-w-0 flex-col gap-[3px]">
       <p className="text-sm leading-5 text-body-alt">{label}</p>
-      <div className="text-base leading-6 text-foreground">{children}</div>
+      <div className="min-w-0 break-all text-base leading-6 text-foreground">{children}</div>
     </div>
   );
 }

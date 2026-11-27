@@ -7,13 +7,15 @@ import { useAccountScope } from '@/hooks/useAccountScope';
 import { truncateMiddle } from '@/lib/payoutsTable';
 import { ChangeBitcoinAddressModal } from './ChangeBitcoinAddressModal';
 
-/** A labelled read-only field styled like the other settings inputs. */
+/** A labelled read-only field; long values truncate (full value on hover). */
 function ReadonlyField({ label, value, children }: { label: string; value: string; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-sm leading-5 text-body-alt">{label}</span>
-      <div className="flex h-10 items-center rounded-[16px] bg-muted px-4 py-2 text-sm leading-5 text-foreground">
-        {value}
+      <div className="flex h-10 min-w-0 items-center rounded-[16px] bg-muted px-4 py-2 text-sm leading-5 text-foreground">
+        <span className="min-w-0 truncate" title={value}>
+          {value}
+        </span>
       </div>
       {children}
     </div>
