@@ -15,6 +15,7 @@ import {
   DocPage,
 } from '@/components/docs/DocGuide';
 import { cn } from '@/lib/utils';
+import { BuildYourBlockSetup } from '@/components/docs/BuildYourBlockSetup';
 
 const JOB_DECLARATION_PATH = '/build-your-block/job-declaration';
 const MERGE_MINING_PATH = '/build-your-block/merge-mining';
@@ -66,6 +67,7 @@ function Feature({
 export function BuildYourBlockPage() {
   return (
     <DocPage title="Build your block">
+      <BuildYourBlockSetup />
       <DocHero src={heroImage} />
 
       <DocLede>

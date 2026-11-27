@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { LiCopy, LiCheckCircle, LiAltArrowRight, LiAltArrowDown, LiCloseCircle, LiSettings } from 'solar-icon-react/li';
 import { OlArrowRightUp } from 'solar-icon-react/ol';
@@ -79,7 +79,7 @@ export function DocPage({
           )}
         >
           <LiSettings className="h-4 w-4" />
-          Your setup
+          Your details
           {!seenSetup && (
             <span aria-hidden className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-60 motion-reduce:hidden" />
@@ -95,16 +95,41 @@ export function DocPage({
   );
 }
 
+async function copyText(text: string, host: HTMLElement) {
+  if (navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      /* Try the text area below. */
+    }
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.readOnly = true;
+  area.setAttribute('aria-hidden', 'true');
+  area.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  const focused = document.activeElement;
+  host.appendChild(area);
+  area.select();
+  const copied = document.execCommand('copy');
+  area.remove();
+  if (focused instanceof HTMLElement) focused.focus();
+  if (!copied) throw new Error('Copy failed');
+}
+
 /**
  * A copyable code block. `aligned` opts into the monospace family for blocks whose
  * columns are space-padded and would otherwise render ragged.
  */
 export function CodeBlock({
   code,
+  display,
   aligned = false,
   className,
 }: {
   code: string;
+  display?: string;
   aligned?: boolean;
   className?: string;
 }) {
@@ -112,17 +137,23 @@ export function CodeBlock({
   const [revealed, setRevealed] = useState(false);
   // Whatever the reader has told the guide about their setup is substituted in here, so
   // Copy hands over a command that runs rather than one they still have to edit.
-  const filled = useCommandFill(code);
-  const shown = revealed ? filled.copy : filled.display;
+  const filled = useCommandFill(code, display === undefined);
+  const hidden = display ?? filled.display;
+  const hasSecret = hidden !== filled.copy;
+  const shown = revealed ? filled.copy : hidden;
+
+  const box = useRef<HTMLDivElement>(null);
 
   const copy = () => {
-    void navigator.clipboard?.writeText(filled.copy);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    if (!box.current) return;
+    void copyText(filled.copy, box.current).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }, () => setCopied(false));
   };
 
   return (
-    <div className={cn('flex items-start gap-3 rounded-xl bg-muted px-4 py-2', className)}>
+    <div ref={box} className={cn('flex items-start gap-3 rounded-xl bg-muted px-4 py-2', className)}>
       <pre
         className={cn(
           'min-w-0 flex-1 overflow-x-auto whitespace-pre text-sm leading-5 text-foreground',
@@ -141,7 +172,7 @@ export function CodeBlock({
       </pre>
       <span className="flex shrink-0 items-center gap-3 pt-0.5">
         {/* Secrets are masked on screen but copied in full. */}
-        {filled.hasSecret && (
+        {hasSecret && (
           <>
             <span aria-hidden className="h-6 w-[0.5px] bg-border" />
             <button
@@ -696,21 +727,19 @@ function useSetupValues() {
 
 const MASK = '••••••••';
 
-function useCommandFill(code: string) {
+function useCommandFill(code: string, personalize = true) {
   const values = useSetupValues();
   const { data: account } = useAccountProfile();
   const token = account?.token ?? '';
 
   let display = code;
   let copy = code;
-  let hasSecret = false;
   const filled: string[] = [];
 
   const apply = (needle: string, value: string, secret: boolean) => {
-    if (!value || !code.includes(needle)) return;
+    if (!personalize || !value || !code.includes(needle)) return;
     copy = copy.split(needle).join(value);
     display = display.split(needle).join(secret ? MASK : value);
-    if (secret) hasSecret = true;
     filled.push(needle);
   };
 
@@ -723,7 +752,7 @@ function useCommandFill(code: string) {
   // Whatever is still angle-bracketed is still the reader's to supply.
   const remaining = [...new Set(display.match(/<[^<>\s][^<>]*>/g) ?? [])];
 
-  return { display, copy, hasSecret, filled, remaining };
+  return { display, copy, filled, remaining };
 }
 
 function SetupDrawer({ onClose }: { onClose: () => void }) {
@@ -743,12 +772,12 @@ function SetupDrawer({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Your setup"
+        aria-label="Your details"
         className="relative flex h-full w-full max-w-md flex-col gap-5 overflow-y-auto bg-background p-6 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-lg font-semibold leading-7 text-foreground">Your setup</p>
+            <p className="text-lg font-semibold leading-7 text-foreground">Your details</p>
             <p className="text-sm leading-5 text-body-alt">Commands across these guides fill in with these values.</p>
           </div>
           <button
