@@ -233,7 +233,7 @@ function WatcherViewInner({ accountId, token }: { accountId: string; token: stri
           </DashboardHomeView>
         )}
         {active === 'workers' && <WorkersContent workers={workers.data ?? []} isLoading={workers.isLoading} isError={workers.isError} onRetry={workers.refetch} />}
-        {active === 'generated' && <GeneratedBtcContent projection={pplns.data} activelyMining={hashrate.data ? hashrate.data.pplns_hashrate > 0 : true} earningsUpdatedAt={generated.dataUpdatedAt} entries={generated.data ?? []} isLoading={generated.isLoading} isError={generated.isError} onRetry={generated.refetch}
+        {active === 'generated' && <GeneratedBtcContent earningsUpdatedAt={generated.dataUpdatedAt} entries={generated.data ?? []} isLoading={generated.isLoading} isError={generated.isError} onRetry={generated.refetch}
           payoutProgress={canViewPayouts ? { payouts: payouts.data, isLoading: payouts.isLoading, isError: payouts.isError } : undefined} />}
         {active === 'payouts' && <PayoutsContent payouts={payouts.data ?? []} isLoading={payouts.isLoading} isError={payouts.isError} onRetry={payouts.refetch} />}
         {active === 'pplns' && <PplnsProjectionPanel projection={pplns.data} isLoading={pplns.isLoading} isError={pplns.isError} showStats selectable={false} />}

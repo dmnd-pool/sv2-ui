@@ -1,5 +1,5 @@
-import { cn, downloadCsv as downloadCsvFile } from '@/lib/utils';
-import type { GeneratedBtcEntry, PplnsProjection } from '@/api/types';
+import { downloadCsv as downloadCsvFile } from '@/lib/utils';
+import type { GeneratedBtcEntry } from '@/api/types';
 import { GeneratedBtcEmptyState } from '@/components/generated-btc/GeneratedBtcEmptyState';
 import {
   EMPTY_GBTC_FILTER_DRAFT,
@@ -30,7 +30,6 @@ import {
   generatedBtcForScheme,
   generatedAmount,
   type GeneratedBtcDisplayEntry,
-  type PplnsAccountState,
   searchGeneratedBtc,
   sortGeneratedByDateDesc,
   sumGenerated,
@@ -38,44 +37,16 @@ import {
 import { GENERATED_AVG_HASHRATE_HINT } from '@/lib/metricWindows';
 import { paginate } from '@/lib/workersTable';
 import { useMemo, useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
-import { getUser } from '@/api';
-import { useAuth } from '@/auth';
 import { LiUploadMinimalistic } from 'solar-icon-react/li';
 import { useAggregatedModeContext } from '@/hooks/AggregatedModeProvider';
 import { useAggregatedGeneratedBtc, useGeneratedBtc } from '@/hooks/useGeneratedBtc';
 import { useSubaccountList } from '@/hooks/useSubaccounts';
 import { MAIN_ACCOUNT_LABEL } from '@/lib/payoutsTable';
 import { subaccountName } from '@/lib/subaccountsTable';
-import { pplnsProjectionQueryOptions, usePplnsProjection } from '@/hooks/usePplnsProjection';
-import { accountSummaryQueryOptions, useAccountHashrate } from '@/hooks/useAccountData';
 import { useActiveAccountId } from '@/hooks/useActiveAccountId';
 import { combinedDailyEarnings } from '@/lib/generatedBtcTable';
 
 const PAGE_SIZE = 10;
-
-// Module-level so useQueries keeps the combined arrays stable between renders.
-const queryData = <T,>(results: { data?: T }[]) => results.map((r) => r.data);
-
-function useSubaccountPplnsStates(enabled: boolean): PplnsAccountState[] {
-  const { session } = useAuth();
-  const ownerId = session?.accountId ?? null;
-  const { data: subs } = useSubaccountList();
-  const ids = enabled && ownerId ? (subs ?? []).map((sub) => sub.id) : [];
-  const client = getUser();
-  const projections = useQueries({
-    queries: ids.map((id) => pplnsProjectionQueryOptions(client, id, ownerId)),
-    combine: queryData,
-  });
-  const summaries = useQueries({
-    queries: ids.map((id) => accountSummaryQueryOptions(client, ownerId, id)),
-    combine: queryData,
-  });
-  return useMemo(() => projections.flatMap((projection, i) => {
-    const summary = summaries[i];
-    return projection && summary ? [{ projection, activelyMining: summary.hashrate.pplns_hashrate > 0 }] : [];
-  }), [projections, summaries]);
-}
 
 function downloadCsv(content: string, scheme: string): void {
   downloadCsvFile(content, `${scheme}_generated_btc.csv`);
@@ -85,10 +56,7 @@ function downloadCsv(content: string, scheme: string): void {
  * The Generated BTC page: daily FPPS or PPLNS hashrate and generated BTC with
  * summary cards, a date filter, pagination, and CSV export.
  */
-export function GeneratedBtcContent({ entries: allEntries, isLoading, isError, onRetry: refetch, accounts: accountNames, canConnect = false, canExport = false, payoutProgress, projection, activelyMining = true, subaccountPplns, earningsUpdatedAt }: {
-  projection?: PplnsProjection | null;
-  activelyMining?: boolean;
-  subaccountPplns?: PplnsAccountState[];
+export function GeneratedBtcContent({ entries: allEntries, isLoading, isError, onRetry: refetch, accounts: accountNames, canConnect = false, canExport = false, payoutProgress, earningsUpdatedAt }: {
   earningsUpdatedAt?: number;
   entries: GeneratedBtcEntry[];
   isLoading: boolean;
@@ -99,12 +67,11 @@ export function GeneratedBtcContent({ entries: allEntries, isLoading, isError, o
   canExport?: boolean;
   payoutProgress?: PayoutProgressData;
 }) {
-  const [showFpps, setShowFpps] = useState(true);
-  const scheme = showFpps ? 'fpps' : 'pplns';
-  const schemeLabel = showFpps ? 'FPPS' : 'PPLNS';
+  const scheme = 'fpps';
+  const schemeLabel = 'FPPS';
   const today = new Date(earningsUpdatedAt || Date.now()).toISOString().slice(0, 10);
-  const entries = useMemo(() => generatedBtcForScheme(allEntries, showFpps, projection, activelyMining, today, accountNames !== undefined, subaccountPplns),
-    [allEntries, showFpps, projection, activelyMining, today, accountNames, subaccountPplns]);
+  const entries = useMemo(() => generatedBtcForScheme(allEntries, true, null, false, today, accountNames !== undefined, []),
+    [allEntries, today, accountNames]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<GbtcFilterDraft>(EMPTY_GBTC_FILTER_DRAFT);
   const [page, setPage] = useState(1);
@@ -188,29 +155,9 @@ export function GeneratedBtcContent({ entries: allEntries, isLoading, isError, o
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Generated BTC</h2>
-          <p className="mt-1 text-sm text-body-alt">Track your mining rewards and earnings over time.</p>
-        </div>
-        <div className="flex shrink-0">
-          <div role="group" aria-label="Reward scheme" className="inline-flex gap-1 rounded-xl border border-border bg-muted p-1">
-            {(['FPPS', 'PPLNS'] as const).map((label) => (
-              <button
-                key={label}
-                type="button"
-                aria-pressed={schemeLabel === label}
-                className={cn(
-                  'min-w-16 rounded-lg px-3 py-1.5 text-sm font-semibold leading-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  schemeLabel === label ? 'bg-btn text-btn-foreground shadow-sm' : 'text-body-alt hover:bg-background/50 hover:text-foreground',
-                )}
-                onClick={() => { setShowFpps(label === 'FPPS'); setPage(1); setSelected(new Set()); }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <header>
+        <h2 className="font-heading text-2xl font-semibold leading-9 tracking-[-1px] text-heading">Generated BTC</h2>
+        <p className="mt-1 text-sm text-body-alt">Track your mining rewards and earnings over time.</p>
       </header>
 
       {isLoading ? (
@@ -348,9 +295,6 @@ export function GeneratedBtcPage() {
   const { aggregated } = useAggregatedModeContext();
   const accountId = useActiveAccountId();
   const progressPayouts = usePayouts(!aggregated);
-  const projection = usePplnsProjection();
-  const hashrate = useAccountHashrate();
-  const subaccountPplns = useSubaccountPplnsStates(aggregated);
   const single = useGeneratedBtc(!aggregated);
   // Aggregated mode reads generated-BTC entries across every account, tagged with
   // their owner; the two queries have separate cache entries so toggling never serves
@@ -369,7 +313,7 @@ export function GeneratedBtcPage() {
     [aggregated, subs],
   );
 
-  return <GeneratedBtcContent projection={projection.data} activelyMining={hashrate.data ? hashrate.data.pplns_hashrate > 0 : true} subaccountPplns={subaccountPplns} earningsUpdatedAt={selectedQuery.dataUpdatedAt} key={`${accountId}-${aggregated}`} entries={entries} isLoading={selectedQuery.isLoading} isError={selectedQuery.isError} onRetry={selectedQuery.refetch} accounts={accountNames} canConnect canExport
+  return <GeneratedBtcContent earningsUpdatedAt={selectedQuery.dataUpdatedAt} key={`${accountId}-${aggregated}`} entries={entries} isLoading={selectedQuery.isLoading} isError={selectedQuery.isError} onRetry={selectedQuery.refetch} accounts={accountNames} canConnect canExport
     payoutProgress={aggregated ? undefined : { payouts: progressPayouts.data, isLoading: progressPayouts.isLoading, isError: progressPayouts.isError }} />;
 }
 
